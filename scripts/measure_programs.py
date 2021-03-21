@@ -4,6 +4,7 @@ import argparse
 import glob
 import os
 import pickle
+import time
 
 from tqdm import tqdm
 
@@ -41,7 +42,7 @@ def remeasure_file(filename, target, target_host, batch_size):
     empty_policy = auto_scheduler.search_policy.EmptyPolicy(task)
 
     for i in range(0, len(inputs), batch_size):
-        inp_batch = inputs[i:i+batch_size]
+        inp_batch = inputs[i:min(len(inputs), i + batch_size)]
         res_batch = measurer.measure(task, empty_policy, inp_batch)
 
 
@@ -57,6 +58,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--target", type=str, required=True)
     parser.add_argument("--target-host", type=str)
+    parser.add_argument("--batch-size", type=int, default=128)
     args = parser.parse_args()
 
     # Load task registry
@@ -68,6 +70,12 @@ if __name__ == "__main__":
     filenames.sort()
     print(f"Load {len(filenames)} files")
 
-    for filename in tqdm(filenames):
-        remeasure_file(filename, args.target, args.target_host, batch_size=128)
+    for i, filename in enumerate(filenames):
+        with open("progress.txt", "a") as fout:
+            fout.write(f"Begin {i}/{len(filenames)}: {time.time():.2f}\n")
+
+        remeasure_file(filename, args.target, args.target_host, batch_size=args.batch_size)
+
+        with open("progress.txt", "a") as fout:
+            fout.write(f"End {i}/{len(filenames)}: {time.time():.2f}\n")
 
