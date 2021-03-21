@@ -393,6 +393,12 @@ TVM_REGISTER_GLOBAL("auto_scheduler.ProgramMeasurer")
       return ProgramMeasurer(builder, runner, callbacks, verbose, max_continuous_error);
     });
 
+TVM_REGISTER_GLOBAL("auto_scheduler.ProgramMeasurerMeasure")
+    .set_body_typed([](ProgramMeasurer measurer, SearchTask task, SearchPolicy policy,
+                       const Array<MeasureInput>& inputs) {
+      return measurer->Measure(task, policy, inputs);
+    });
+
 TVM_REGISTER_GLOBAL("auto_scheduler.ProgramBuilderBuild")
     .set_body_typed([](const ProgramBuilder& builder, const Array<MeasureInput>& inputs,
                        int verbose) { return builder->Build(inputs, verbose); });

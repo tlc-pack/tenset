@@ -38,6 +38,8 @@ import tempfile
 import multiprocessing
 import logging
 
+import numpy as np
+
 import tvm._ffi
 from tvm.runtime import Object, module, ndarray
 from tvm.driver import build_module
@@ -307,6 +309,9 @@ class ProgramMeasurer(Object):
         self.__init_handle_by_constructor__(
             _ffi_api.ProgramMeasurer, builder, runner, callbacks, verbose, max_continuous_error
         )
+
+    def measure(self, task, policy, inputs):
+        return _ffi_api.ProgramMeasurerMeasure(self, task, policy, inputs)
 
 
 @tvm._ffi.register_object("auto_scheduler.LocalBuilder")
@@ -842,14 +847,6 @@ def _timed_eval_func(
         # the PackedFunc as an object. Currently, we pass function name to work
         # around it.
         f_prepare = "cache_flush_cpu_non_first_arg" if enable_cpu_cache_flush else ""
-        time_f = func.time_evaluator(
-            func.entry_name,
-            ctx,
-            number=number,
-            repeat=repeat,
-            min_repeat_ms=min_repeat_ms,
-            f_preproc=f_prepare,
-        )
     # pylint: disable=broad-except
     except Exception:
         costs = (MAX_FLOAT,)
@@ -888,7 +885,24 @@ def _timed_eval_func(
                     "task_inputs not fully matched, check if there's any unexpected error"
                 )
             ctx.sync()
-            costs = time_f(*args).results
+
+            # retry until the coefficient of variation is small enough
+            max_cv = 0.1
+            max_retry = 4
+            now_repeat = repeat
+            for i in range(max_retry):
+                time_f = func.time_evaluator(
+                    func.entry_name,
+                    ctx,
+                    number=number,
+                    repeat=now_repeat,
+                    min_repeat_ms=min_repeat_ms,
+                    f_preproc=f_prepare,
+                )
+                costs = time_f(*args).results
+                if np.std(costs) / np.mean(costs) <= max_cv:
+                    break
+                now_repeat = int(1.5 * now_repeat)
         # pylint: disable=broad-except
         except Exception:
             costs = (MAX_FLOAT,)

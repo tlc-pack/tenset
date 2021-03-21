@@ -233,3 +233,7 @@ conda/pkg
 # nix files
 .envrc
 *.nix
+
+# dataset files
+scripts/dataset
+scripts/*.zip

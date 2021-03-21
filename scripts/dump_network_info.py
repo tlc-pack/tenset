@@ -3,6 +3,7 @@
 import argparse
 from collections import namedtuple
 import gc
+import multiprocessing
 import os
 import pickle
 
@@ -95,13 +96,18 @@ def get_network(network_key):
     return mod, params, inputs
 
 
-def dump_network(network_key, mod, params, inputs):
+def dump_network(network_key):
     name, target, args = network_key
 
     folder = NETWORK_INFO_FOLDER
     os.makedirs(folder, exist_ok=True)
     model_filename = f"{folder}/{network_key}.model.pkl" 
     task_info_filename = f"{folder}/{network_key}.task.pkl" 
+
+    if os.path.exists(task_info_filename):
+        return
+
+    mod, params, inputs = get_network(key)
 
     # Dump network relay ir
     print(f"Dump relay ir for {network_key}...")
@@ -129,11 +135,10 @@ def build_network_keys():
 
     # mobilenet_v2
     for batch_size in [1, 4, 8]:
-        for version in [1, 2]:
-            for image_size in [224, 240, 256]:
-                for name in ['mobilenet_v3', 'mobilenet_v3']:
-                    network_keys.append((f'{name}', target,
-                                        [(batch_size, 3, image_size, image_size)]))
+        for image_size in [224, 240, 256]:
+            for name in ['mobilenet_v2', 'mobilenet_v3']:
+                network_keys.append((f'{name}', target,
+                                    [(batch_size, 3, image_size, image_size)]))
 
     # wide-resnet
     for batch_size in [1, 4, 8]:
@@ -166,7 +171,7 @@ def build_network_keys():
     # dcgan
     for batch_size in [1, 4, 8]:
         for image_size in [64, 80, 96]:
-            network_keys.append((f'dcgan', 'llvm', [(batch_size, 3, image_size, image_size)]))
+            network_keys.append((f'dcgan', target, [(batch_size, 3, image_size, image_size)]))
 
     return network_keys
 
@@ -175,7 +180,6 @@ if __name__ == "__main__":
     network_keys = build_network_keys()
 
     for key in tqdm(network_keys):
-        mod, params, inputs = get_network(key)
-        dump_network(key, mod, params, inputs)
+        dump_network(key)
         gc.collect()
 

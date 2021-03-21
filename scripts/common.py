@@ -3,6 +3,8 @@ from tvm import relay
 
 
 NETWORK_INFO_FOLDER = 'dataset/network_info'
+TO_MEASURE_PROGRAM_FOLDER = 'dataset/to_measure_programs'
+MEASURE_RECORD_FOLDER = 'dataset/measure_records'
 
 
 def convert_to_nhwc(mod):
