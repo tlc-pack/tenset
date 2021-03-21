@@ -80,6 +80,10 @@ def get_conv2d_out_channels(kernel_shape, kernel_layout):
 
 
 def is_depthwise_conv2d(data_shape, data_layout, kernel_shape, kernel_layout, groups):
+    if len(kernel_shape) > 4:
+        # This is a rewritten layout for group convolution.
+        # It must not be a depthwise_conv2d.
+        return False
     ic = get_conv2d_in_channels(data_shape, data_layout)
     oc = get_conv2d_out_channels(kernel_shape, kernel_layout)
     return ic == oc == groups

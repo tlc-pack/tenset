@@ -40,17 +40,18 @@ def get_relay_conv2d(
     pad=0,
     stride=1,
     dilation=1,
+    groups=1,
     layout="NHWC",
 ):
     dtype = "float32"
     if layout == "NHWC":
         kernel_layout = "HWIO"
         d = relay.var("data", shape=(batch, height, width, inc), dtype=dtype)
-        w = relay.var("weight", shape=(kh, kw, inc, outc), dtype=dtype)
+        w = relay.var("weight", shape=(kh, kw, inc // groups, outc), dtype=dtype)
     elif layout == "NCHW":
         kernel_layout = "OIHW"
         d = relay.var("data", shape=(batch, inc, height, width), dtype=dtype)
-        w = relay.var("weight", shape=(outc, inc, kh, kw), dtype=dtype)
+        w = relay.var("weight", shape=(outc, inc // groups, kh, kw), dtype=dtype)
 
     y = relay.nn.conv2d(
         d,
@@ -60,7 +61,7 @@ def get_relay_conv2d(
         strides=(stride, stride),
         dilation=(dilation, dilation),
         channels=outc,
-        groups=1,
+        groups=groups,
         data_layout=layout,
         kernel_layout=kernel_layout,
     )
@@ -192,6 +193,11 @@ def test_conv2d_winograd():
     tune_and_check(mod, data, weight)
 
 
+def test_group_conv2d():
+    mod, data, weight = get_relay_conv2d(kh=3, kw=3, groups=2)
+    tune_and_check(mod, data, weight)
+
+
 def test_conv3d():
     mod, data, weight = get_relay_conv3d()
     tune_and_check(mod, data, weight)
@@ -210,6 +216,8 @@ def test_batch_matmul():
 if __name__ == "__main__":
     test_conv2d()
     test_conv2d_winograd()
+    test_group_conv2d()
     test_conv3d()
     test_dense()
     test_batch_matmul()
+

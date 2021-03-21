@@ -880,7 +880,8 @@ def group_conv2d_nchw(Input, Filter, stride, padding, dilation, groups, out_dtyp
     )
 
 
-def group_conv2d_nhwc(Input, Filter, stride, padding, dilation, groups, out_dtype=None):
+def group_conv2d_nhwc(Input, Filter, stride, padding, dilation, groups, out_dtype=None,
+                      auto_scheduler_rewritten_layout=""):
     """Group convolution operator in NHWC layout.
 
     Parameters
@@ -908,6 +909,9 @@ def group_conv2d_nhwc(Input, Filter, stride, padding, dilation, groups, out_dtyp
     out_dtype : str
         The output type. This is used for mixed precision.
 
+    auto_scheduler_rewritten_layout: str = ""
+        The layout after auto-scheduler's layout rewrite pass.
+
     Returns
     -------
     Output : tvm.te.Tensor
@@ -928,7 +932,15 @@ def group_conv2d_nhwc(Input, Filter, stride, padding, dilation, groups, out_dtyp
         dilation_h, dilation_w = dilation
 
     batch, in_height, in_width, in_channel = get_const_tuple(Input.shape)
-    kernel_h, kernel_w, _, num_filter = get_const_tuple(Filter.shape)
+
+    if auto_scheduler_rewritten_layout:
+        # Infer shape for the rewritten layout
+        kernel_h, kernel_w, channel, num_filter = auto_scheduler.get_shape_from_rewritten_layout(
+            auto_scheduler_rewritten_layout, ["ry", "rx", "rc", "ff"]
+        )
+        auto_scheduler.remove_index_check(Filter)
+    else:
+        kernel_h, kernel_w, _, num_filter = get_const_tuple(Filter.shape)
 
     assert in_channel % groups == 0, "input channels must divide group size"
     assert num_filter % groups == 0, "output channels must divide group size"
@@ -949,7 +961,7 @@ def group_conv2d_nhwc(Input, Filter, stride, padding, dilation, groups, out_dtyp
     ry = te.reduce_axis((0, kernel_h), name="ry")
     rx = te.reduce_axis((0, kernel_w), name="rx")
     rc = te.reduce_axis((0, in_channel // groups), name="rc")
-    return te.compute(
+    Output = te.compute(
         (batch, out_height, out_width, out_channel),
         lambda nn, yy, xx, ff: te.sum(
             temp[
@@ -962,7 +974,13 @@ def group_conv2d_nhwc(Input, Filter, stride, padding, dilation, groups, out_dtyp
             axis=[ry, rx, rc],
         ),
         tag="group_conv2d_nhwc",
+        attrs={"layout_free_placeholders": [Filter]},
     )
+
+    if auto_scheduler_rewritten_layout:
+        Output = auto_scheduler.rewrite_compute_body(Output, auto_scheduler_rewritten_layout)
+
+    return Output
 
 
 def unpack_NCHWc_to_nchw(packed_out, out_dtype):

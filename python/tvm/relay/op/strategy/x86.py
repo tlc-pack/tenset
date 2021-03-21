@@ -217,7 +217,8 @@ def conv2d_strategy_cpu(attrs, inputs, out_type, target):
             if not is_auto_scheduler_enabled():
                 logger.warning("group_conv2d is not optimized for x86 with autotvm.")
             strategy.add_implementation(
-                wrap_compute_conv2d(topi.nn.group_conv2d_nhwc, has_groups=True),
+                wrap_compute_conv2d(topi.nn.group_conv2d_nhwc,
+                    has_groups=True, need_auto_scheduler_layout=True),
                 wrap_topi_schedule(topi.generic.schedule_group_conv2d_nhwc),
                 name="group_conv2d_nhwc.generic",
             )

@@ -129,6 +129,20 @@ bool Conv1DRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
   return true;
 }
 
+
+template <typename AttrType>
+Array<PrimExpr> ResolveAutoSchedulerRewrittenLayout(const AttrType* param,
+                                                    Array<PrimExpr> raw_shape) {
+  if (param->auto_scheduler_rewritten_layout.size() == 0) {
+    return raw_shape;
+  } else {
+    ICHECK_EQ(param->kernel_layout, "HWIO");
+    return auto_scheduler::GetShapeFromRewrittenLayout(param->auto_scheduler_rewritten_layout,
+                                                       {"ry", "rx", "rc", "ff"});
+  }
+}
+
+
 template <typename AttrType>
 bool Conv2DRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
                const TypeReporter& reporter) {
@@ -182,7 +196,8 @@ bool Conv2DRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
       return false;
     }
 
-    Array<IndexExpr> wshape_oihw = trans_kernel_layout.ForwardShape(weight->shape);
+    Array<PrimExpr> wshape = ResolveAutoSchedulerRewrittenLayout(param, weight->shape);
+    Array<IndexExpr> wshape_oihw = trans_kernel_layout.ForwardShape(wshape);
     if (tvm::tir::ExprDeepEqual()(param->groups, dshape_nchw[1]) &&
         tvm::tir::ExprDeepEqual()(param->groups, wshape_oihw[0])) {
       is_depthwise = true;
@@ -227,15 +242,7 @@ bool Conv2DRel(const Array<Type>& types, int num_inputs, const Attrs& attrs,
     // use weight to infer the conv shape.
     if (weight == nullptr) return false;
 
-    Array<PrimExpr> wshape;
-    if (param->auto_scheduler_rewritten_layout.size() == 0) {
-      wshape = weight->shape;
-    } else {
-      // works for the default kernel layout "HWIO"
-      ICHECK_EQ(param->kernel_layout, "HWIO");
-      wshape = auto_scheduler::GetShapeFromRewrittenLayout(param->auto_scheduler_rewritten_layout,
-                                                           {"ry", "rx", "rc", "ff"});
-    }
+    Array<PrimExpr> wshape = ResolveAutoSchedulerRewrittenLayout(param, weight->shape);
 
     wshape = trans_kernel_layout.ForwardShape(wshape);
     if (param->kernel_size.defined()) {
