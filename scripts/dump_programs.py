@@ -92,10 +92,9 @@ def dump_program(task, size, max_retry_iter=10):
 
 if __name__ == "__main__":
     tasks = get_tasks()
+    tasks.sort(key=lambda x: x.compute_dag.flop_ct)
 
-    print(f"Load {len(tasks)} tasks in total")
-
-    pickle.dump(tasks, open(f"{TO_MEASURE_PROGRAM_FOLDER}/task_registry.pkl", "wb"))
+    pickle.dump(tasks, open(f"{TO_MEASURE_PROGRAM_FOLDER}/all_tasks.pkl", "wb"))
 
     for task in tqdm(tasks):
         dump_program(task, size=3000)
