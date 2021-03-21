@@ -92,7 +92,7 @@ def dump_program(task, size, max_retry_iter=10):
 
 if __name__ == "__main__":
     tasks = get_tasks()
-    tasks.sort(key=lambda x: x.compute_dag.flop_ct)
+    tasks.sort(key=lambda x: (str(x.target.kind), x.compute_dag.flop_ct, x.workload_key))
 
     pickle.dump(tasks, open(f"{TO_MEASURE_PROGRAM_FOLDER}/all_tasks.pkl", "wb"))
 

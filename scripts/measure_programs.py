@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
         # Set measurement arguments
         measurer_kwargs = {
-            "run_timeout": 4,
+            "run_timeout": 5,
             "repeat": 8,
             "number": 1,
             "enable_cpu_cache_flush": True,
@@ -112,6 +112,7 @@ if __name__ == "__main__":
         else:
             measurer_kwargs['repeat'] = 8
 
+        # Run measurement
         task_key = (task.workload_key, str(task.target.kind))
         reference_filename = f"{TO_MEASURE_PROGRAM_FOLDER}/{task_key}.json"
         remeasure_file(i, reference_filename, args.target, args.target_host,
