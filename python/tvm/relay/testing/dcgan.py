@@ -83,25 +83,27 @@ def get_net(
     dtype="float32",
 ):
     """get net of dcgan generator"""
-    assert oshape[-1] == 64, "Only support 64x64 image"
-    assert oshape[-2] == 64, "Only support 64x64 image"
+    assert oshape[-1] == oshape[-2]
+    assert oshape[-2] % 16 == 0
+
+    base_size = oshape[-1] // 16
 
     code = relay.var("data", dtype=dtype, shape=(batch_size, random_len)) if code is None else code
     dense_weight = relay.var("dense_weight")
-    dense = relay.nn.dense(code, weight=dense_weight, units=4 * 4 * ngf * 8)
+    dense = relay.nn.dense(code, weight=dense_weight, units=base_size * base_size * ngf * 8)
     relu = relay.nn.relu(dense)
     # 4 x 4
     if layout == "NCHW":
-        reshape = relay.reshape(relu, newshape=(-1, ngf * 8, 4, 4))
+        reshape = relay.reshape(relu, newshape=(-1, ngf * 8, base_size, base_size))
     elif layout == "NHWC":
-        reshape = relay.reshape(relu, newshape=(-1, 4, 4, ngf * 8))
+        reshape = relay.reshape(relu, newshape=(-1, base_size, base_size, ngf * 8))
     else:
         raise ValueError("Invalid layout: " + layout)
     # 8 x 8
     dc8 = deconv2d_bn_relu(
         reshape,
-        ishape=(ngf * 8, 4, 4),
-        oshape=(ngf * 4, 8, 8),
+        ishape=(ngf * 8, base_size, base_size),
+        oshape=(ngf * 4, base_size * 2, base_size * 2),
         kshape=(4, 4),
         layout=layout,
         prefix="g2",
@@ -109,8 +111,8 @@ def get_net(
     # 16x16
     dc16 = deconv2d_bn_relu(
         dc8,
-        ishape=(ngf * 4, 8, 8),
-        oshape=(ngf * 2, 16, 16),
+        ishape=(ngf * 4, base_size * 2, base_size * 2),
+        oshape=(ngf * 2, base_size * 4, base_size * 4),
         kshape=(4, 4),
         layout=layout,
         prefix="g3",
@@ -118,8 +120,8 @@ def get_net(
     # 32x32
     dc32 = deconv2d_bn_relu(
         dc16,
-        ishape=(ngf * 2, 16, 16),
-        oshape=(ngf, 32, 32),
+        ishape=(ngf * 2, base_size * 4, base_size * 4),
+        oshape=(ngf, base_size * 8, base_size * 8),
         kshape=(4, 4),
         layout=layout,
         prefix="g4",
@@ -127,7 +129,7 @@ def get_net(
     # 64x64
     dc64 = deconv2d(
         dc32,
-        ishape=(ngf, 32, 32),
+        ishape=(ngf, base_size * 8, base_size * 8),
         oshape=oshape[-3:],
         kshape=(4, 4),
         layout=layout,
