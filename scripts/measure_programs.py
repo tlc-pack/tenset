@@ -21,7 +21,7 @@ def remeasure_file(filename, target, target_host, batch_size):
     target = tvm.target.Target(target)
     folder = f"{MEASURE_RECORD_FOLDER}/{target.model}"
     os.makedirs(folder, exist_ok=True)
-    log_filename = f"{folder}/{filename}"
+    log_filename = f"{folder}/{os.path.basename(filename)}"
     measurer = auto_scheduler.measure.ProgramMeasurer(
 	builder,
 	runner,
@@ -55,7 +55,7 @@ def load_workload_registry():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--target", type=str)
+    parser.add_argument("--target", type=str, required=True)
     parser.add_argument("--target-host", type=str)
     args = parser.parse_args()
 
