@@ -265,15 +265,25 @@ def conv2d_transpose_strategy_cpu(attrs, inputs, out_type, target):
     layout = attrs.data_layout
     dilation = get_const_tuple(attrs.dilation)
     groups = attrs.groups
-    assert layout == "NCHW", "only support nchw for now"
     assert dilation == (1, 1), "not support dilate now"
     assert groups == 1, "only support groups == 1 for now"
     strategy = _op.OpStrategy()
-    strategy.add_implementation(
-        wrap_compute_conv2d_transpose(topi.x86.conv2d_transpose_nchw),
-        wrap_topi_schedule(topi.x86.schedule_conv2d_transpose_nchw),
-        name="conv2d_transpose_nchw.x86",
-    )
+
+    if layout == "NCHW":
+        strategy.add_implementation(
+            wrap_compute_conv2d_transpose(topi.x86.conv2d_transpose_nchw),
+            wrap_topi_schedule(topi.x86.schedule_conv2d_transpose_nchw),
+            name="conv2d_transpose_nchw.x86",
+        )
+    elif layout == "NHWC":
+        strategy.add_implementation(
+            wrap_compute_conv2d_transpose(topi.nn.conv2d_transpose_nhwc),
+            naive_schedule,
+            name='conv2d_transpose_nchw.x86',
+        )
+    else:
+        raise ValueError("Invalid layout: " + layout)
+
     return strategy
 
 
