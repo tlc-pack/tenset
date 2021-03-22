@@ -16,11 +16,11 @@ The dataset is stored under `/scripts/dataset` folder.
 
 ## Data Collection Procedure
 
-1. Dump metadata of all networks. The metadata includes all tasks and relay IR of a network
+1. (about 30 mins) Dump metadata of all networks. The metadata includes all tasks and relay IR of a network.
 ```
 python3 dump_network_info.py
 ```
-2. Dump all programs for measurement
+2. (about 30 mins) Dump all programs for measurement
 ```
 python3 dump_programs.py
 ```
