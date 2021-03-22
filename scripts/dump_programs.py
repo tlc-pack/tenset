@@ -1,5 +1,6 @@
 """Dump programs for all tasks"""
 
+import argparse
 import pickle
 import gc
 import glob
@@ -93,6 +94,12 @@ def dump_program(task, size, max_retry_iter=10):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--start-idx", type=int)
+    parser.add_argument("--end-idx", type=int)
+    args = parser.parse_args()
+
+    # Read all tasks
     tasks = get_tasks()
     tasks.sort(key=lambda x: (str(x.target.kind), x.compute_dag.flop_ct, x.workload_key))
 
@@ -101,8 +108,11 @@ if __name__ == "__main__":
     os.makedirs(folder, exist_ok=True)
     pickle.dump(tasks, open(f"{TO_MEASURE_PROGRAM_FOLDER}/all_tasks.pkl", "wb"))
 
+    start_idx = args.start_idx or 0
+    end_idx = args.end_idx or len(tasks)
+
     # Dump programs for all tasks
-    for task in tqdm(tasks):
+    for task in tqdm(tasks[start_idx:end_idx]):
         dump_program(task, size=3000)
         gc.collect()
 
