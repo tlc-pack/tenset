@@ -50,7 +50,7 @@ def get_network_with_key(network_key):
         inputs = [(input_name, input_shape, dtype)]
     elif name in ['bert_tiny', 'bert_base', 'bert_medium', 'bert_large']:
         import torch
-        import transformers  # pip3 install transformers==3.5 torch=1.7
+        import transformers  # pip3 install transformers==3.5 torch==1.7
         os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
         config_dict = {
@@ -80,6 +80,10 @@ def get_network_with_key(network_key):
         input_name = 'input_ids'
         shape_list = [(input_name, input_shape)]
         mod, params = relay.frontend.from_pytorch(scripted_model, shape_list)
+
+        mod = relay.transform.FastMath()(mod)
+        mod = relay.transform.CombineParallelBatchMatmul()(mod)
+
         inputs = [(input_name, input_shape, input_dtype)]
     elif name == 'dcgan':
         import tvm.relay.testing
