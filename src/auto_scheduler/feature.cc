@@ -1465,17 +1465,17 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
                                          int skip_first_n_feature_extraction, int max_n_bufs,
                                          std::vector<std::vector<float>>* features,
                                          std::vector<float>* normalized_throughputs,
-                                         std::vector<int>* task_ids) {
+                                         std::vector<int>* task_ids,
+                                         std::vector<float>* min_costs) {
   Array<State> states;
   std::vector<SearchTask> tasks;
 
   normalized_throughputs->clear();
   task_ids->clear();
+  min_costs->clear();
 
   // (workload_key, target) -> (search_task, task_id)
   std::unordered_map<std::pair<std::string, std::string>, std::pair<SearchTask, size_t>> task_cache;
-  // task_id -> min_cost
-  std::vector<float> min_costs;
 
   const auto* workload_key_to_tensors =
       tvm::runtime::Registry::Get("auto_scheduler.workload_key_to_tensors");
@@ -1513,10 +1513,10 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
 
       // compute min cost for each task
       task_cache.insert(std::make_pair(key, std::make_pair(task, task_id)));
-      min_costs.push_back(cost);
+      min_costs->push_back(cost);
     } else {
       std::tie(task, task_id) = find_res->second;
-      min_costs[task_id] = std::min(min_costs[task_id], cost);
+      (*min_costs)[task_id] = std::min((*min_costs)[task_id], cost);
     }
 
     tasks.push_back(std::move(task));
@@ -1526,7 +1526,7 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
   }
 
   for (size_t i = 0; i < normalized_throughputs->size(); ++i) {
-    (*normalized_throughputs)[i] = min_costs[(*task_ids)[i]] / (*normalized_throughputs)[i];
+    (*normalized_throughputs)[i] = (*min_costs)[(*task_ids)[i]] / (*normalized_throughputs)[i];
   }
 
   GetPerStoreFeaturesFromStates(states, tasks, skip_first_n_feature_extraction, max_n_bufs,
@@ -1543,7 +1543,7 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
  * The packed format for n records is:
  * {
  *   int   n;
- *   int   sizes[n+2];           // The sizes for the following arrays
+ *   int   sizes[n+3];           // The sizes for the following arrays
  *
  *   float features_0[size[0]];  // The features for record 0
  *   float features_1[size[1]];  // The features for record 1
@@ -1552,22 +1552,24 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
  *   ... // until i == n - 1
  *
  *   float throughputs[sizes[n]];  // The normalized throughputs for n records
- *   int   task_ids[size[n+1]];   // The task ids for n records
- *
+ *   int   task_ids[size[n+1]];    // The task ids for n records
+ *   float min_costs[size[n+2]];   // The min costs for all tasks
  * }
  * To implement this format, we also store int as float, so we can store all numbers
  * into a single float array.
  */
 TVMByteArray SerializeFeatures(std::vector<std::vector<float>>&& features,
                                std::vector<float>&& normalized_throughputs,
-                               std::vector<int>&& task_ids, std::vector<char>* out_data) {
+                               std::vector<int>&& task_ids,
+                               std::vector<float>&& min_costs,
+                               std::vector<char>* out_data) {
   size_t total_bytes = 0;
   std::vector<int> size_vector;
 
   int n = features.size();
 
   // serialize sizes
-  size_t size_vector_size = 1 + n + 2;
+  size_t size_vector_size = 1 + n + 3;
   total_bytes += size_vector_size * sizeof(int);
 
   size_vector.reserve(size_vector_size);
@@ -1580,8 +1582,10 @@ TVMByteArray SerializeFeatures(std::vector<std::vector<float>>&& features,
   total_bytes += sizeof(float) * normalized_throughputs.size();
   size_vector.push_back(static_cast<int>(task_ids.size()));
   total_bytes += sizeof(int) * task_ids.size();
+  size_vector.push_back(static_cast<int>(min_costs.size()));
+  total_bytes += sizeof(float) * min_costs.size();
 
-  ICHECK_EQ(size_vector.size(), size_vector_size);
+  CHECK_EQ(size_vector.size(), size_vector_size);
 
   // allocate memory
   out_data->reserve(total_bytes);
@@ -1607,7 +1611,11 @@ TVMByteArray SerializeFeatures(std::vector<std::vector<float>>&& features,
   memmove(ptr, reinterpret_cast<char*>(task_ids.data()), task_ids.size() * sizeof(int));
   ptr += task_ids.size() * sizeof(int);
 
-  ICHECK_EQ(ptr - out_data->data(), total_bytes);
+  // serialize min_costs
+  memmove(ptr, reinterpret_cast<char*>(min_costs.data()), min_costs.size() * sizeof(float));
+  ptr += min_costs.size() * sizeof(float);
+
+  CHECK_EQ(ptr - out_data->data(), total_bytes);
 
   return TVMByteArray{out_data->data(), total_bytes};
 }
@@ -1621,13 +1629,14 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromFile")
       std::vector<std::vector<float>> features;
       std::vector<float> normalized_throughputs;
       std::vector<int> task_ids;
+      std::vector<float> min_costs;
 
       GetPerStoreFeaturesFromFile(filename, max_lines, max_n_bufs, &features,
                                   &normalized_throughputs, &task_ids);
 
       std::vector<char> byte_data;
       *ret = SerializeFeatures(std::move(features), std::move(normalized_throughputs),
-                               std::move(task_ids), &byte_data);
+                               std::move(task_ids), std::move(min_costs), &byte_data);
     });
 
 TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromMeasurePairs")
@@ -1640,14 +1649,15 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromMeasurePairs")
       std::vector<std::vector<float>> features;
       std::vector<float> normalized_throughputs;
       std::vector<int> task_ids;
+      std::vector<float> min_costs;
 
       GetPerStoreFeaturesFromMeasurePairs(inputs, results, skip_first_n_feature_extraction,
                                           max_n_bufs, &features, &normalized_throughputs,
-                                          &task_ids);
+                                          &task_ids, &min_costs);
 
       std::vector<char> byte_data;
       *ret = SerializeFeatures(std::move(features), std::move(normalized_throughputs),
-                               std::move(task_ids), &byte_data);
+                               std::move(task_ids), std::move(min_costs), &byte_data);
     });
 
 TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromStates")
@@ -1659,12 +1669,13 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromStates")
       std::vector<std::vector<float>> features;
       std::vector<float> normalized_throughputs;
       std::vector<int> task_ids;
+      std::vector<float> min_costs;
 
       GetPerStoreFeaturesFromStates(states, task, 0, max_n_bufs, &features);
 
       std::vector<char> byte_data;
       *ret = SerializeFeatures(std::move(features), std::move(normalized_throughputs),
-                               std::move(task_ids), &byte_data);
+                               std::move(task_ids), std::move(min_costs), &byte_data);
     });
 
 TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeatureNames")

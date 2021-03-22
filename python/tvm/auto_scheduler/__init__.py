@@ -18,6 +18,7 @@
 """ Namespace for TVM Auto-scheduler. """
 
 from . import compute_dag
+from . import dataset
 from . import dispatcher
 from . import feature
 from . import loop_state

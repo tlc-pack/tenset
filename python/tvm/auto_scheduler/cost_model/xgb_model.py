@@ -17,16 +17,21 @@
 # pylint: disable=invalid-name
 
 """Cost model based on xgboost"""
-import multiprocessing
-import logging
 from collections import defaultdict
+import logging
+import multiprocessing
+import pickle
 
 import numpy as np
 
 from tvm.autotvm.tuner.metric import max_curve
+from tvm.auto_scheduler.compute_dag import ComputeDAG
+from tvm.auto_scheduler.dataset import Dataset, LearningTask
+from tvm.auto_scheduler.feature import (
+    get_per_store_features_from_measure_pairs, get_per_store_features_from_states)
+from tvm.auto_scheduler.measure_record import RecordReader
+from tvm.auto_scheduler.workload_registry import workload_key_to_tensors
 from .cost_model import PythonBasedModel
-from ..feature import get_per_store_features_from_measure_pairs, get_per_store_features_from_states
-from ..measure_record import RecordReader
 
 xgb = None
 
@@ -71,7 +76,18 @@ class XGBDMatrixContext:
 dmatrix_context = XGBDMatrixContext()
 
 
-class XGBModel(PythonBasedModel):
+def get_workload_embedding(workload_key):
+    tags = ['max', 'min', 'add', 'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
+            'dense', 'softmax', 'compute(b, i, j)']
+    dag_str = str(ComputeDAG(workload_key_to_tensors(workload_key)))
+    vec = [0] * len(tags)
+    for i, tag in enumerate(tags):
+        if tag in dag_str:
+            vec[i] = 1
+    return vec
+
+
+class XGBModelInternal:
     """Train a XGBoost model to predict the normalized throughputs of programs.
     Let the normalized throughput be the score of a program (higher is better). We predict
     the (approximate) score of a program = the sum of the scores of all stages in this program.
@@ -86,31 +102,15 @@ class XGBModel(PythonBasedModel):
     of several samples, so we implemented a custom loss function and call it pack-sum-rmse.
     It is called "pack-sum" because we combine several samples into a "pack" and sum up
     their predictions.
-
-    Parameters
-    ----------
-    verbose_eval: int = 25
-        Print training log every `verbose_eval` iterations.
-    num_warmup_sample: int = 100
-        The minimum number of samples to start to use the trained model.
-        If the number of samples is less than this number, the model outputs random predictions.
-    seed: Optional[int]
-        The random seed
-    model_file: Optional[str]
-        If is not None, save model to this file after every update.
-    adapative_training: bool = False
-        Whether to use adapatie training, which reduces the training frequency when there are
-        too many logs.
     """
-
     def __init__(
         self,
+        use_workload_embedding=True,
+        use_data_argumentation=False,
+        few_shot_learning="base_only",
         verbose_eval=25,
-        num_warmup_sample=100,
-        seed=None,
-        model_file=None,
-        adapative_training=False,
-    ):
+        seed=None):
+
         global xgb
         try:
             if xgb is None:
@@ -124,189 +124,260 @@ class XGBModel(PythonBasedModel):
                 "Help: (https://xgboost.readthedocs.io/en/latest/) "
             ) from None
 
+        self.plan_size = 1
+        self.use_weight = False
+
+        self.use_workload_embedding = use_workload_embedding
+        self.use_data_argumentation = use_data_argumentation
+        self.few_shot_learning = few_shot_learning
+        self.verbose_eval = verbose_eval
+        self.workload_embed_dict = dict()
+
+        # xgb params
         self.xgb_params = {
-            "max_depth": 10,
-            "gamma": 0.001,
-            "min_child_weight": 0,
+            "max_depth": 6,
+            "gamma": 0.003,
+            "min_child_weight": 2,
             "eta": 0.2,
-            # todo(merrymercy): automatically decrease learning rate when the loss is too large
             "n_gpus": 0,
             "nthread": multiprocessing.cpu_count() // 2,
             "verbosity": 0,
             "seed": seed or 43,
             "disable_default_eval_metric": 1,
         }
-        self.bst = None
-        self.plan_size = 32
-        self.num_warmup_sample = num_warmup_sample
-        self.verbose_eval = verbose_eval
-        self.model_file = model_file
-        self.adapative_training = adapative_training
 
-        super().__init__()
+        # models
+        self.base_model = None
+        self.local_model = {}
 
-        # cache measurement input/result pairs and extracted features
-        self.inputs = []
-        self.results = []
-        self.last_train_length = 0
-        self.inputs_feature_cache = []
+    def fit(self, *args, **kwargs):
+        return self.fit_base(*args, **kwargs)
 
-    def update(self, inputs, results):
-        """Update the cost model according to new measurement results (training data).
-        XGBoost does not support incremental training, so we re-train a new model every time.
-        Parameters
-        ----------
-        inputs : List[MeasureInput]
-            The measurement inputs
-        results : List[MeasureResult]
-            The measurement results
-        """
-        if len(inputs) <= 0:
+    def fit_base(self, train_set, valid_set=None, valid_train_set=None):
+        if self.few_shot_learning == "local_only":
+            self.base_model = None
+        else:
+            self.base_model = self._fit_a_model(train_set, valid_set, valid_train_set)
+
+    def fit_local(self, train_set, valid_set=None):
+        if self.few_shot_learning == "base_only":
             return
-        assert len(inputs) == len(results)
+        elif self.few_shot_learning == "local_only_mix_task":
+            local_model = self._fit_a_model(train_set, valid_set)
+            for task in train_set.tasks():
+                self.local_model[task] = local_model
+        elif self.few_shot_learning == "local_only_per_task":
+            for task in train_set.tasks():
+                task_train_set = train_set.extract_subset([task])
+                local_model = self._fit_a_model(task_train_set, valid_set)
+                self.local_model[task] = local_model
+        elif self.few_shot_learning == "plus_mix_task":
+            diff_train_set = self.make_diff_set(self.base_model, train_set)
+            diff_valid_set = self.make_diff_set(self.base_model, valid_set) if valid_set else None
+            diff_model = self._fit_a_model(diff_train_set, diff_valid_set)
+            for task in train_set.tasks():
+                self.local_model[task] = diff_model
+        elif self.few_shot_learning == "plus_per_task":
+            base_preds = self._predict_a_dataset(self.base_model, train_set)
+            for task in train_set.tasks():
+                diff_train_set = Dataset()
+                diff_train_set.load_task_data(
+                    task,
+                    train_set.features[task],
+                    train_set.throughputs[task] - base_preds[task]
+                )
+                diff_model = self._fit_a_model(diff_train_set, valid_set)
+                self.local_model[task] = diff_model
+        else:
+            raise ValueError("Invalid few-shot learning method: " + self.few_shot_learning)
 
-        self.inputs.extend(inputs)
-        self.results.extend(results)
+    def predict(self, dataset):
+        if self.few_shot_learning == "base_only":
+            return self._predict_a_dataset(self.base_model, dataset)
+        elif self.few_shot_learning in ["local_only_mix_task", "local_only_per_task"]:
+            ret = {}
+            for task in dataset.tasks():
+                local_preds = self._predict_a_task(self.local_model[task], task, dataset.features[task])
+                ret[task] = local_preds
+            return ret
+        elif self.few_shot_learning in ["plus_mix_task", "plus_per_task"]:
+            base_preds = self._predict_a_dataset(self.base_model, dataset)
+            ret = {}
+            for task in dataset.tasks():
+                local_preds = self._predict_a_task(self.local_model[task], task, dataset.features[task])
+                ret[task] = base_preds[task] + local_preds
+            return ret
+        else:
+            raise ValueError("Invalid few show learing: " + self.few_shot_learning)
 
-        if (
-            self.adapative_training
-            and len(self.inputs) - self.last_train_length < self.last_train_length / 5
-        ):
-            # Set a training threshold related to `last_train_length` to reduce the training
-            # overhead when there're too many logs
-            return
-        self.last_train_length = len(self.inputs)
+    def _fit_a_model(self, train_set, valid_set=None, valid_train_set=None):
+        print("Fit a xgb booster. Train size: %d" % len(train_set))
 
-        # extract feature
-        n_cached = len(self.inputs_feature_cache)
-        features, normalized_throughputs, task_ids = get_per_store_features_from_measure_pairs(
-            self.inputs, self.results, skip_first_n_feature_extraction=n_cached
-        )
-        if n_cached > 0:
-            features = list(features)
-            features[:n_cached] = self.inputs_feature_cache
-            features = np.array(features, dtype=object)
-        self.inputs_feature_cache = features
-        dtrain = pack_sum_xgbmatrix(
-            features, normalized_throughputs, task_ids, normalized_throughputs
-        )
+        for task in train_set.tasks():
+            self.register_new_task(task)
+        dtrain = self.dataset_to_dmatrix(train_set, argumentation=self.use_data_argumentation)
 
-        # train xgb model
-        self.bst = xgb.train(
-            self.xgb_params,
-            dtrain,
-            num_boost_round=10000,
+        if valid_set is not None:
+            for task in valid_set.tasks():
+                self.register_new_task(task)
+            dtest = self.dataset_to_dmatrix(valid_set)
+            eval_sets = [(dtrain, "tr"), (dtest, "te")]
+        else:
+            eval_sets = [(dtrain, "tr")]
+
+        # Train a new model
+        bst = xgb.train(
+            params=self.xgb_params,
+            dtrain=dtrain,
+            num_boost_round=200,
             obj=pack_sum_square_error,
             callbacks=[
                 custom_callback(
-                    stopping_rounds=50,
-                    metric="tr-p-rmse",
-                    fevals=[
-                        pack_sum_rmse,
-                        pack_sum_average_peak_score(self.plan_size),
-                    ],
-                    evals=[(dtrain, "tr")],
+                    stopping_rounds=100,
+                    metric="tr-rmse",
+                    fevals=[pack_sum_rmse, pack_sum_average_peak_score(self.plan_size)],
+                    evals=eval_sets,
                     maximize=False,
                     verbose_eval=self.verbose_eval,
                 )
             ],
         )
+        return bst
 
-        # Update the model file if it has been set
-        if self.model_file:
-            self.save(self.model_file)
-
-    def predict(self, task, states):
-        """Predict the scores of states
-        Parameters
-        ----------
-        search_task : SearchTask
-            The search task of states
-        statse : List[State]
-            The input states
-        Returns
-        -------
-        scores: List[float]
-            The predicted scores for all states
-        """
-        features = get_per_store_features_from_states(states, task)
-        if self.bst is not None and len(self.inputs) > self.num_warmup_sample:
-            dtest, pack_ids = feature_to_pack_sum_xgbmatrix(features)
-            raw_preds = self.bst.predict(dtest)
-            ret = predict_throughput_pack_sum(raw_preds, pack_ids)
-        else:
-            ret = np.random.uniform(0, 1, (len(states),))
-
-        # Predict -inf for invalid states that failed to be lowered.
-        for idx, feature in enumerate(features):
-            if feature.min() == feature.max() == 0:
-                ret[idx] = float("-inf")
-
+    def _predict_a_dataset(self, model, dataset):
+        ret = {}
+        for task, features in dataset.features.items():
+            ret[task] = self._predict_a_task(model, task, features)
         return ret
 
-    def predict_stages(self, task, states):
-        """Predict the scores of all stages in states. This is the breakdown version of `predict`.
+    def _predict_a_task(self, model, task, features):
+        if model is None:
+            return np.zeros(len(features), dtype=np.float32)
 
-        Parameters
-        ----------
-        search_task : SearchTask
-            The search task of states
-        statse : List[State]
-            The input states
+        # Convert features to dmatrix
+        tmp_set = Dataset.create_one_task(task, features, None)
+        dmatrix = self.dataset_to_dmatrix(tmp_set)
 
-        Returns
-        -------
-        scores: List[float]
-            The predicted scores for all stages in all states in the packed format
+        # Make predictions
+        raw_preds = model.predict(dmatrix)
+        pack_ids = dmatrix_context.get("pack_ids", dmatrix)
+        predictions = pack_sum_predict_throughput(raw_preds, pack_ids)
+        return predictions
 
-        Note
-        ----
-        For faster data copy between c++ and python, the python part returns scores in a
-        single flatten array using a packed format. The c++ part then unpacks the flatten array.
-        The packed format is:
-        {
+    def register_new_task(self, task):
+        pass
+        #workload_key = str(task.workload_key)
+        #self.workload_embed_dict[workload_key] = get_workload_embedding(workload_key)
 
-          float  scores[N];                 // scores[i] is the score for states[i].
-          int    n_stage_0;                 // the number of stages in states[0]
-          float  stage_scores_0[[n_stage_0] // the scores for all stages in states[0]
-          int    n_stage_1;                 // the number of stages in states[1]
-          float  stage_scores_1[n_stage_1]; // the scores for all stages in states[1]
-          ...
-          int    n_stage_i;                 // the number of stages in states[i]
-          float  stage_scores_1[n_stage_i]; // the scores for all stages in states[i]
-          ...  // untill i == N - 1
-
-        }
-        To implement this format, we also store int as float, so we can store all numbers
-        into a single float array.
-        """
-        features = get_per_store_features_from_states(states, task)
-        if self.bst is not None and len(self.inputs) > self.num_warmup_sample:
-            dtest, pack_ids = feature_to_pack_sum_xgbmatrix(features)
-            raw_preds = self.bst.predict(dtest)
-            breakdown = predict_throughput_pack_sum(raw_preds, pack_ids)
-            stage_scores = [[] for _ in range(len(states))]
-            for pred, pack_id in zip(raw_preds, pack_ids):
-                stage_scores[pack_id].append(pred)
-            for idx, stage_score in enumerate(stage_scores):
-                breakdown = np.append(breakdown, len(stage_score))
-                breakdown = np.concatenate((breakdown, np.array(stage_score)))
-        else:
-            breakdown = np.concatenate(
-                (
-                    np.random.uniform(0, 1, (len(states),)),
-                    np.zeros(
-                        len(states),
-                    ),
-                )
+    def make_diff_set(self, base_model, dataset):
+        base_preds = self._predict_a_dataset(base_model, dataset)
+        diff_set = Dataset()
+        for task in dataset.tasks():
+            diff_set.load_task_data(
+                task,
+                dataset.features[task],
+                dataset.throughputs[task] - base_preds[task]
             )
+        return diff_set
+
+    def dataset_to_dmatrix(self, dataset, return_task_order=False, argumentation=False):
+        # Process input data to xgb format
+        xs, ys, gids = [], [], []
+        task_order = []
+
+        for gid, task in enumerate(dataset.features):
+            features, throughputs = dataset.features[task], dataset.throughputs[task]
+            task_order.append(task)
+
+            # add task embedding into the feature
+            if self.use_workload_embedding:
+                if task.workload_key not in self.workload_embed_dict:
+                    self.workload_embed_dict[task.workload_key] =\
+                        get_workload_embedding(task.workload_key)
+                task_embedding = self.workload_embed_dict[task.workload_key]
+
+                extended_features = []
+                # append task embedding into feature vectors
+                for i in range(len(features)):
+                    tmp = np.tile(task_embedding, (len(features[i]), 1))
+                    extended_features.append(np.concatenate([features[i], tmp], axis=1))
+
+                xs.extend(extended_features)
+            else:
+                xs.extend(features)
+
+            if throughputs is None:
+                ys.append(np.zeros(len(features), dtype=np.float32))
+            else:
+                ys.append(throughputs)
+            gids.append(np.ones(len(features), dtype=np.int32) * gid)
+
+            if argumentation:
+                features = np.copy(features)
+                tmp = np.copy(features[:][57 + 18*1:57 + 18*2])
+                features[:][57 + 18*1: 57 + 18*2] = features[:][57 + 18*2:57 + 18*3]
+                features[:][57 + 18*2: 57 + 18*3] = tmp
+                xs.extend(features)
+                ys.append(throughputs)
+                gids.append(np.ones(len(features), dtype=np.int32) * gid)
+
+        xs = np.array(xs, dtype=object)
+        ys = np.concatenate(ys)
+        gids = np.concatenate(gids)
+        dmatrix = pack_sum_xgbmatrix(
+            xs, ys, gids=gids, weights=np.maximum(ys, 0.1) if self.use_weight else None
+        )
+
+        if return_task_order:
+            return dmatrix, task_order
+        else:
+            return dmatrix
+
+    def load(self, filename):
+        self.base_model, self.local_model, self.few_shot_learning = \
+            pickle.load(open(filename, 'rb'))
+
+    def save(self, filename):
+        pickle.dump((self.base_model, self.local_model, self.few_shot_learning),
+            open(filename, 'wb'))
+
+
+class XGBModel(PythonBasedModel):
+    """The wrapper of XGBModelInternal. So we can use it in end-to-end search."""
+    def __init__(self, few_shot_learning="base_only", verbose_eval=25,
+                 num_warmup_sample=100, seed=None, disable_update=False):
+        super().__init__()
+
+        self.num_warmup_sample = num_warmup_sample
+        self.disable_update = disable_update
+        self.model = XGBModelInternal(few_shot_learning=few_shot_learning,
+                                      verbose_eval=verbose_eval,
+                                      seed=seed)
+        self.dataset = Dataset()
+
+    def update(self, inputs, results):
+        if self.disable_update or len(inputs) <= 0:
+            return
+        tic = time.time()
+        self.dataset.update_from_measure_pairs(inputs, results)
+        self.model.fit_base(self.dataset)
+        logger.info("XGBModel Training time: %.2f s", time.time() - tic)
+
+    def predict(self, task, states):
+        features = get_per_store_features_from_states(states, task)
+        if self.model is not None and len(self.dataset) > self.num_warmup_sample:
+            learning_task = LearningTask(task.workload_key, str(task.target))
+            eval_dataset = Dataset.create_one_task(learning_task, features, None)
+            ret = self.model.predict(eval_dataset)[learning_task]
+        else:
+            ret = np.random.uniform(0, 1, (len(states),))
 
         # Predict 0 for invalid states that failed to be lowered.
         for idx, feature in enumerate(features):
             if feature.min() == feature.max() == 0:
-                breakdown[idx] = float("-inf")
+                ret[idx] = float('-inf')
 
-        return breakdown
+        return ret
 
     def update_from_file(self, file_name, n_lines=None):
         """Load measure records from a log file to update the cost model.
@@ -324,23 +395,25 @@ class XGBModel(PythonBasedModel):
 
     def save(self, file_name: str):
         """Save the model to a file
+
         Parameters
         ----------
         file_name: str
             The filename
         """
-        self.bst.save_model(file_name)
+        self.model.save(file_name)
 
     def load(self, file_name: str):
         """Load the model from a file
+
         Parameters
         ----------
         file_name: str
             The filename
         """
-        if self.bst is None:
-            self.bst = xgb.Booster(self.xgb_params)
-        self.bst.load_model(file_name)
+        if self.model is None:
+            self.model = XGBModelInternal()
+        self.model.load(file_name)
         self.num_warmup_sample = -1
 
 
@@ -387,7 +460,7 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
     """
     if gids is not None:
         # sort by group
-        indices = gids.argsort()
+        indices = gids.argsort(kind='stable')
         xs, ys = xs[indices], ys[indices]
         group_sizes = np.bincount(gids)
         if weights is not None:
@@ -423,7 +496,7 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
     return ret
 
 
-def predict_throughput_pack_sum(raw_preds, pack_ids):
+def pack_sum_predict_throughput(raw_preds, pack_ids):
     """Predict the throughputs for predictions in pack-sum format
     Parameters
     ----------
@@ -470,13 +543,13 @@ def pack_sum_square_error(preds, dtrain):
     return gradient * weight, hessian * weight
 
 
-def pack_sum_rmse(raw_preds, labels):
+def pack_sum_rmse(raw_preds, dtrain):
     """Evaluate RMSE (rooted mean square error) in the pack-sum format
     Parameters
     ----------
     raw_preds: np.ndarray
         The raw prediction
-    labels: xgb.DMatrix
+    dtrain: xgb.DMatrix
         The groud-truth label matrix
     Returns
     -------
@@ -484,9 +557,11 @@ def pack_sum_rmse(raw_preds, labels):
     score: float
         The name and score of this metric
     """
-    pack_ids = dmatrix_context.get("pack_ids", labels)
-    preds = predict_throughput_pack_sum(raw_preds, pack_ids)[pack_ids]
-    return "p-rmse", np.sqrt(np.mean(np.square((preds - labels.get_label()))))
+    pack_ids = dmatrix_context.get("pack_ids", dtrain)
+    preds = pack_sum_predict_throughput(raw_preds, pack_ids)
+    labels = (np.bincount(pack_ids, weights=dtrain.get_label())
+              / np.unique(pack_ids, return_counts=True)[1])
+    return 'rmse', np.sqrt(np.mean(np.square((preds - labels))))
 
 
 def pack_sum_average_peak_score(N):
@@ -517,7 +592,7 @@ def pack_sum_average_peak_score(N):
         group_sizes = dmatrix_context.get("group_sizes", labels, [len(preds)])
         pack_ids = dmatrix_context.get("pack_ids", labels)
 
-        preds = predict_throughput_pack_sum(preds, pack_ids)
+        preds = pack_sum_predict_throughput(preds, pack_ids)
         labels = (
             np.bincount(pack_ids, weights=labels.get_label())
             / np.unique(pack_ids, return_counts=True)[1]
@@ -539,18 +614,9 @@ def pack_sum_average_peak_score(N):
     return feval
 
 
-def custom_callback(
-    stopping_rounds,
-    metric,
-    fevals,
-    evals=(),
-    log_file=None,
-    maximize=False,
-    verbose_eval=True,
-    skip_every=2,
-):
+def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
+                    maximize=False, verbose_eval=True, skip_every=5):
     """Callback function for xgboost to support multiple custom evaluation functions"""
-    # pylint: disable=import-outside-toplevel
     from xgboost.core import EarlyStopException
     from xgboost.callback import _fmt_metric
 
@@ -566,21 +632,21 @@ def custom_callback(
         """internal function"""
         bst = env.model
 
-        state["maximize_score"] = maximize
-        state["best_iteration"] = 0
+        state['maximize_score'] = maximize
+        state['best_iteration'] = 0
         if maximize:
-            state["best_score"] = float("-inf")
+            state['best_score'] = float('-inf')
         else:
-            state["best_score"] = float("inf")
+            state['best_score'] = float('inf')
 
         if bst is not None:
-            if bst.attr("best_score") is not None:
-                state["best_score"] = float(bst.attr("best_score"))
-                state["best_iteration"] = int(bst.attr("best_iteration"))
-                state["best_msg"] = bst.attr("best_msg")
+            if bst.attr('best_score') is not None:
+                state['best_score'] = float(bst.attr('best_score'))
+                state['best_iteration'] = int(bst.attr('best_iteration'))
+                state['best_msg'] = bst.attr('best_msg')
             else:
-                bst.set_attr(best_iteration=str(state["best_iteration"]))
-                bst.set_attr(best_score=str(state["best_score"]))
+                bst.set_attr(best_iteration=str(state['best_iteration']))
+                bst.set_attr(best_score=str(state['best_score']))
         else:
             assert env.cvfolds is not None
 
@@ -607,7 +673,7 @@ def custom_callback(
         else:
             for feval in fevals:
                 bst_eval = bst.eval_set(evals, i, feval)
-                res = [x.split(":") for x in bst_eval.split()]
+                res = [x.split(':') for x in bst_eval.split()]
                 for kv in res[1:]:
                     res_dict[kv[0]] = [float(kv[1])]
 
@@ -622,14 +688,14 @@ def custom_callback(
         if not isinstance(verbose_eval, bool) and verbose_eval and i % verbose_eval == 0:
             infos = ["XGB iter: %3d" % i]
             for item in eval_res:
-                if "null" in item[0]:
+                if 'null' in item[0]:
                     continue
                 infos.append("%s: %.6f" % (item[0], item[1]))
 
             logger.debug("\t".join(infos))
             if log_file:
                 with open(log_file, "a") as fout:
-                    fout.write("\t".join(infos) + "\n")
+                    fout.write("\t".join(infos) + '\n')
 
         ##### choose score and do early stopping #####
         score = None
@@ -639,25 +705,27 @@ def custom_callback(
                 break
         assert score is not None
 
-        best_score = state["best_score"]
-        best_iteration = state["best_iteration"]
-        maximize_score = state["maximize_score"]
-        if (maximize_score and score > best_score) or (not maximize_score and score < best_score):
-            msg = "[%d] %s" % (env.iteration, "\t".join([_fmt_metric(x) for x in eval_res]))
-            state["best_msg"] = msg
-            state["best_score"] = score
-            state["best_iteration"] = env.iteration
+        best_score = state['best_score']
+        best_iteration = state['best_iteration']
+        maximize_score = state['maximize_score']
+        if (maximize_score and score > best_score) or \
+                (not maximize_score and score < best_score):
+            msg = '[%d] %s' % (
+                env.iteration,
+                '\t'.join([_fmt_metric(x) for x in eval_res]))
+            state['best_msg'] = msg
+            state['best_score'] = score
+            state['best_iteration'] = env.iteration
             # save the property to attributes, so they will occur in checkpoint.
             if env.model is not None:
-                env.model.set_attr(
-                    best_score=str(state["best_score"]),
-                    best_iteration=str(state["best_iteration"]),
-                    best_msg=state["best_msg"],
-                )
+                env.model.set_attr(best_score=str(state['best_score']),
+                                   best_iteration=str(state['best_iteration']),
+                                   best_msg=state['best_msg'])
         elif env.iteration - best_iteration >= stopping_rounds:
-            best_msg = state["best_msg"]
+            best_msg = state.get('best_msg', "")
             if verbose_eval and env.rank == 0:
                 logger.debug("XGB stopped. Best iteration: %s ", best_msg)
             raise EarlyStopException(best_iteration)
 
     return callback
+

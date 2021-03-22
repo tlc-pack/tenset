@@ -84,6 +84,33 @@ def random_fill_float(size, return_ptr):
     array_wrapper[:] = np.random.uniform(0, 1, (size,))
 
 
+class RandomModelInternal:
+    """"A model returning random estimation for all inputs"""
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def fit(self, *args, **kwargs):
+        return self.fit_base(*args, **kwargs)
+
+    def fit_base(self, train_set, valid_set=None, valid_train_set=None):
+        pass
+
+    def fit_local(self, train_set, valid_set=None):
+        pass
+
+    def predict(self, dataset):
+        ret = {}
+        for task, features in dataset.features.items():
+            ret[task] = np.random.uniform(0, 1, size=(len(features),))
+        return ret
+
+    def load(self, filename):
+        pass
+    
+    def save(self, filename):
+        pass
+
+
 @tvm._ffi.register_object("auto_scheduler.PythonBasedModel")
 class PythonBasedModel(CostModel):
     """Base class for cost models implemented in python"""

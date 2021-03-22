@@ -62,6 +62,8 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
         Normalized throughputs
     task_ids: np.ndarray
         Task ids
+    min_latency: np.ndarray
+        Minimal latency for tasks
 
     Note
     ----
@@ -71,7 +73,7 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
     The packed format for n records is:
     {
       int   n;
-      int   sizes[n+2];           // The sizes for the following arrays
+      int   sizes[n+3];           // The sizes for the following arrays
 
       float features_0[size[0]];  // The features for record 0
       float features_1[size[1]];  // The features for record 1
@@ -81,7 +83,7 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
 
       float throughputs[sizes[n]];  // The normalized throughputs for n records
       int   task_ids[size[n+1]];    // The task ids for n records
-
+      float min_costs[size[n+2]];   // The min costs for all tasks
     }
     To implement this format, we also store int as float, so we can store all numbers
     into a single float array.
@@ -93,12 +95,12 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
     n = struct.unpack_from("1i", byte_arr, offset=offset)[0]
     offset += SIZE_OF_INT32
 
-    sizes = struct.unpack_from("%di" % (n + 2), byte_arr, offset=offset)
-    offset += SIZE_OF_INT32 * (n + 2)
+    sizes = struct.unpack_from("%di" % (n + 3), byte_arr, offset=offset)
+    offset += SIZE_OF_INT32 * (n + 3)
 
     # unpack features
     features = []
-    for size in sizes[:-2]:
+    for size in sizes[:-3]:
         row = []
 
         # Now, we need to unpack the feature for multiple statements.
@@ -133,18 +135,27 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
             features.append(np.array(row))
 
     # unpack normalized_throughputs
-    m = sizes[-2]
+    m = sizes[-3]
     normalized_throughputs = struct.unpack_from("%df" % m, byte_arr, offset=offset)
     offset += m * SIZE_OF_FLOAT32
 
     # unpack task_ids
-    m = sizes[-1]
+    m = sizes[-2]
     task_ids = struct.unpack_from("%di" % m, byte_arr, offset=offset)
     offset += m * SIZE_OF_INT32
 
-    assert offset == len(byte_arr), "%d vs %d" % (offset, len(byte_arr))
-    return np.array(features, dtype=object), np.array(normalized_throughputs), np.array(task_ids)
+    # unpack min_costs
+    m = sizes[-1]
+    min_costs = struct.unpack_from("%df" % m, byte_arr, offset=offset)
+    offset += m * SIZE_OF_FLOAT32
 
+    assert offset == len(byte_arr), "%d vs %d" % (offset, len(byte_arr))
+    return (
+        np.array(features, dtype=object),
+        np.array(normalized_throughputs),
+        np.array(task_ids),
+        np.array(min_costs),
+    )
 
 def get_per_store_features_from_file(
     filename: str, max_lines: int, max_n_bufs: Optional[int] = None
@@ -168,6 +179,8 @@ def get_per_store_features_from_file(
         Normalized throughputs
     task_ids: np.ndarray
         Task ids
+    min_latency: np.ndarray
+            Minimal latency for tasks
     """
     byte_arr = _ffi_api.GetPerStoreFeaturesFromFile(
         filename, max_lines, max_n_bufs or DEFAULT_MAX_N_BUFS
@@ -202,6 +215,8 @@ def get_per_store_features_from_measure_pairs(
         Normalized throughputs
     task_ids: np.ndarray
         Task ids
+    min_latency: np.ndarray
+        Minimal latency for tasks
     """
     byte_arr = _ffi_api.GetPerStoreFeaturesFromMeasurePairs(
         inputs, results, skip_first_n_feature_extraction, max_n_bufs or DEFAULT_MAX_N_BUFS
@@ -218,10 +233,6 @@ def get_per_store_features_from_states(
     ----------
     states: List[Union[State, StateObject]]
         The input states
-    task: SearchTask
-        The search task of the input states
-    max_n_bufs: Optional[int]
-        The maximum number of extracted buffers for one statement
 
     Returns
     -------
