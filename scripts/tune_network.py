@@ -15,15 +15,15 @@ from dump_network_info import get_network_with_key
 from common import str2bool, log_line, BenchmarkRecord
 
 
-def get_network(network_args, target):
+def get_network(network_args):
     name, batch_size = network_args['network'], network_args['batch_size']
     if name in ['resnet_18', 'resnet_50', 'mobilenet_v2', 'mobilenet_v3',
                 'wide_resnet_50', 'resnext_50']:
-        network_key = (name, str(target.kind), [(batch_size, 3, 224, 224)])
+        network_key = (name, [(batch_size, 3, 224, 224)])
     elif name in ['bert_tiny', 'bert_base', 'bert_medium', 'bert_large']:
-        network_key = (name, str(target.kind), [(batch_size, 128)])
+        network_key = (name, [(batch_size, 128)])
     elif name == 'dcgan':
-        network_key = (name, str(target.kind), [(batch_size, 3, 64, 64)])
+        network_key = (name, [(batch_size, 3, 64, 64)])
     else:
         raise ValueError("Invalid network: " + network)
 
@@ -48,7 +48,7 @@ def get_tuning_option(tuning_args, target):
 
 
 def tune_and_evaluate(network_args, tuning_args, target, target_host, result_file):
-    mod, params, inputs = get_network(network_args, target)
+    mod, params, inputs = get_network(network_args)
 
     # Do auto-tuning
     if not tuning_args['eval_only']:

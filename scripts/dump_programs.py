@@ -36,6 +36,13 @@ def get_tasks():
 
 
 def dump_program(task, size, max_retry_iter=10):
+    folder = TO_MEASURE_PROGRAM_FOLDER
+    task_key = (task.workload_key, str(task.target.kind))
+    filename = f"{folder}/{task_key}.json"
+
+    if os.path.exists(filename):
+        return
+
     policy = auto_scheduler.SketchPolicy(task,
             params={'evolutionary_search_num_iters': 1,
                     'evolutionary_search_population': min(size, 2048)}, verbose=0)
@@ -82,11 +89,6 @@ def dump_program(task, size, max_retry_iter=10):
         measure_results.append(auto_scheduler.MeasureResult([0.0], 0, "", 0, time.time()))
 
     # Dump to file
-    folder = TO_MEASURE_PROGRAM_FOLDER
-    os.makedirs(folder, exist_ok=True)
-
-    task_key = (task.workload_key, str(task.target.kind))
-    filename = f"{folder}/{task_key}.json"
     auto_scheduler.save_records(filename, measure_inputs, measure_results)
 
 
@@ -94,8 +96,12 @@ if __name__ == "__main__":
     tasks = get_tasks()
     tasks.sort(key=lambda x: (str(x.target.kind), x.compute_dag.flop_ct, x.workload_key))
 
+    # Dump the whole task index
+    folder = TO_MEASURE_PROGRAM_FOLDER
+    os.makedirs(folder, exist_ok=True)
     pickle.dump(tasks, open(f"{TO_MEASURE_PROGRAM_FOLDER}/all_tasks.pkl", "wb"))
 
+    # Dump programs for all tasks
     for task in tqdm(tasks):
         dump_program(task, size=3000)
         gc.collect()

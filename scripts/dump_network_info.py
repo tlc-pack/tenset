@@ -17,7 +17,7 @@ from common import convert_to_nhwc, NETWORK_INFO_FOLDER, dtype2torch
 
 
 def get_network_with_key(network_key):
-    name, target, args = network_key
+    name, args = network_key
 
     if name in ['resnet_18', 'resnet_50', 'mobilenet_v2', 'mobilenet_v3',
                 'wide_resnet_50', 'resnext_50', 'resnet3d_18']:
@@ -100,82 +100,84 @@ def get_network_with_key(network_key):
     return mod, params, inputs
 
 
-def dump_network(network_key):
-    name, target, args = network_key
+def dump_network(network_key, target):
+    name, args = network_key
+    network_task_key = (network_key,) + (target,)
 
     folder = NETWORK_INFO_FOLDER
     os.makedirs(folder, exist_ok=True)
-    model_filename = f"{folder}/{network_key}.model.pkl" 
-    task_info_filename = f"{folder}/{network_key}.task.pkl"
+    model_filename = f"{folder}/{network_key}.relay.pkl"
+    task_info_filename = f"{folder}/{network_task_key}.task.pkl"
 
     if os.path.exists(task_info_filename):
         return
 
-    mod, params, inputs = get_network_with_key(key)
+    mod, params, inputs = get_network_with_key(network_key)
 
     # Dump network relay ir
-    print(f"Dump relay ir for {network_key}...")
-    mod_json = tvm.ir.save_json(mod)
-    params_bytes = relay.save_param_dict(params)
-    pickle.dump((mod_json, len(params_bytes), inputs), open(model_filename, "wb"))
+    if not os.path.exists(model_filename):
+        print(f"Dump relay ir for {network_key}...")
+        mod_json = tvm.ir.save_json(mod)
+        params_bytes = relay.save_param_dict(params)
+        pickle.dump((mod_json, len(params_bytes), inputs), open(model_filename, "wb"))
 
     # Dump task information
-    print(f"Dump task info for {network_key}...")
-    tasks, task_weights = auto_scheduler.extract_tasks(mod["main"], params, tvm.target.Target(target))
-    pickle.dump((tasks, task_weights), open(task_info_filename, "wb"))
+    if not os.path.exists(task_info_filename):
+        print(f"Dump task info for {network_task_key}...")
+        tasks, task_weights = auto_scheduler.extract_tasks(mod["main"], params, tvm.target.Target(target))
+        pickle.dump((tasks, task_weights), open(task_info_filename, "wb"))
 
 
 def build_network_keys():
     network_keys = []
 
-    target = 'llvm'
-
     # resnet_18 and resnet_50
     for batch_size in [1, 4, 8]:
         for image_size in [224, 240, 256]:
             for layer in [18, 50]:
-                network_keys.append((f'resnet_{layer}', target,
+                network_keys.append((f'resnet_{layer}',
                                     [(batch_size, 3, image_size, image_size)]))
 
     # mobilenet_v2
     for batch_size in [1, 4, 8]:
         for image_size in [224, 240, 256]:
             for name in ['mobilenet_v2', 'mobilenet_v3']:
-                network_keys.append((f'{name}', target,
+                network_keys.append((f'{name}',
                                     [(batch_size, 3, image_size, image_size)]))
 
     # wide-resnet
     for batch_size in [1, 4, 8]:
         for image_size in [224, 240, 256]:
             for layer in [50]:
-                network_keys.append((f'wide_resnet_{layer}', target,
+                network_keys.append((f'wide_resnet_{layer}',
                                     [(batch_size, 3, image_size, image_size)]))
 
     # resnext
     for batch_size in [1, 4, 8]:
         for image_size in [224, 240, 256]:
             for layer in [50]:
-                network_keys.append((f'resnext_{layer}', target,
+                network_keys.append((f'resnext_{layer}',
                                     [(batch_size, 3, image_size, image_size)]))
 
     # resnet3d
     for batch_size in [1, 4, 8]:
         for image_size in [112, 128, 144]:
             for layer in [18]:
-                network_keys.append((f'resnet3d_{layer}', target,
+                network_keys.append((f'resnet3d_{layer}',
                                     [(batch_size, 3, image_size, image_size, 16)]))
 
     # bert
     for batch_size in [1, 2, 4]:
         for seq_length in [64, 128, 256]:
             for scale in ['tiny', 'base', 'medium', 'large']:
-                network_keys.append((f'bert_{scale}', target,
+                network_keys.append((f'bert_{scale}',
                                     [(batch_size, seq_length)]))
 
     # dcgan
     for batch_size in [1, 4, 8]:
         for image_size in [64, 80, 96]:
-            network_keys.append((f'dcgan', target, [(batch_size, 3, image_size, image_size)]))
+            network_keys.append((f'dcgan',
+                                [(batch_size, 3, image_size, image_size)]))
 
     return network_keys
 
@@ -183,7 +185,9 @@ def build_network_keys():
 if __name__ == "__main__":
     network_keys = build_network_keys()
 
+    target = 'llvm'
+
     for key in tqdm(network_keys):
-        dump_network(key)
+        dump_network(key, target)
         gc.collect()
 
