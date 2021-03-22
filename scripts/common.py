@@ -1,5 +1,7 @@
+import pickle
+
 import tvm
-from tvm import relay
+from tvm import relay, auto_scheduler
 
 
 NETWORK_INFO_FOLDER = 'dataset/network_info'
@@ -30,4 +32,15 @@ def dtype2torch(x):
     return {
         'float32': torch.float32
     }[x]
+
+
+def load_and_register_tasks():
+    tasks = pickle.load(open(f"{TO_MEASURE_PROGRAM_FOLDER}/all_tasks.pkl", "rb"))
+
+    for task in tasks:
+        auto_scheduler.workload_registry.register_workload_tensors(
+            task.workload_key, task.compute_dag.tensors)
+
+    return tasks
+
 

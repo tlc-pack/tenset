@@ -239,3 +239,5 @@ scripts/dataset
 scripts/*.zip
 scripts/today_job.sh
 scripts/progress.txt
+scripts/*.pkl
+scripts/.dataset_cache

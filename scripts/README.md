@@ -1,5 +1,17 @@
-
 ## Dataset organization
+
+The dataset is stored under `/scripts/dataset` folder.
+
+- dataset
+  - network_info: The metadata for networks
+     - {network_key}.model.pkl: The relay IR of a network. One network per file.
+     - {network_key}.task.pkl: The tasks and their weights in a network. One network per file.
+  - to_measure_programs: The generated random programs for measurement
+     - all_tasks.pkl: A file containing all tasks
+     - {task_key}.json: The measurement records (programs can be derived from measurement records). One file per task.
+  - measure_records:
+     - e5-2673: measurement records collected on an Intel e5-2673.
+     - ...: 
 
 
 ## Data Collection Procedure

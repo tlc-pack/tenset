@@ -11,7 +11,8 @@ from tqdm import tqdm
 import tvm
 from tvm import auto_scheduler
 
-from common import TO_MEASURE_PROGRAM_FOLDER, MEASURE_RECORD_FOLDER
+from common import (TO_MEASURE_PROGRAM_FOLDER, MEASURE_RECORD_FOLDER,
+        load_and_register_tasks)
 
 def make_measurer(run_timeout, repeat, number, enable_cpu_cache_flush,
                   verbose, log_filename):
@@ -61,16 +62,6 @@ def remeasure_file(task_idx, reference_filename, target, target_host, batch_size
         for res in res_batch:
             if res.error_no == auto_scheduler.measure.MeasureErrorNo.BUILD_TIMEOUT:
                 timeout_ct += 1
-
-
-def load_and_register_tasks():
-    tasks = pickle.load(open(f"{TO_MEASURE_PROGRAM_FOLDER}/all_tasks.pkl", "rb"))
-
-    for task in tasks:
-        auto_scheduler.workload_registry.register_workload_tensors(
-            task.workload_key, task.compute_dag.tensors)
-
-    return tasks
 
 
 if __name__ == "__main__":
