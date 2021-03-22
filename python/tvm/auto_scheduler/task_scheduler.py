@@ -48,6 +48,7 @@ def make_search_policies(
     load_model_file=None,
     load_log_file=None,
     adapative_training=False,
+    disable_cost_model_update=False,
 ):
     """Make a list of search policies for a list of search tasks.
     It creates one policy per task.
@@ -85,11 +86,12 @@ def make_search_policies(
 
     if isinstance(search_policy, str):
         policy_type, model_type = search_policy.split(".")
-        if model_type == "xgb":
+        if model_type in ['xgb', 'xgb-no-update']:
+            if model_type == 'xgb-no-update':
+                disable_cost_model_update = True
             cost_model = XGBModel(
                 num_warmup_sample=len(tasks) * num_measures_per_round,
-                model_file=load_model_file,
-                adapative_training=adapative_training,
+                disable_update=disable_cost_model_update,
             )
             if load_model_file and os.path.isfile(load_model_file):
                 logger.info("TaskScheduler: Load pretrained model...")
@@ -439,6 +441,9 @@ class TaskScheduler:
                     )
                 break
 
+        for callback in self.callbacks:
+            callback.finish(self)
+
     def _tune_task(self, task_idx):
         """Tune the select task for one round"""
 
@@ -563,6 +568,10 @@ class TaskSchedulerCallback:
         """
         # Do nothing by default
 
+    def finish(self, task_scheduler):
+        """The callback after finishing tuning all tasks"""
+        pass
+
 
 class PrintTableInfo(TaskSchedulerCallback):
     """The callback that prints a table of current progress."""
@@ -607,6 +616,9 @@ class PrintTableInfo(TaskSchedulerCallback):
                 task_id,
             )
         )
+
+    def finish(self, task_scheduler):
+        self.pre_tune(task_scheduler, -1)
 
 
 class LogEstimatedLatency(TaskSchedulerCallback):

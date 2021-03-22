@@ -16,7 +16,7 @@ from tvm import auto_scheduler
 from common import convert_to_nhwc, NETWORK_INFO_FOLDER, dtype2torch
 
 
-def get_network(network_key):
+def get_network_with_key(network_key):
     name, target, args = network_key
 
     if name in ['resnet_18', 'resnet_50', 'mobilenet_v2', 'mobilenet_v3',
@@ -102,12 +102,12 @@ def dump_network(network_key):
     folder = NETWORK_INFO_FOLDER
     os.makedirs(folder, exist_ok=True)
     model_filename = f"{folder}/{network_key}.model.pkl" 
-    task_info_filename = f"{folder}/{network_key}.task.pkl" 
+    task_info_filename = f"{folder}/{network_key}.task.pkl"
 
     if os.path.exists(task_info_filename):
         return
 
-    mod, params, inputs = get_network(key)
+    mod, params, inputs = get_network_with_key(key)
 
     # Dump network relay ir
     print(f"Dump relay ir for {network_key}...")
