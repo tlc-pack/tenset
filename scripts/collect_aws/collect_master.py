@@ -11,7 +11,7 @@ def run_cmd(cmd):
 
 def ssh_run(host, cmd):
     cmd = cmd.replace("\"", "\\\"")
-    run_cmd(f"ssh {host} \"{cmd}\"")
+    run_cmd(f"ssh -o StrictHostKeyChecking=no {host} \"{cmd}\"")
 
 
 def ssh_tmux_run(host, cmd):
@@ -19,11 +19,14 @@ def ssh_tmux_run(host, cmd):
     ssh_run(host, cmd)
 
 
-if __name__ == "__main__":
+#n_tasks = 1577
+#n_machines = 50
 
-    n_tasks = 1577
-    n_machines = 50
-    tasks_per_machine = (n_tasks + n_machines - 1) // n_machines
+n_tasks = 6
+n_machines = 3
+tasks_per_machine = (n_tasks + n_machines - 1) // n_machines
+
+if __name__ == "__main__":
     target = "llvm -mcpu=core-avx2 -model=e5-2666"
 
     print(f"Tasks_per_machine: {tasks_per_machine}")
@@ -42,6 +45,4 @@ if __name__ == "__main__":
                          "PYTHONPATH=~/tvm-cost-model/python python3 collect_aws/collect_worker.py "\
                         f"--start-idx {start_idx} --end-idx {end_idx} --target '{target}'"
         ssh_tmux_run(host_name, worker_commond)
-
-        break
 
