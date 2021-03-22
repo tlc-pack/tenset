@@ -505,9 +505,13 @@ std::tuple<ReuseType, float, float, float> ComputeReuse(
         for_touch_regions) {
   float reuse_dis_iter = 1.0f;
   float reuse_dis_bytes = -1.0f;
+  float reuse_ct = 1.0f;
+
+  int scan_status = 0;    // 0: accumulate reuse distance;  1: accumulate reuse ct
 
   for (int i = static_cast<int>(for_loop_stack.size()) - 1; i >= 0; --i) {
     const ForNode* cur_for = for_loop_stack[i];
+    int64_t extent = GetLoopExtent(for_loop_stack[i]);
     bool find = false;
 
     for (size_t j = 0; j < indices.size(); j++) {
@@ -522,29 +526,36 @@ std::tuple<ReuseType, float, float, float> ComputeReuse(
       }
     }
 
-    int64_t extent = GetLoopExtent(for_loop_stack[i]);
-    if (find) {
-      // accumulate/update reuse distance
-      reuse_dis_iter *= extent;
-      reuse_dis_bytes = 0.0f;
-      for (const auto& iter : for_touch_regions.at(cur_for)) {
-        for (const auto& access : iter.second) {
-          reuse_dis_bytes += std::get<1>(access) * std::get<2>(access);
-        }
-      }
-    } else {
-      // Have LoopMultipleRead reuse
-      if (reuse_dis_bytes < 0) {
-        // For the reuse in the innermost axis, the above code won't be executed.
-        // So we compute bytes here
+    if (scan_status == 0) {  // accumulate reuse distance
+      if (find) {
+        reuse_dis_iter *= extent;
         reuse_dis_bytes = 0.0f;
         for (const auto& iter : for_touch_regions.at(cur_for)) {
           for (const auto& access : iter.second) {
-            reuse_dis_bytes += 1 * std::get<2>(access);
+            reuse_dis_bytes += std::get<1>(access) * std::get<2>(access);
           }
         }
+      } else {
+        // Have LoopMultipleRead reuse
+        if (reuse_dis_bytes < 0) {
+          // For the reuse in the innermost axis, the above code won't be executed.
+          // So we compute bytes here
+          reuse_dis_bytes = 0.0f;
+          for (const auto& iter : for_touch_regions.at(cur_for)) {
+            for (const auto& access : iter.second) {
+              reuse_dis_bytes += 1 * std::get<2>(access);
+            }
+          }
+        }
+        scan_status = 1;
+        reuse_ct *= extent;
       }
-      return std::make_tuple(ReuseType::kLoopMultipleRead, reuse_dis_iter, reuse_dis_bytes, extent);
+    } else if (scan_status == 1) {
+      if (find) {
+        return std::make_tuple(ReuseType::kLoopMultipleRead, reuse_dis_iter, reuse_dis_bytes, reuse_ct);
+      } else {
+        reuse_ct *= extent;
+      }
     }
 
     const BufferMap<std::vector<std::tuple<BufferAccessType, int64_t, int>>>& buffer_map =
@@ -552,28 +563,47 @@ std::tuple<ReuseType, float, float, float> ComputeReuse(
 
     int serial_reuse = static_cast<int>(buffer_map.at(buf).size()) - 1;
     if (serial_reuse > 0) {
-      int64_t extent = GetLoopExtent(cur_for);
-
       // Have SerialMultipleReadWrite reuse
+      int64_t cur_extent = GetLoopExtent(cur_for);
+
+      // Compute reuse distance in iters
       reuse_dis_iter = std::numeric_limits<float>::max();
       for (const auto& acc_info : buffer_map.at(buf)) {
         reuse_dis_iter = std::min(reuse_dis_iter, static_cast<float>(std::get<1>(acc_info)));
       }
 
+      // Compute reuse distance in bytes
       reuse_dis_bytes = 0.0f;
       for (const auto& iter : for_touch_regions.at(cur_for)) {
         for (const auto& access : iter.second) {
-          reuse_dis_bytes += std::get<1>(access) * std::get<2>(access);
+          // avoid recounting init and accumulate buffers
+          if (std::get<0>(access) == BufferAccessType::kRead) {
+            reuse_dis_bytes += std::get<1>(access) * std::get<2>(access);
+          }
         }
       }
 
-      return std::make_tuple(ReuseType::kSerialMultipleReadWrite, reuse_dis_iter / extent,
-                             reuse_dis_bytes / extent, serial_reuse);
+      // Compute reuse ct
+      reuse_ct = 1.0;
+      for (int j = i; j >= 0; j--) {
+        reuse_ct *= GetLoopExtent(for_loop_stack[j]);
+      }
+
+      // NOTE(merrymercy): divide by cur_extent is not precise.
+      // The exact reuse_dis_bytes can be computed by analyzing the touch region of the 
+      // previous for loop. However, the previous for loop is poped out of stack, so we cannot get it.
+      return std::make_tuple(ReuseType::kSerialMultipleReadWrite, reuse_dis_iter / cur_extent,
+                             reuse_dis_bytes / cur_extent, reuse_ct);
     }
   }
 
-  return std::make_tuple(ReuseType::kNoReuse, 0, 0, 0);
+  if (scan_status == 0) {
+    return std::make_tuple(ReuseType::kNoReuse, 0, 0, 0);
+  } else {
+    return std::make_tuple(ReuseType::kLoopMultipleRead, reuse_dis_iter, reuse_dis_bytes, reuse_ct);
+  }
 }
+
 
 // Extract features for every BufferStore statement
 class PerStoreFeatureExtractor : public StmtExprVisitor {
@@ -1079,18 +1109,18 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
     ret->push_back(slog(fea_set.vthread_len));
 
     /***** Group 2: Buffer access related features *****/
-    // sort according to pair (lines, bytes)
-    std::vector<std::pair<float, float>> buf_order_key;
+    // sort according to tuple (reuse_dis_bytes, unique_bytes, unique_lines, acc_type)
+    std::vector<std::tuple<float, float, float, float>> buf_order_key;
     for (const auto& acc_fea : fea_set.access_feas) {
-      buf_order_key.emplace_back(acc_fea.lines, acc_fea.bytes);
+      buf_order_key.emplace_back(
+          acc_fea.reuse_dis_bytes, acc_fea.unique_bytes, acc_fea.unique_lines,
+          1.0 * static_cast<int>(acc_fea.acc_type));
     }
     std::vector<int> buf_order(buf_order_key.size());
     std::iota(buf_order.begin(), buf_order.end(), 0);
 
     auto cmp = [&buf_order_key](int l, int r) {
-      return buf_order_key[l].first > buf_order_key[r].first ||
-             (buf_order_key[l].first == buf_order_key[r].first &&
-              buf_order_key[l].second > buf_order_key[r].second);
+      return buf_order_key[l] < buf_order_key[r];
     };
     std::sort(buf_order.begin(), buf_order.end(), cmp);
     int n_bufs = std::min(max_n_bufs, static_cast<int>(buf_order.size()));
@@ -1267,6 +1297,9 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   te::Schedule sch;
   Array<te::Tensor> tensors;
 
+  // NOTE: Currently, feature extraction with and without layout rewrite
+  // returns the same feature vector, so we do not turn on layout rewrite here.
+  // In the future, we can improve the feature extraction to reflect this difference.
   std::tie(sch, tensors) = task->compute_dag.ApplySteps(state->transform_steps);
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);

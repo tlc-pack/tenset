@@ -127,7 +127,9 @@ def test_cpu_fusion():
                 # reuse distance in #iter
                 assert fequal(stage_fea[i + 2], 1.0)
                 # reuse distance in bytes
-                assert fequal(stage_fea[i + 3], math.log2(16 + 1))
+                assert fequal(stage_fea[i + 3], math.log2(8 + 1))
+                # reuse ct
+                assert fequal(stage_fea[i + 4], math.log2(64 * 32 + 1))
                 found = True
     assert found
 
