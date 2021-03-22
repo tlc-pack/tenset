@@ -5,7 +5,7 @@ from collect_master import run_cmd, n_machines
 
 if __name__ == "__main__":
     for i in tqdm(range(n_machines)):
-        host_name = f"c44X_{i}"
+        host_name = f"c44X_{i:02d}"
 
         run_cmd(f"scp -o StrictHostKeyChecking=no {host_name}:tvm-cost-model/scripts/dataset_part_*.zip .")
 

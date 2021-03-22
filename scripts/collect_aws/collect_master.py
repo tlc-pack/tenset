@@ -19,11 +19,8 @@ def ssh_tmux_run(host, cmd):
     ssh_run(host, cmd)
 
 
-#n_tasks = 1577
-#n_machines = 50
-
-n_tasks = 6
-n_machines = 3
+n_tasks = 1577
+n_machines = 50
 tasks_per_machine = (n_tasks + n_machines - 1) // n_machines
 
 if __name__ == "__main__":
@@ -32,7 +29,8 @@ if __name__ == "__main__":
     print(f"Tasks_per_machine: {tasks_per_machine}")
 
     for i in tqdm(range(n_machines)):
-        host_name = f"c44X_{i}"
+        host_name = f"c44X_{i:02d}"
+        print(host_name)
 
         start_idx = i * tasks_per_machine
         end_idx = (i + 1) * tasks_per_machine
