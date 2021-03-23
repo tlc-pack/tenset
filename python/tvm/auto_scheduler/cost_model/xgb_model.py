@@ -106,7 +106,7 @@ class XGBModelInternal:
     """
     def __init__(
         self,
-        use_workload_embedding=True,
+        use_workload_embedding=False,
         use_data_argumentation=False,
         few_shot_learning="base_only",
         verbose_eval=25,
@@ -230,7 +230,7 @@ class XGBModelInternal:
         bst = xgb.train(
             params=self.xgb_params,
             dtrain=dtrain,
-            num_boost_round=200,
+            num_boost_round=300,
             obj=pack_sum_square_error,
             callbacks=[
                 custom_callback(
@@ -335,11 +335,17 @@ class XGBModelInternal:
             return dmatrix
 
     def load(self, filename):
-        self.base_model, self.local_model, self.few_shot_learning = \
+        self.base_model, self.local_model, params = \
             pickle.load(open(filename, 'rb'))
+        self.few_shot_learning = params['few_shot_learning']
+        self.use_workload_embedding = params['use_workload_embedding']
 
     def save(self, filename):
-        pickle.dump((self.base_model, self.local_model, self.few_shot_learning),
+        params = {
+            'few_shot_learning': self.few_shot_learning,
+            'use_workload_embedding': self.use_workload_embedding,
+        }
+        pickle.dump((self.base_model, self.local_model, params),
             open(filename, 'wb'))
 
 
