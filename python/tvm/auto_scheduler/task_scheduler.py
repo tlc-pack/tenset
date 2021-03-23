@@ -32,7 +32,7 @@ import numpy as np
 from .search_policy import SearchPolicy, SketchPolicy, PreloadMeasuredStates
 from .cost_model import RandomModel, XGBModel
 from .utils import array_mean
-from .measure import ProgramMeasurer
+from .measure import ProgramMeasurer, EmptyBuilder, EmptyRunner
 from .measure_record import RecordReader
 from . import _ffi_api
 
@@ -45,10 +45,10 @@ def make_search_policies(
     tasks,
     num_measures_per_round,
     verbose,
-    load_model_file=None,
-    load_log_file=None,
-    adapative_training=False,
-    disable_cost_model_update=False,
+    load_model_file,
+    load_log_file,
+    adapative_training,
+    disable_cost_model_update,
 ):
     """Make a list of search policies for a list of search tasks.
     It creates one policy per task.
@@ -317,18 +317,28 @@ class TaskScheduler:
             1e20 if per_task_early_stopping is None else per_task_early_stopping
         )
 
-        self.measurer = ProgramMeasurer(
-            tune_option.builder,
-            tune_option.runner,
-            tune_option.measure_callbacks,
-            tune_option.verbose,
-        )
+        if tune_option.num_measure_trials < 0:
+            # Do no run measurement, but run search and generate one records for each task.
+            self.measurer = ProgramMeasurer(EmptyBuilder(), EmptyRunner(),
+                                            tune_option.measure_callbacks, tune_option.verbose)
+            num_measure_trials = len(self.tasks)
+            disable_cost_model_update = True
+        else:
+            num_measure_trials = tune_option.num_measure_trials
+            self.measurer = ProgramMeasurer(
+                tune_option.builder,
+                tune_option.runner,
+                tune_option.measure_callbacks,
+                tune_option.verbose,
+            )
+            disable_cost_model_update = False
+
         self.ct = self.best_ct = 0
         self.tic = time.time()
 
         # reset num_measures_per_round to make sure every task is tuned at least once
         self.num_measures_per_round = min(
-            tune_option.num_measures_per_round, tune_option.num_measure_trials // len(self.tasks)
+            tune_option.num_measures_per_round, num_measure_trials // len(self.tasks)
         )
         if self.num_measures_per_round <= 0:
             raise ValueError("num_measure_trials is too small. Please set it to a higher value.")
@@ -347,6 +357,7 @@ class TaskScheduler:
             self.load_model_file,
             self.load_log_file,
             adapative_training,
+            disable_cost_model_update,
         )
 
         # do a round robin first to warm up
@@ -359,7 +370,7 @@ class TaskScheduler:
 
         # use the specific strategy to choose workload to tune
         task_idx = -1
-        while self.ct < tune_option.num_measure_trials and len(self.dead_tasks) < len(self.tasks):
+        while self.ct < num_measure_trials and len(self.dead_tasks) < len(self.tasks):
             if self.strategy == "round-robin":
                 task_idx = (task_idx + 1) % len(self.tasks)
                 while task_idx in self.dead_tasks:

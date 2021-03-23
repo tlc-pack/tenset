@@ -284,6 +284,28 @@ class ProgramRunner(Object):
         return _ffi_api.ProgramRunnerRun(self, measure_inputs, build_results, verbose)
 
 
+@tvm._ffi.register_object("auto_scheduler.EmptyBuilder")
+class EmptyBuilder(ProgramBuilder):
+    """
+    An empty builder that does nothing.
+    This is used to generate measurement records without measurement.
+    The measurement records can then be used for final compilation.
+    """
+    def __init__(self):
+        self.__init_handle_by_constructor__(_ffi_api.EmptyBuilder)
+
+
+@tvm._ffi.register_object("auto_scheduler.EmptyRunner")
+class EmptyRunner(ProgramRunner):
+    """
+    An empty runner that does nothing.
+    This is used to generate measurement records without measurement.
+    The measurement records can then be used for final compilation.
+    """
+    def __init__(self):
+        self.__init_handle_by_constructor__(_ffi_api.EmptyRunner)
+
+
 @tvm._ffi.register_object("auto_scheduler.ProgramMeasurer")
 class ProgramMeasurer(Object):
     """

@@ -451,6 +451,40 @@ class RPCRunner : public ProgramRunner {
   TVM_DEFINE_MUTABLE_OBJECT_REF_METHODS(RPCRunner, ProgramRunner, RPCRunnerNode);
 };
 
+// An empty builder that does nothing.
+// This is used to generate measurement records without measurement.
+// The measurement records can then be used for final compilation.
+class EmptyBuilderNode: public ProgramBuilderNode {
+ public:
+  Array<BuildResult> Build(const Array<MeasureInput>& inputs, int verbose) final;
+
+  static constexpr const char* _type_key = "auto_scheduler.EmptyBuilder";
+  TVM_DECLARE_FINAL_OBJECT_INFO(EmptyBuilderNode, ProgramBuilderNode);
+};
+class EmptyBuilder: public ProgramBuilder {
+ public:
+  EmptyBuilder();
+  TVM_DEFINE_NOTNULLABLE_OBJECT_REF_METHODS(EmptyBuilder, ProgramBuilder, EmptyBuilderNode);
+};
+
+// An empty runner that does nothing.
+// This is used to generate measurement records without measurement.
+// The measurement records can then be used for final compilation.
+class EmptyRunnerNode: public ProgramRunnerNode {
+ public:
+  Array<MeasureResult> Run(const Array<MeasureInput>& inputs,
+                           const Array<BuildResult>& build_results,
+                           int verbose) final;
+
+  static constexpr const char* _type_key = "auto_scheduler.EmptyRunner";
+  TVM_DECLARE_FINAL_OBJECT_INFO(EmptyRunnerNode, ProgramRunnerNode);
+};
+class EmptyRunner: public ProgramRunner {
+ public:
+  EmptyRunner();
+  TVM_DEFINE_NOTNULLABLE_OBJECT_REF_METHODS(EmptyRunner, ProgramRunner, EmptyRunnerNode);
+};
+
 /*!
  * \brief Measurer that measures the time costs of tvm programs
  * This class combines ProgramBuilder and ProgramRunner, and provides a simpler API */

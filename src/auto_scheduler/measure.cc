@@ -45,6 +45,8 @@ TVM_REGISTER_OBJECT_TYPE(ProgramMeasurerNode);
 TVM_REGISTER_OBJECT_TYPE(LocalBuilderNode);
 TVM_REGISTER_OBJECT_TYPE(LocalRunnerNode);
 TVM_REGISTER_OBJECT_TYPE(RPCRunnerNode);
+TVM_REGISTER_OBJECT_TYPE(EmptyRunnerNode);
+TVM_REGISTER_OBJECT_TYPE(EmptyBuilderNode);
 
 static const char* ErrorNoToStr[] = {
     "NoError",
@@ -184,6 +186,42 @@ Array<MeasureResult> RPCRunnerNode::Run(const Array<MeasureInput>& inputs,
                << "make sure the TVM Python runtime has been loaded successfully.";
   }
   return Array<MeasureResult>();
+}
+
+/********** Empty Builder **********/
+EmptyBuilder::EmptyBuilder() {
+  ObjectPtr<EmptyBuilderNode> node = make_object<EmptyBuilderNode>();
+  node->n_parallel = 1;
+  data_ = std::move(node);
+}
+
+Array<BuildResult> EmptyBuilderNode::Build(const Array<MeasureInput>& inputs, int verbose) {
+  Array<BuildResult> results;
+
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    results.push_back(BuildResult("", {}, static_cast<int>(MeasureErrorNO::kNoError), "", 0.0));
+  }
+
+  return results;
+}
+
+/********** Empty Runner **********/
+EmptyRunner::EmptyRunner() {
+  ObjectPtr<EmptyRunnerNode> node = make_object<EmptyRunnerNode>();
+  data_ = std::move(node);
+}
+
+Array<MeasureResult> EmptyRunnerNode::Run(
+    const Array<MeasureInput>& inputs,
+    const Array<BuildResult>& build_results,
+    int verbose) {
+  Array<MeasureResult> results;
+
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    results.push_back(MeasureResult({0.0f}, static_cast<int>(MeasureErrorNO::kNoError), "", 0.0, std::clock()));
+  }
+
+  return results;
 }
 
 /********** MeasureCallback **********/
@@ -427,6 +465,12 @@ TVM_REGISTER_GLOBAL("auto_scheduler.RPCRunner")
       return RPCRunner(key, host, port, priority, n_parallel, timeout, number, repeat,
                        min_repeat_ms, cooldown_interval, enable_cpu_cache_flush);
     });
+
+TVM_REGISTER_GLOBAL("auto_scheduler.EmptyBuilder")
+.set_body_typed([]() { return EmptyBuilder(); });
+
+TVM_REGISTER_GLOBAL("auto_scheduler.EmptyRunner")
+.set_body_typed([]() { return EmptyRunner(); });
 
 }  // namespace auto_scheduler
 }  // namespace tvm

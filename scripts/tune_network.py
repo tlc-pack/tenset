@@ -1,6 +1,7 @@
 """Tune a network"""
 import argparse
 import logging
+import os
 import random
 import time
 
@@ -105,10 +106,11 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--target", type=str, default='llvm -mcpu=core-avx2')
     parser.add_argument("--target-host", type=str, default=None)
+    parser.add_argument("--n-trials", type=int, default=1000)
     parser.add_argument("--eval-only", action='store_true')
+    parser.add_argument("--continue-tuning", action='store_true')
 
     # Search strategy related arguments
-    parser.add_argument("--n-trials", type=int, default=1000)
     parser.add_argument("--cost-model", type=str, choices=['xgb', 'random', 'xgb-no-update'],
                         default='xgb', help="The type of program cost model")
     parser.add_argument("--seed", type=int, default=0, help='random seed')
@@ -141,7 +143,12 @@ if __name__ == "__main__":
                                                         target.kind)
     else:
         log_file = args.log_file or "%s-B%d-%s-%s.json" % (args.network, args.batch_size,
-                                                        target.kind, target.model)
+                                                           target.kind, target.model)
+ 
+    if not args.continue_tuning and os.path.exists(log_file):
+        # Delete existing log file to avoid reusing old measurement records
+        print("Delete the existing log file %s" % log_file)
+        os.system("rm -rf %s" % log_file)
 
     network_args = {
         "network": args.network,
