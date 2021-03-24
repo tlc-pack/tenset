@@ -1,3 +1,5 @@
+"""Collect measure records from workers"""
+
 import argparse
 import time
 
@@ -31,6 +33,6 @@ if __name__ == "__main__":
     run_cmd("rm -rf dataset/measure_records")
 
     # shutdown
-    time.sleep(5)
-    run_cmd("sudo shutdown -h now")
+    #time.sleep(5)
+    #run_cmd("sudo shutdown -h now")
 

@@ -29,14 +29,15 @@ if __name__ == "__main__":
     print(f"Tasks_per_machine: {tasks_per_machine}")
 
     for i in tqdm(range(0, n_machines)):
-        host_name = f"azure-intel-avx512-{i:d}"
-        print(host_name)
+        host_name = f"azure-intel-avx512-{i:02d}"
 
         start_idx = i * tasks_per_machine
         end_idx = (i + 1) * tasks_per_machine
 
+        ssh_run(host_name, "hostname")
+
         # fetch code
-        ssh_run(host_name, "cd tvm-cost-model; git reset --hard 6d80e45af5; git pull;")
+        ssh_run(host_name, "cd tvm-cost-model; git reset --hard 68a29876fe; git pull;")
 
         ## run collection
         worker_commond = "source ~/.bashrc; cd tvm-cost-model/scripts; "\
@@ -44,6 +45,4 @@ if __name__ == "__main__":
                         f"--start-idx {i} --end-idx {n_tasks} --step-idx {n_machines} "\
                         f"--target '{target}'"
         ssh_tmux_run(host_name, worker_commond)
-
-        break
 
