@@ -69,19 +69,19 @@ if __name__ == "__main__":
     parser.add_argument("--target", type=str, required=True)
     parser.add_argument("--target-host", type=str)
     parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument("--start-idx", type=int)
-    parser.add_argument("--end-idx", type=int)
+    parser.add_argument("--start-idx", type=int, default=0)
+    parser.add_argument("--end-idx", type=int, default=1000000)
+    parser.add_argument("--step-idx", type=int, default=1)
     args = parser.parse_args()
 
     # Load task registry
     print("Load all tasks...")
     tasks = load_and_register_tasks()
 
-    start_idx = args.start_idx or 0
-    end_idx = args.end_idx or len(tasks)
+    end_idx = min(args.end_idx, len(tasks))
 
     # Remeasure all tasks
-    for i in range(start_idx, end_idx):
+    for i in range(args.start_idx, end_idx, args.step_idx):
         with open("progress.txt", "a") as fout:
             fout.write(f"Begin {i}/{len(tasks)}: {time.time():.2f}\n")
         task = tasks[i]
@@ -95,7 +95,7 @@ if __name__ == "__main__":
             "verbose": 1,
         }
         if task.compute_dag.flop_ct >= 2416443392.0:
-            measurer_kwargs['repeat'] = 3
+            measurer_kwargs['repeat'] = 4
         elif task.compute_dag.flop_ct >= 834928640.0:
             measurer_kwargs['repeat'] = 5
         elif task.compute_dag.flop_ct <= 2097152.0:

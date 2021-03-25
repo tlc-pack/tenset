@@ -1,3 +1,5 @@
+"""Gather measure records from workers"""
+
 from tqdm import tqdm
 
 from collect_master import run_cmd, ssh_run, n_machines
