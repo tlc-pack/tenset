@@ -440,3 +440,10 @@ def to_str_round(x, decimal=6):
         return format_str % x
     raise ValueError("Invalid value: " + str(x) + "\ttype: " + str(type(x)))
 
+
+def run_cmd(cmd):
+    print(cmd)
+    ret = os.system(cmd)
+    if ret != 0:
+        exit(ret)
+

@@ -53,6 +53,12 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
 
     # Do auto-tuning
     if not tuning_args['eval_only']:
+        # Delete existing log file to avoid reusing old measurement records
+        if not tuning_args['continue_tuning'] and os.path.exists(log_file):
+            print("Delete the existing log file %s" % log_file)
+            os.system("rm -rf %s" % log_file)
+
+        # Extract search tasks
         tasks, task_weights = auto_scheduler.extract_tasks(mod["main"], params, target)
 
         for idx, task in enumerate(tasks):
@@ -64,6 +70,7 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
 
         tuning_opt = get_tuning_option(tuning_args, target)
 
+        # Run search
         tuner = auto_scheduler.TaskScheduler(tasks, task_weights,
             load_model_file=tuning_args['load_model'])
         policy = 'sketch.%s' % tuning_args['cost_model']
@@ -145,11 +152,6 @@ if __name__ == "__main__":
         log_file = args.log_file or "%s-B%d-%s-%s.json" % (args.network, args.batch_size,
                                                            target.kind, target.model)
  
-    if not args.continue_tuning and os.path.exists(log_file):
-        # Delete existing log file to avoid reusing old measurement records
-        print("Delete the existing log file %s" % log_file)
-        os.system("rm -rf %s" % log_file)
-
     network_args = {
         "network": args.network,
         "batch_size": args.batch_size,
@@ -157,6 +159,7 @@ if __name__ == "__main__":
 
     tuning_args = {
         "eval_only": args.eval_only,
+        "continue_tuning": args.continue_tuning,
         "n_trials": args.n_trials,
         "log_file": log_file,
         "run_timeout": args.run_timeout,
