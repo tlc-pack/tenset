@@ -55,7 +55,9 @@ def remeasure_file(task_idx, reference_filename, target, target_host, batch_size
     # Do measurement
     for i in range(0, len(inputs), batch_size):
         print(f"===== task: {task_idx}\t programs: {i}/{len(inputs)} =====")
-        inp_batch = inputs[i:min(len(inputs), i + batch_size)]
+        inp_batch = []
+        for inp in inputs[i:min(len(inputs), i + batch_size)]:
+            inp_batch.append(auto_scheduler.MeasureInput(task, inp.state))
         res_batch = measurer.measure(task, empty_policy, inp_batch)
 
         timeout_ct = 0
