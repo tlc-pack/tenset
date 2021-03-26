@@ -10,7 +10,7 @@ import tvm
 from tvm.auto_scheduler.utils import to_str_round
 from tvm.auto_scheduler.cost_model import RandomModelInternal
 
-from common import load_and_register_tasks
+from common import load_and_register_tasks, str2bool
 
 from tvm.auto_scheduler.dataset import Dataset, LearningTask
 from tvm.auto_scheduler.cost_model.xgb_model import XGBModelInternal
@@ -65,10 +65,10 @@ def evaluate_model(model, test_set):
     return eval_res
 
 
-def make_model(name):
+def make_model(name, use_gpu=False):
     """Make model according to a name"""
     if name == "xgb":
-        return XGBModelInternal()
+        return XGBModelInternal(use_gpu=use_gpu)
     elif name == "mlp":
         return MLPModelInternal()
     elif name == "random":
@@ -77,7 +77,7 @@ def make_model(name):
         raise ValueError("Invalid model: " + name)
  
 
-def train_zero_shot(dataset, train_ratio, model_names, split_scheme):
+def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
     # Split dataset
     if split_scheme == "within_task":
         train_set, test_set = dataset.random_split_within_task(train_ratio)
@@ -97,7 +97,7 @@ def train_zero_shot(dataset, train_ratio, model_names, split_scheme):
     names = model_names.split("@")
     models = []
     for name in names:
-        models.append(make_model(name))
+        models.append(make_model(name, use_gpu))
 
     eval_results = []
     for name, model in zip(names, models):
@@ -132,6 +132,9 @@ if __name__ == "__main__":
         default="within_task",
     )
     parser.add_argument("--train-ratio", type=float, default=0.9)
+    parser.add_argument("--use-gpu", type=str2bool, nargs='?',
+                        const=True, default=False,
+                        help="Whether to use GPU for xgb.")
     args = parser.parse_args()
     print("Arguments: %s" % str(args))
 
@@ -148,5 +151,5 @@ if __name__ == "__main__":
     print("Load dataset...")
     dataset = pickle.load(open(args.dataset, "rb"))
 
-    train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme)
+    train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu)
 
