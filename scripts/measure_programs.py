@@ -91,7 +91,6 @@ if __name__ == "__main__":
         # Set measurement arguments
         measurer_kwargs = {
             "run_timeout": 5,
-            "repeat": 8,
             "number": 1,
             "enable_cpu_cache_flush": True,
             "verbose": 1,
@@ -99,7 +98,7 @@ if __name__ == "__main__":
         if task.compute_dag.flop_ct >= 2416443392.0:
             measurer_kwargs['repeat'] = 4
         elif task.compute_dag.flop_ct >= 834928640.0:
-            measurer_kwargs['repeat'] = 5
+            measurer_kwargs['repeat'] = 6
         elif task.compute_dag.flop_ct <= 2097152.0:
             measurer_kwargs['repeat'] = 10
         else:
