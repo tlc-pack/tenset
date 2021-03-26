@@ -11,8 +11,7 @@ from tqdm import tqdm
 import tvm
 from tvm import auto_scheduler
 
-from common import (TO_MEASURE_PROGRAM_FOLDER, MEASURE_RECORD_FOLDER,
-        load_and_register_tasks)
+from common import load_and_register_tasks, get_measure_record_filename
 
 def make_measurer(run_timeout, repeat, number, enable_cpu_cache_flush,
                   verbose, log_filename):
@@ -29,12 +28,11 @@ def make_measurer(run_timeout, repeat, number, enable_cpu_cache_flush,
     return measurer
 
 
-def remeasure_file(task_idx, reference_filename, target, target_host, batch_size, measurer_kwargs):
+def remeasure_file(task_idx, task, target, target_host, batch_size, measurer_kwargs):
     # Make folder and log filename
     target = tvm.target.Target(target)
-    folder = f"{MEASURE_RECORD_FOLDER}/{target.model}"
-    os.makedirs(folder, exist_ok=True)
-    log_filename = f"{folder}/{os.path.basename(reference_filename)}"
+    log_filename = get_measure_record_filename(task, target)
+    os.makedirs(os.path.dirname(log_filename), exist_ok=True)
 
     # Make measuer
     measurer_kwargs['log_filename'] = log_filename

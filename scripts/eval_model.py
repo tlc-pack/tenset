@@ -41,7 +41,7 @@ def eval_cost_model_on_network(model, network, target, top_ks):
     # Read tasks of the network
     target = tvm.target.Target(target)
     network_task_key = (network_key, str(target.kind))
-    task_info_filename = f"{NETWORK_INFO_FOLDER}/{network_task_key}.task.pkl"
+    task_info_filename = f"dataset/network_info/{network_task_key}.task.pkl"
     tasks, task_weights = pickle.load(open(task_info_filename, "rb"))
     network_task_key2 = (network_key, str(target))
 
@@ -51,7 +51,7 @@ def eval_cost_model_on_network(model, network, target, top_ks):
         filenames = []
         for task in tasks:
             task_key = (task.workload_key, str(task.target.kind))
-            filename = f"{MEASURE_RECORD_FOLDER}/{target.model}/{task_key}.json"
+            filename = f"dataset/measure_records/{target.model}/{task_key}.json"
             filenames.append(filename)
 
         # make a dataset
@@ -73,14 +73,20 @@ if __name__ == "__main__":
     args= parser.parse_args()
 
     model_file = args.model_file
-    network_key = ("resnet_50", [(1, 3, 224,224)])
+    network_keys = [
+        ("resnet_50", [(1, 3, 224,224)]),
+        ("mobilenet_v2", [(1, 3, 224,224)]),
+        ("mobilenet_v3", [(1, 3, 224,224)]),
+        ("bert_base", [(1, 128)]),
+    ]
     target = "llvm -model=e5-2666"
 
     model = XGBModelInternal()
     model.load(model_file)
 
     top_ks = [1, 5]
-    latencies, best_latency = eval_cost_model_on_network(model, network_key, target, top_ks)
-    for top_k, latency in zip(top_ks, latencies):
-        print(f"Top-{top_k} score: {best_latency / latency}")
+    for network_key in network_keys:
+        latencies, best_latency = eval_cost_model_on_network(model, network_key, target, top_ks)
+        for top_k, latency in zip(top_ks, latencies):
+            print(f"Network: {network_key}\tTop-{top_k} score: {best_latency / latency}")
 
