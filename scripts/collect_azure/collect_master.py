@@ -19,17 +19,21 @@ def ssh_tmux_run(host, cmd):
     ssh_run(host, cmd)
 
 
-n_tasks = 1577
-n_machines = 20
+n_tasks = 2308
+n_machines = 10
 tasks_per_machine = (n_tasks + n_machines - 1) // n_machines
 
 if __name__ == "__main__":
-    target = "llvm -mcpu=skylake-avx512 -model=platinum-8272"
+    #target = "llvm -mcpu=skylake-avx512 -model=platinum-8272"
+    target = "llvm -mcpu=core-avx2 -model=epyc-7452"
+    #target = "llvm -mcpu=core-avx2 -model=e5-2673"
 
     print(f"Tasks_per_machine: {tasks_per_machine}")
 
     for i in tqdm(range(0, n_machines)):
-        host_name = f"azure-intel-avx512-{i:02d}"
+        #host_name = f"azure-intel-avx512-{i:02d}"
+        host_name = f"azure-amd-avx2-{i:02d}"
+        #host_name = f"azure-intel-avx2-{i:02d}"
 
         start_idx = i * tasks_per_machine
         end_idx = (i + 1) * tasks_per_machine
@@ -37,7 +41,7 @@ if __name__ == "__main__":
         ssh_run(host_name, "hostname")
 
         # fetch code
-        ssh_run(host_name, "cd tvm-cost-model; git reset --hard 68a29876fe; git pull;")
+        ssh_run(host_name, "cd tvm-cost-model; git reset --hard 2df4c7a6b9a1; git pull;")
 
         ## run collection
         worker_commond = "source ~/.bashrc; cd tvm-cost-model/scripts; "\
