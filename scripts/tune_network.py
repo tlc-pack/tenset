@@ -19,14 +19,16 @@ from common import str2bool, log_line, BenchmarkRecord
 def get_network(network_args):
     name, batch_size = network_args['network'], network_args['batch_size']
     if name in ['resnet_18', 'resnet_50', 'mobilenet_v2', 'mobilenet_v3',
-                'wide_resnet_50', 'resnext_50']:
+                'wide_resnet_50', 'resnext_50', 'densenet_121']:
         network_key = (name, [(batch_size, 3, 224, 224)])
+    elif name in ['inception_v3']:
+        network_key = (name, [(batch_size, 3, 299, 299)])
     elif name in ['bert_tiny', 'bert_base', 'bert_medium', 'bert_large']:
         network_key = (name, [(batch_size, 128)])
     elif name == 'dcgan':
         network_key = (name, [(batch_size, 3, 64, 64)])
     else:
-        raise ValueError("Invalid network: " + network)
+        raise ValueError("Invalid network: " + name)
 
     return get_network_with_key(network_key)
 

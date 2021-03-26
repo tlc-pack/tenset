@@ -200,7 +200,7 @@ class Dataset:
         return sum(len(x) for x in self.throughputs.values())
 
 
-def make_dataset_from_log_file(log_files, out_file, min_sample_size):
+def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
     """Make a dataset file from raw log files"""
     from tqdm import tqdm
 
@@ -212,7 +212,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size):
     for filename in tqdm(log_files):
         assert os.path.exists(filename), f"{filename} does not exist."
 
-        cache_file = f"{cache_folder}/{filename.split('/')[-1]}.feature_cache"
+        cache_file = f"{cache_folder}/{filename.replace('/', '_')}.feature_cache"
         if os.path.exists(cache_file):
             # Load feature from the cached file
             features, throughputs, min_latency = pickle.load(open(cache_file, "rb"))
@@ -248,9 +248,11 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size):
     # Delete task with too few samples
     to_delete = []
     for i, (task, feature) in enumerate(dataset.features.items()):
-        print("No: %d\tTask: %s\tSize: %d" % (i, task, len(feature)))
+        if verbose >= 0:
+            print("No: %d\tTask: %s\tSize: %d" % (i, task, len(feature)))
         if len(feature) < min_sample_size:
-            print("Deleted")
+            if verbose >= 0:
+                print("Deleted")
             to_delete.append(task)
     for task in to_delete:
         del dataset.features[task]
@@ -259,5 +261,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size):
 
     # Save to disk
     pickle.dump(dataset, open(out_file, "wb"))
-    print("A dataset file is saved to %s" % out_file)
+
+    if verbose >= 0:
+        print("A dataset file is saved to %s" % out_file)
 

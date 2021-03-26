@@ -2,7 +2,7 @@
 
 Usage:
 python3 make_dataset.py dataset/measure_records/e5-2666/*.json
-python3 make_dataset.py dataset/measure_records/e5-2666/*.json --max-in-files 10
+python3 make_dataset.py dataset/measure_records/e5-2666/*.json --sample-in-files 100
 """
 import argparse
 import glob
@@ -31,3 +31,4 @@ if __name__ == "__main__":
 
     auto_scheduler.dataset.make_dataset_from_log_file(
         files, args.out_file, args.min_sample_size)
+

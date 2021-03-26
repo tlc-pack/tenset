@@ -106,7 +106,7 @@ class XGBModelInternal:
     """
     def __init__(
         self,
-        use_workload_embedding=False,
+        use_workload_embedding=True,
         use_data_argumentation=False,
         few_shot_learning="base_only",
         verbose_eval=25,

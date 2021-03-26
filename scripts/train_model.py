@@ -68,9 +68,9 @@ def evaluate_model(model, test_set):
 def make_model(name):
     """Make model according to a name"""
     if name == "xgb":
-        return XGBModelInternal(use_workload_embedding=False)
+        return XGBModelInternal()
     elif name == "mlp":
-        return MLPModelInternal(use_workload_embedding=False)
+        return MLPModelInternal()
     elif name == "random":
         return RandomModelInternal()
     else:
