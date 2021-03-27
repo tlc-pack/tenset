@@ -50,7 +50,7 @@ def get_tuning_option(tuning_args, target):
     return tuning_opt
 
 
-def tune_and_evaluate(network_args, tuning_args, target, target_host, result_file):
+def tune_and_evaluate(network_args, tuning_args, target, target_host, result_file, transfer_tune):
     mod, params, inputs = get_network(network_args)
 
     # Do auto-tuning
@@ -74,9 +74,12 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
 
         # Run search
         tuner = auto_scheduler.TaskScheduler(tasks, task_weights,
-            load_model_file=tuning_args['load_model'])
+            load_model_file=tuning_args['load_model'], load_log_file=tuning_args['log_file'])
         policy = 'sketch.%s' % tuning_args['cost_model']
-        tuner.tune(tuning_opt, search_policy=policy)
+        if not transfer_tune:
+            tuner.tune(tuning_opt, search_policy=policy)
+        else:
+            tuner.transfer_tune(tuning_opt, search_policy=policy)
 
     # Build module
     with auto_scheduler.ApplyHistoryBest(log_file):
@@ -118,6 +121,7 @@ if __name__ == "__main__":
     parser.add_argument("--n-trials", type=int, default=1000)
     parser.add_argument("--eval-only", action='store_true')
     parser.add_argument("--continue-tuning", action='store_true')
+    parser.add_argument("--transfer-tune", action="store_true")
 
     # Search strategy related arguments
     parser.add_argument("--cost-model", type=str, choices=['xgb', 'random', 'xgb-no-update'],
@@ -170,5 +174,5 @@ if __name__ == "__main__":
     }
 
     tune_and_evaluate(network_args, tuning_args, target, args.target_host,
-                      args.result_file)
+                      args.result_file, args.transfer_tune)
 

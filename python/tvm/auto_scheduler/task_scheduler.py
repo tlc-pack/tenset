@@ -26,6 +26,7 @@ import os
 import time
 import math
 import logging
+import pickle
 
 import numpy as np
 
@@ -34,6 +35,7 @@ from .cost_model import RandomModel, XGBModel
 from .utils import array_mean
 from .measure import ProgramMeasurer, EmptyBuilder, EmptyRunner
 from .measure_record import RecordReader
+from .dataset import make_dataset_from_log_file
 from . import _ffi_api
 
 logger = logging.getLogger("auto_scheduler")
@@ -49,6 +51,7 @@ def make_search_policies(
     load_log_file,
     adapative_training,
     disable_cost_model_update,
+    few_shot_learning='base_only'
 ):
     """Make a list of search policies for a list of search tasks.
     It creates one policy per task.
@@ -75,6 +78,8 @@ def make_search_policies(
     adapative_training: bool = False
         Option used by XGBModel to reduce the model training frequency when there're too
         many logs.
+    few_shot_learning: Optional[str]
+        Few shot learning types.
 
     Returns
     -------
@@ -92,13 +97,22 @@ def make_search_policies(
             cost_model = XGBModel(
                 num_warmup_sample=len(tasks) * num_measures_per_round,
                 disable_update=disable_cost_model_update,
+                few_shot_learning=few_shot_learning
             )
-            if load_model_file and os.path.isfile(load_model_file):
-                logger.info("TaskScheduler: Load pretrained model...")
+            if few_shot_learning == 'plus_mix_task':
+                # load base model
                 cost_model.load(load_model_file)
-            elif load_log_file:
-                logger.info("TaskScheduler: Reload measured states and train the model...")
-                cost_model.update_from_file(load_log_file)
+                dataset_file = 'tmp_dataset.pkl'
+                make_dataset_from_log_file([load_log_file], dataset_file, min_sample_size=48)
+                local_dataset = pickle.load(open(dataset_file, 'rb'))
+                cost_model.model.fit_local(local_dataset)
+            else:
+                if load_model_file and os.path.isfile(load_model_file):
+                    logger.info("TaskScheduler: Load pretrained model...")
+                    cost_model.load(load_model_file)
+                elif load_log_file:
+                    logger.info("TaskScheduler: Reload measured states and train the model...")
+                    cost_model.update_from_file(load_log_file)
         elif model_type == "random":
             cost_model = RandomModel()
         else:
@@ -454,6 +468,102 @@ class TaskScheduler:
 
         for callback in self.callbacks:
             callback.finish(self)
+
+    def transfer_tune(self,
+        tune_option,
+        search_policy="default",
+        search_policy_params=None,
+        adapative_training=False,
+        per_task_early_stopping=None):
+
+        # init members
+        self.tune_option = tune_option
+        self.early_stopping_all = (
+            1e20 if tune_option.early_stopping < 0 else tune_option.early_stopping
+        )
+        self.early_stopping_task = (
+            1e20 if per_task_early_stopping is None else per_task_early_stopping
+        )
+
+        if tune_option.num_measure_trials < 0:
+            # Do no run measurement, but run search and generate one records for each task.
+            self.measurer = ProgramMeasurer(EmptyBuilder(), EmptyRunner(),
+                                            tune_option.measure_callbacks, tune_option.verbose)
+            num_measure_trials = len(self.tasks)
+            disable_cost_model_update = True
+        else:
+            num_measure_trials = tune_option.num_measure_trials
+            self.measurer = ProgramMeasurer(
+                tune_option.builder,
+                tune_option.runner,
+                tune_option.measure_callbacks,
+                tune_option.verbose,
+            )
+            disable_cost_model_update = False
+
+        self.ct = self.best_ct = 0
+        self.tic = time.time()
+
+        self.num_measures_per_round = min(
+            tune_option.num_measures_per_round, num_measure_trials // len(self.tasks)
+        )
+
+        if self.num_measures_per_round <= 0:
+            raise ValueError("num_measure_trials is too small. Please set it to a higher value.")
+
+        # restore the status of the task scheduler from a log file
+        if self.load_log_file:
+            self._restore_status(self.load_log_file, self.num_measures_per_round)
+
+        # make one search policy for one task
+        search_policy = 'sketch.xgb-no-update'
+        self.search_policies = make_search_policies(
+            search_policy,
+            search_policy_params,
+            self.tasks,
+            self.num_measures_per_round,
+            tune_option.verbose,
+            self.load_model_file,
+            self.load_log_file,
+            adapative_training,
+            disable_cost_model_update,
+        )
+
+        for idx in range(len(self.tasks)//2):
+            # skip warming up this task if it has been tuned before (restored from the log file)
+            # if not self.task_cts[idx]:
+            #     self._tune_task(idx)
+            self._tune_task(idx)
+
+        self.best_ct = self.ct
+        self.best_score = self.cur_score
+
+        search_policy = 'sketch.xgb-no-update'
+        self.search_policies = make_search_policies(
+            search_policy,
+            search_policy_params,
+            self.tasks,
+            self.num_measures_per_round,
+            tune_option.verbose,
+            self.load_model_file,
+            self.load_log_file,
+            adapative_training,
+            disable_cost_model_update,
+            few_shot_learning='plus_mix_task'
+        )
+
+        for idx in range(len(self.tasks)//2, len(self.tasks)):
+            # skip warming up this task if it has been tuned before (restored from the log file)
+            # if not self.task_cts[idx]:
+            #     self._tune_task(idx)
+            self._tune_task(idx)
+
+        self.best_ct = self.ct
+        self.best_score = self.cur_score
+
+        for callback in self.callbacks:
+            callback.finish(self)
+
 
     def _tune_task(self, task_idx):
         """Tune the select task for one round"""
