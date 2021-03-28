@@ -66,7 +66,7 @@ def get_prime_factors(n):
 PRIMES = [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31]
 
 class GraphEmbeddingModel:
-    def __init__(self, model, graphs=[]):
+    def __init__(self, model):
         self.task_embeddings = {} # Dict[workload_key -> embedding vector]
         # self.tensor_type_one_hot_dict = {} # Dict[tensor name -> id]
         self.tensor_type_one_hot_dict = {"virtual node": 0} # Dict[tensor name -> id]
@@ -187,7 +187,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--embedding-file", type=str, default='task_embeddings.pkl')
     parser.add_argument("--use-saved-graphs", action='store_true')
+    parser.add_argument("--embedding-type", type=str, default='LDP')
     args = parser.parse_args()
+
+    graph_embedding_model = GraphEmbeddingModel(args.embedding_type)
 
     if not args.use_saved_graphs:
         load_and_register_tasks()
