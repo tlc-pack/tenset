@@ -197,6 +197,13 @@ def workload_key_to_tensors(workload_key):
     return value(*args)
 
 
+@ tvm._ffi.register_func("ansor.workload_key_to_dag")
+def workload_key_to_dag(workload_key: str) -> ComputeDAG:
+    """Decode a workload key to a compute dag"""
+    tensors = workload_key_to_tensors(workload_key)
+    return ComputeDAG(tensors)
+
+
 def serialize_workload_registry_entry(workload_key):
     """
     Serialize a workload registry entry.
