@@ -119,6 +119,8 @@ class GraphEmbeddingModel:
         node_idx = 0
 
         def build_node_dict(t):
+            if t.ndim == 0:
+                return
             if t in node_dict:
                 return
             nonlocal node_idx
@@ -191,7 +193,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     graph_embedding_model = GraphEmbeddingModel(args.embedding_type)
-
+    i = 0
     if not args.use_saved_graphs:
         load_and_register_tasks()
         graphs = []
@@ -213,7 +215,6 @@ if __name__ == "__main__":
         pickle.dump((graphs, workload_keys), open("all_task_graphs.pkl", 'wb'))
     else:
         graphs, workload_keys = pickle.load(open("all_task_graphs.pkl", 'rb'))
-
 
     if graph_embedding_model.model_type == 'UGraphEmb':
         sg_graphs = [sg.StellarGraph.from_networkx(graph, node_features="feature") for graph in graphs]
