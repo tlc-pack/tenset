@@ -223,11 +223,16 @@ def get_all_tasks():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--target", type=str, required=True)
+    args = parser.parse_args()
+    args.target = tvm.target.Target(args.target)
+
     os.makedirs(NETWORK_INFO_FOLDER, exist_ok=True)
 
     # Dump the relay ir and task info for all networks
     network_keys = build_network_keys()
-    target = tvm.target.Target('llvm')
+    target = args.target
     for key in tqdm(network_keys):
         dump_network(key, target)
         gc.collect()

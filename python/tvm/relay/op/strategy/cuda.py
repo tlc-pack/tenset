@@ -320,6 +320,16 @@ def conv2d_strategy_cuda(attrs, inputs, out_type, target):
                 wrap_topi_schedule(topi.cuda.schedule_group_conv2d_NCHWc_int8),
                 name="group_conv2d_NCHWc_int8.cuda",
             )
+        elif layout == "NHWC":
+            assert kernel_layout == "HWIO"
+            if not is_auto_scheduler_enabled():
+                logger.warning("group_conv2d is not optimized for cuda with autotvm.")
+            strategy.add_implementation(
+                wrap_compute_conv2d(topi.nn.group_conv2d_nhwc,
+                    has_groups=True, need_auto_scheduler_layout=True),
+                naive_schedule,
+                name="group_conv2d_nhwc.generic",
+            )
         elif not cudnn_impl:
             raise RuntimeError("Unsupported group_conv2d layout {}".format(layout))
     return strategy

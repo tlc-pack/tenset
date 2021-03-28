@@ -21,10 +21,10 @@ def make_measurer(run_timeout, repeat, number, enable_cpu_cache_flush,
         timeout=run_timeout, repeat=repeat, number=number,
         enable_cpu_cache_flush=enable_cpu_cache_flush)
     measurer = auto_scheduler.measure.ProgramMeasurer(
-	builder,
-	runner,
+        builder,
+        runner,
         [auto_scheduler.RecordToFile(log_filename)],
-	verbose=verbose,
+        verbose=verbose,
     )
     return measurer
 
