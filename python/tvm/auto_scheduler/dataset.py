@@ -235,7 +235,12 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
                     get_per_store_features_from_measure_pairs(inputs, results)
 
                 assert not np.any(task_ids)   # all task ids should be zero
-                assert len(min_latency_) == 1  # should have only one task
+                if len(min_latency_) == 0:
+                    # no valid records
+                    continue
+                else:
+                    # should have only one task
+                    assert len(min_latency_) == 1, f"len = {len(min_latency)} in {filename}"
 
                 features[task] = features_
                 throughputs[task] = normalized_throughputs
