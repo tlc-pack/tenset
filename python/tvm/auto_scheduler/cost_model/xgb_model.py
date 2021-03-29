@@ -108,6 +108,7 @@ class XGBModelInternal:
         self,
         use_workload_embedding=True,
         use_data_argumentation=False,
+        use_gpu=False,
         few_shot_learning="base_only",
         verbose_eval=25,
         seed=None):
@@ -146,6 +147,10 @@ class XGBModelInternal:
             "seed": seed or 43,
             "disable_default_eval_metric": 1,
         }
+
+        # gpu support
+        if use_gpu:
+            self.xgb_params['tree_method'] = 'gpu_hist'
 
         # models
         self.base_model = None
