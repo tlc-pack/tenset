@@ -292,13 +292,13 @@ class XGBModelInternal:
 
             # add task embedding into the feature
             if self.use_workload_embedding:
-                task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
+                # task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
+                # task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
 
-                # if task.workload_key not in self.workload_embed_dict:
-                #     self.workload_embed_dict[task.workload_key] =\
-                #         get_workload_embedding(task.workload_key)
-                # task_embedding = self.workload_embed_dict[task.workload_key]
+                if task.workload_key not in self.workload_embed_dict:
+                    self.workload_embed_dict[task.workload_key] =\
+                        get_workload_embedding(task.workload_key)
+                task_embedding = self.workload_embed_dict[task.workload_key]
 
                 extended_features = []
                 # append task embedding into feature vectors
