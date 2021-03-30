@@ -23,6 +23,9 @@ import torch.nn.functional as F
 
 
 from tvm.auto_scheduler.dataset import Dataset, LearningTask
+from tvm.auto_scheduler.feature import (
+    get_per_store_features_from_measure_pairs, get_per_store_features_from_states)
+from tvm.auto_scheduler.measure_record import RecordReader
 from .xgb_model import get_workload_embedding
 from .cost_model import PythonBasedModel
 
@@ -414,6 +417,8 @@ class MLPModelInternal:
             base_preds = self._predict_a_dataset(self.base_model, dataset)
             ret = {}
             for task in dataset.tasks():
+                if task not in self.local_model and self.few_shot_learning == "plus_mix_task":
+                    self.local_model[task] = list(self.local_model.values())[0]
                 local_preds = self._predict_a_task(self.local_model[task], task, dataset.features[task])
                 ret[task] = base_preds[task] + local_preds
             return ret
@@ -466,7 +471,7 @@ class MLPModelInternal:
             train_time = time.time() - tic
 
             if epoch % self.print_per_epoches == 0 or epoch == n_epoch - 1:
-                if valid_loader:
+                if valid_set and valid_loader:
                     valid_loss = self._validate(net, valid_loader)
                 else:
                     valid_loss = 0.0
