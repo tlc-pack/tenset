@@ -24,7 +24,21 @@
 
 #include "utils.h"
 
+#include <tvm/tir/transform.h>
+#include <tvm/tir/analysis.h>
+#include <tvm/te/operation.h>
+#include <tvm/te/schedule_pass.h>
+#include <tvm/support/parallel_for.h>
+
 #include <algorithm>
+
+
+namespace tvm {
+// import the function from driver_api.cc
+void GetBinds(const Array<te::Tensor>& args, bool compact,
+              const std::unordered_map<te::Tensor, tir::Buffer>& binds,
+              Map<te::Tensor, tir::Buffer>* out_binds, Array<ObjectRef>* out_arg_list);
+}  // namespace tvm
 
 namespace tvm {
 namespace auto_scheduler {
@@ -389,16 +403,96 @@ bool HasNestedParallel(const State& state) {
   return false;
 }
 
-void PruneInvalidState(const SearchTask& task, Array<State>* states) {
+bool CheckAndVerify(const SearchTask& task, const State& state) {
+  te::Schedule sch;
+  Array<te::Tensor> tensors;
+
+  // NOTE: Currently, feature extraction with and without layout rewrite
+  // returns the same feature vector, so we do not turn on layout rewrite here.
+  // In the future, we can improve the feature extraction to reflect this difference.
+  std::tie(sch, tensors) = task->compute_dag.ApplySteps(state->transform_steps);
+  sch = sch.normalize_for_feature_extraction();
+  auto bounds = te::InferBound(sch);
+
+  try {
+    auto stmt = te::ScheduleOps(sch, bounds, false);
+    Map<te::Tensor, te::Buffer> out_binds;
+    Array<ObjectRef> out_arg_list;
+    bool compact = te::VerifyCompactBuffer(stmt);
+    const std::string& name = "main";
+    GlobalVar global_var(name);
+
+    // Copied from driver_api.cc::lower
+    auto pass_ctx = tvm::transform::PassContext::Current();
+    GetBinds(tensors, compact, std::unordered_map<te::Tensor, te::Buffer>(), &out_binds,
+             &out_arg_list);
+    tir::PrimFunc f = te::SchedulePostProcToPrimFunc(out_arg_list, std::move(stmt), out_binds);
+    f = WithAttr(std::move(f), "global_symbol", runtime::String(name));
+
+    bool noalias = pass_ctx->GetConfig<Bool>("tir.noalias", Bool(true)).value();
+    bool disable_vectorize =
+        pass_ctx->GetConfig<Bool>("tir.disable_vectorize", Bool(false)).value();
+    bool instrument_bound_checkers =
+        pass_ctx->GetConfig<Bool>("tir.instrument_bound_checkers", Bool(false)).value();
+
+    if (noalias) {
+      f = WithAttr(std::move(f), "tir.noalias", Bool(true));
+    }
+    auto mod = IRModule(Map<GlobalVar, BaseFunc>({{global_var, f}}));
+
+    if (IsGPUTask(task)) {
+      auto pass_list = Array<tvm::transform::Pass>();
+      // Phase 0
+      pass_list.push_back(tir::transform::InjectPrefetch());
+      pass_list.push_back(tir::transform::StorageFlatten(64, instrument_bound_checkers));
+      // Phase 1
+      pass_list.push_back(tir::transform::NarrowDataType(32));
+      pass_list.push_back(tir::transform::Simplify());
+      pass_list.push_back(tir::transform::VectorizeLoop(!disable_vectorize));
+      pass_list.push_back(tir::transform::InjectVirtualThread());
+      pass_list.push_back(tir::transform::StorageRewrite());
+      pass_list.push_back(tir::transform::Simplify());
+      tvm::Map<String, tvm::PrimExpr> gpu_params{
+          {"max_shared_memory_per_block", task->hardware_params->max_shared_memory_per_block},
+          {"max_local_memory_per_block", task->hardware_params->max_local_memory_per_block},
+          {"max_threads_per_block", task->hardware_params->max_threads_per_block},
+          {"max_vector_bytes", task->hardware_params->vector_unit_bytes},
+          {"max_vthread", task->hardware_params->max_vthread_extent},
+      };
+      pass_list.push_back(tir::transform::VerifyGPUCode(gpu_params));
+      const auto& optimize = tir::transform::Sequential(pass_list);
+      optimize(mod);
+    }
+    const auto& optimize =
+        tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
+    mod = optimize(std::move(mod));
+  } catch (Error& e) {
+    return false;
+  }
+  return true;
+}
+
+
+void PruneInvalidState(const SearchTask& task, Array<State>* states, bool verify) {
+  bool is_gpu = IsGPUTask(task);
+  std::vector<int> valid(states->size(), 0);
+  if (is_gpu && verify) {
+    support::parallel_for(0, states->size(),
+                        [&task, &states, &valid](int i) {
+                          valid[i] = CheckAndVerify(task, (*states)[i]);
+                        });
+  }
   size_t pt = 0;
   for (size_t i = 0; i < states->size(); ++i) {
     if (!(*states)[i].defined()) {
       continue;
     }
-    if (!IsGPUTask(task) && HasNestedParallel((*states)[i])) {
+    if (!is_gpu && HasNestedParallel((*states)[i])) {
       continue;
     }
-
+    if (is_gpu && verify && !valid[i]) {
+      continue;
+    }
     if (i != pt) {
       states->Set(pt, (*states)[i]);
     }
@@ -408,6 +502,7 @@ void PruneInvalidState(const SearchTask& task, Array<State>* states) {
   if (pt == 0) {
     LOG(FATAL) << "Internal error: All states are invalid.";
   } else {
+    // LOG(INFO) << "Valid ratio: " << pt << "/" << states->size();
     states->resize(pt);
   }
 }

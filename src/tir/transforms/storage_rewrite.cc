@@ -37,7 +37,7 @@
 #include <unordered_set>
 
 #include "../../runtime/thread_storage_scope.h"
-#include "ir_utils.h"
+#include "./ir_utils.h"
 
 namespace tvm {
 namespace tir {
@@ -61,16 +61,16 @@ using runtime::StorageScope;
 //
 class LinearAccessPatternFinder final : public StmtExprVisitor {
  public:
-  /*! \brief record the touch hist of statment. */
+  /*! \brief record the touch hist of statement. */
   struct StmtEntry {
-    // The statment
+    // The statement
     const Object* stmt;
     // The index in the linear_seq_ to point to end of the nested scope.
     // This is only set to non-zero if stmt is a nested scope.
     // if offset > 0, means this is the begin, the end entry is current_index + offset
     // if offset < 0, means this is the end, the begin entry is current_index + offset
     int64_t scope_pair_offset{0};
-    // The buffer variables this statment touched.
+    // The buffer variables this statement touched.
     std::vector<const VarNode*> touched;
   };
   // The scope of each allocation
@@ -192,8 +192,6 @@ class LinearAccessPatternFinder final : public StmtExprVisitor {
 
   void VisitStmt_(const ForNode* op) final { VisitNewScope(op); }
 
-  void VisitStmt_(const WhileNode* op) final { VisitNewScope(op); }
-
   void VisitStmt_(const AssertStmtNode* op) final { VisitNewScope(op); }
 
   // linearized access sequence.
@@ -228,7 +226,7 @@ class LinearAccessPatternFinder final : public StmtExprVisitor {
 // We explicitly return false if we find there is an extern block
 // which can be arbitrary IR.
 //
-// Neve-the-less, inplace detector should be used with care in mind.
+// Nevertheless, inplace detector should be used with care in mind.
 // We may also consider introduce a condition checker that checks
 // if every index only visited once for an absolute sufficient condition.
 //
@@ -246,8 +244,6 @@ class InplaceOpVerifier : public StmtExprVisitor {
       VisitStmt_(static_cast<const ForNode*>(stmt));
     } else if (stmt->IsInstance<IfThenElseNode>()) {
       VisitStmt_(static_cast<const IfThenElseNode*>(stmt));
-    } else if (stmt->IsInstance<WhileNode>()) {
-      VisitStmt_(static_cast<const WhileNode*>(stmt));
     } else if (stmt->IsInstance<StoreNode>()) {
       VisitStmt_(static_cast<const StoreNode*>(stmt));
     } else {
@@ -337,6 +333,12 @@ class InplaceOpVerifier : public StmtExprVisitor {
   const StoreNode* store_{nullptr};
 };
 
+inline PrimExpr Align(const PrimExpr& size, int align = 4) {
+  return floordiv(size + (align - 1), align) * align;
+}
+
+inline int64_t Align(int64_t size, int align = 4) { return (size - 1 + align) / align * align; }
+
 // Planner to plan and rewrite memory allocation.
 class StoragePlanRewriter : public StmtExprMutator {
  public:
@@ -354,7 +356,16 @@ class StoragePlanRewriter : public StmtExprMutator {
     // start rewrite
     stmt = operator()(std::move(stmt));
     if (attach_map_.count(nullptr)) {
-      return MakeAttach(attach_map_.at(nullptr), stmt);
+      std::vector<Stmt> nest;
+      for (StorageEntry* e : attach_map_.at(nullptr)) {
+        // ICHECK_EQ(e->scope.rank, 0);
+        if (e->new_alloc.defined()) {
+          nest.emplace_back(AttrStmt(e->alloc_var, attr::storage_scope,
+                                     StringImm(e->scope.to_string()), Evaluate(0)));
+          nest.push_back(e->new_alloc);
+        }
+      }
+      stmt = MergeNest(nest, stmt);
     }
     return stmt;
   }
@@ -415,10 +426,10 @@ class StoragePlanRewriter : public StmtExprMutator {
                attr::IsPragmaKey(op->attr_key)) {
       // remake all the allocation at the attach scope.
       if (attach_map_.count(op)) {
-        auto& svec = attach_map_[op];
+        auto& s_vec = attach_map_[op];
         Stmt stmt = StmtExprMutator::VisitStmt_(op);
         op = stmt.as<AttrStmtNode>();
-        return AttrStmt(op->node, op->attr_key, op->value, MakeAttach(svec, op->body));
+        return AttrStmt(op->node, op->attr_key, op->value, MakeAttach(s_vec, op->body));
       } else {
         return StmtExprMutator::VisitStmt_(op);
       }
@@ -432,15 +443,14 @@ class StoragePlanRewriter : public StmtExprMutator {
       return StmtExprMutator::VisitStmt_(op);
     }
   }
-
   Stmt VisitStmt_(const ForNode* op) final {
     ICHECK(op->kind != ForKind::kVectorized) << "VectorizeLoop before LiftStorageAlloc";
     // remake all the allocation at the attach scope.
     if (attach_map_.count(op)) {
-      auto& svec = attach_map_[op];
+      auto& s_vec = attach_map_[op];
       Stmt stmt = StmtExprMutator::VisitStmt_(op);
       op = stmt.as<ForNode>();
-      return For(op->loop_var, op->min, op->extent, op->kind, MakeAttach(svec, op->body),
+      return For(op->loop_var, op->min, op->extent, op->kind, MakeAttach(s_vec, op->body),
                  op->thread_binding, op->annotations);
     } else {
       return StmtExprMutator::VisitStmt_(op);
@@ -492,9 +502,9 @@ class StoragePlanRewriter : public StmtExprMutator {
     std::vector<const VarNode*> kill;
   };
 
-  Stmt MakeAttach(const std::vector<StorageEntry*>& svec, Stmt body) {
+  Stmt MakeAttach(const std::vector<StorageEntry*>& s_vec, Stmt body) {
     std::vector<Stmt> nest;
-    for (StorageEntry* e : svec) {
+    for (StorageEntry* e : s_vec) {
       if (e->new_alloc.defined()) {
         nest.emplace_back(AttrStmt(e->alloc_var, attr::storage_scope,
                                    StringImm(e->scope.to_string()), Evaluate(0)));
@@ -555,6 +565,7 @@ class StoragePlanRewriter : public StmtExprMutator {
           // simply use the original allocation.
           PrimExpr sz = foldl([](PrimExpr a, PrimExpr b, Span span) { return mul(a, b, span); },
                               make_const(DataType::Int(32), 1), e->allocs[0]->extents);
+          sz = Align(sz);
           e->new_alloc =
               Allocate(e->alloc_var, alloc_type, {sz}, e->allocs[0]->condition, Evaluate(0));
           if (e->scope.tag.length() != 0) {
@@ -595,6 +606,7 @@ class StoragePlanRewriter : public StmtExprMutator {
           if (!divided) {
             combo_size = combo_size + make_const(DataType::Int(32), 1);
           }
+          combo_size = Align(combo_size);
           combo_size = analyzer_.Simplify(combo_size);
           e->new_alloc =
               Allocate(e->alloc_var, alloc_type, {combo_size}, const_true(), Evaluate(0));
@@ -637,8 +649,8 @@ class StoragePlanRewriter : public StmtExprMutator {
       }
     }
     uint64_t type_bits = e->elem_type.bits() * e->elem_type.lanes();
-    PrimExpr alloc_size =
-        make_const(e->allocs[0]->extents[0].dtype(), (total_bits + type_bits - 1) / type_bits);
+    uint64_t size = Align((total_bits + type_bits - 1) / type_bits);
+    PrimExpr alloc_size = make_const(e->allocs[0]->extents[0].dtype(), size);
     e->new_alloc = Allocate(e->alloc_var, e->elem_type, {alloc_size}, const_true(), Evaluate(0));
     if (info.defined()) {
       ICHECK_LE(total_bits, info->max_num_bits)
@@ -675,7 +687,7 @@ class StoragePlanRewriter : public StmtExprMutator {
   void PlanNewScope(const Object* op) {
     if (thread_scope_ != nullptr) {
       ICHECK(thread_scope_ == op);
-      // erase all memory atatched to this scope.
+      // erase all memory attached to this scope.
       for (auto it = const_free_map_.begin(); it != const_free_map_.end();) {
         if (it->second->attach_scope_ == op) {
           it = const_free_map_.erase(it);
@@ -842,7 +854,7 @@ class StoragePlanRewriter : public StmtExprMutator {
         return e;
       }
     } else {
-      // Simple strategy: round roubin.
+      // Simple strategy: round robin.
       for (auto it = sym_free_list_.begin(); it != sym_free_list_.end(); ++it) {
         StorageEntry* e = *it;
         if (e->attach_scope_ != attach_scope) continue;
@@ -921,18 +933,18 @@ class VectorAllocRewriter : public StmtExprMutator {
   Stmt VisitStmt_(const AllocateNode* op) final {
     Stmt stmt = StmtExprMutator::VisitStmt_(op);
     op = stmt.as<AllocateNode>();
-    const auto& tvec = acc_map_[op->buffer_var.get()];
+    const auto& t_vec = acc_map_[op->buffer_var.get()];
 
-    if (tvec.size() == 1 && tvec[0].element_of() == op->dtype.element_of() &&
-        tvec[0].lanes() % op->dtype.lanes() == 0 && tvec[0].lanes() != op->dtype.lanes()) {
-      int factor = tvec[0].lanes() / op->dtype.lanes();
+    if (t_vec.size() == 1 && t_vec[0].element_of() == op->dtype.element_of() &&
+        t_vec[0].lanes() % op->dtype.lanes() == 0 && t_vec[0].lanes() != op->dtype.lanes()) {
+      int factor = t_vec[0].lanes() / op->dtype.lanes();
       Array<PrimExpr> extents = op->extents;
       arith::ModularSet me = analyzer_.modular_set(extents[extents.size() - 1]);
       if (me->base % factor == 0 && me->coeff % factor == 0) {
         extents.Set(extents.size() - 1,
                     extents[extents.size() - 1] / make_const(extents[0].dtype(), factor));
         // create a new buffer var
-        DataType new_dtype = tvec[0];
+        DataType new_dtype = t_vec[0];
         Var new_buffer_var(op->buffer_var->name_hint, PointerType(PrimType(new_dtype)));
         // update the remap req.
         var_remap_.Set(op->buffer_var, new_buffer_var);
@@ -943,9 +955,9 @@ class VectorAllocRewriter : public StmtExprMutator {
   }
 
   void UpdateTypeMap(const VarNode* buffer, DataType t) {
-    auto& tvec = acc_map_[buffer];
-    if (std::find(tvec.begin(), tvec.end(), t) == tvec.end()) {
-      tvec.push_back(t);
+    auto& t_vec = acc_map_[buffer];
+    if (std::find(t_vec.begin(), t_vec.end(), t) == t_vec.end()) {
+      t_vec.push_back(t);
     }
   }
 
@@ -968,17 +980,17 @@ PrimFunc PointerValueTypeRewrite(PrimFunc f) {
   // rewrite paramters if needed.
   for (Var var : f->params) {
     if (var.dtype().is_handle()) {
-      const auto& tvec = rewriter.acc_map_[var.get()];
+      const auto& t_vec = rewriter.acc_map_[var.get()];
 
-      if (tvec.size() == 1) {
-        tir::Var new_var(var->name_hint, PointerType(PrimType(tvec[0])));
+      if (t_vec.size() == 1) {
+        tir::Var new_var(var->name_hint, PointerType(PrimType(t_vec[0])));
         args.push_back(new_var);
         var_remap.Set(var, new_var);
       } else {
         // always set data type to be non vectorized so
         // load/store can still work via scalarization
-        if (tvec.size() != 0 && !var->type_annotation.defined()) {
-          tir::Var new_var(var->name_hint, PointerType(PrimType(tvec[0].with_lanes(1))));
+        if (t_vec.size() != 0 && !var->type_annotation.defined()) {
+          tir::Var new_var(var->name_hint, PointerType(PrimType(t_vec[0].with_lanes(1))));
           args.push_back(new_var);
           var_remap.Set(var, new_var);
         } else {

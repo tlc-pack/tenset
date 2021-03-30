@@ -92,7 +92,7 @@ if __name__ == "__main__":
         measurer_kwargs = {
             "run_timeout": 5,
             "number": 1,
-            "enable_cpu_cache_flush": True,
+            "enable_cpu_cache_flush": (task.target.kind == "llvm"),
             "verbose": 1,
         }
         if task.compute_dag.flop_ct >= 2416443392.0:

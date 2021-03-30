@@ -57,27 +57,24 @@ HardwareParams HardwareParamsNode::GetDefaultHardwareParams(const Target& target
   if (device_type == kDLCPU) {
     return HardwareParams(tvm::runtime::threading::MaxConcurrency(), 64, 64, 0, 0, 0, 0, 0);
   } else if (device_type == kDLGPU || device_type == kDLROCM) {
-    auto ctx = TVMContext{static_cast<DLDeviceType>(device_type), 0};
-    auto device_name = device_type == kDLGPU ? "device_api.gpu" : "device_api.rocm";
-    auto func = tvm::runtime::Registry::Get(device_name);
-    ICHECK(func != nullptr) << "Cannot find GPU device_api in registry";
-    auto device_api = static_cast<tvm::runtime::DeviceAPI*>(((*func)()).operator void*());
+    // auto ctx = TVMContext{static_cast<DLDeviceType>(device_type), 0};
+    // auto device_api = static_cast<tvm::runtime::DeviceAPI*>(((*func)()).operator void*());
+    // auto device_name = device_type == kDLGPU ? "device_api.gpu" : "device_api.rocm";
+    // auto func = tvm::runtime::Registry::Get(device_name);
+    // ICHECK(func != nullptr) << "Cannot find GPU device_api in registry";
 
-    tvm::runtime::TVMRetValue ret;
-    device_api->GetAttr(ctx, tvm::runtime::DeviceAttrKind::kMaxSharedMemoryPerBlock, &ret);
-    int max_shared_memory_per_block = ret;
-
-    // There is no explicit local memory limition in CUDA runtime,
-    // so we can use INT32_MAX to disalbe the check on local_memory.
+    int max_shared_memory_per_block = -1;
     int max_local_memory_per_block = INT32_MAX;
+    int max_threads_per_block = 1024;
+    int warp_size = 32;
+    int max_vthread_extent = 8;
 
-    device_api->GetAttr(ctx, tvm::runtime::DeviceAttrKind::kMaxThreadsPerBlock, &ret);
-    int max_threads_per_block = ret;
+    if (Optional<Integer> v = target->GetAttr<Integer>("shared_memory_per_block")) {
+      max_shared_memory_per_block = v.value();
+    } else {
+      LOG(FATAL) << "ValueError: Cannot find `shared_memory_per_block` in target";
+    }
 
-    device_api->GetAttr(ctx, tvm::runtime::DeviceAttrKind::kWarpSize, &ret);
-    int warp_size = ret;
-
-    int max_vthread_extent = warp_size / 4;
     return HardwareParams(-1, 16, 64, max_shared_memory_per_block, max_local_memory_per_block,
                           max_threads_per_block, max_vthread_extent, warp_size);
   } else if (device_type == kDLMetal) {

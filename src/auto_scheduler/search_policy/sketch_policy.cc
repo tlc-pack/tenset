@@ -538,7 +538,7 @@ Array<State> SketchPolicyNode::EvolutionarySearch(const Array<State>& init_popul
   for (int k = 0; k < num_iters + 1; ++k) {
     // Maintain the heap
     *pnow = search_task->compute_dag.InferBound(*pnow);
-    PruneInvalidState(search_task, pnow);
+    PruneInvalidState(search_task, pnow, k == num_iters);
     program_cost_model->Predict(search_task, *pnow, &pop_scores);
 
     for (size_t i = 0; i < pnow->size(); ++i) {

@@ -55,7 +55,7 @@ def dump_program(task, size, max_retry_iter=10):
         else:
             retry_ct = 0
 
-        print(niter, len(all_state_list))
+        # print(niter, len(all_state_list))
         niter += 1
     all_state_list = all_state_list[:size]
 
