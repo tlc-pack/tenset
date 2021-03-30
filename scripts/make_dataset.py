@@ -99,20 +99,28 @@ if __name__ == "__main__":
     random.seed(args.seed)
 
     if args.preset == 'batch-size-1':
-        # only use tasks from networks with batch-size = 1
-        files = []
+        # Only use tasks from networks with batch-size = 1
 
-        print("Load tasks...")
+        # Load tasks from networks
         network_keys = preset_batch_size_1()
         target = tvm.target.Target(args.target)
+        all_tasks = []
+        exists = set()   # a set to remove redundant tasks
+        print("Load tasks...")
         for network_key in tqdm(network_keys):
             # Read tasks of the network
             task_info_filename = get_task_info_filename(network_key, target)
             tasks, _ = pickle.load(open(task_info_filename, "rb"))
-
             for task in tasks:
-                filename = get_measure_record_filename(task, target)
-                files.append(filename)
+                if task.workload_key not in exists:
+                    exists.add(task.workload_key)
+                    all_tasks.append(task)
+
+        # Convert tasks to filenames
+        files = []
+        for task in all_tasks:
+            filename = get_measure_record_filename(task, target)
+            files.append(filename)
     else:
         # use all tasks
         print("Load tasks...")
