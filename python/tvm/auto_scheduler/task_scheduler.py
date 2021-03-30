@@ -102,8 +102,9 @@ def make_search_policies(
             if few_shot_learning == 'plus_mix_task':
                 # load base model
                 cost_model.load(load_model_file)
+                cost_model.model.few_shot_learning = few_shot_learning
                 dataset_file = 'tmp_dataset.pkl'
-                make_dataset_from_log_file([load_log_file], dataset_file, min_sample_size=48)
+                make_dataset_from_log_file([load_log_file], dataset_file, min_sample_size=1)
                 local_dataset = pickle.load(open(dataset_file, 'rb'))
                 cost_model.model.fit_local(local_dataset)
             else:
@@ -113,6 +114,15 @@ def make_search_policies(
                 elif load_log_file:
                     logger.info("TaskScheduler: Reload measured states and train the model...")
                     cost_model.update_from_file(load_log_file)
+        elif model_type in ['mlp', 'mlp-no-update']:
+            if model_type == 'mlp-no-update':
+                disable_cost_model_update = True
+            cost_model = XGBModel(
+                num_warmup_sample=len(tasks) * num_measures_per_round,
+                disable_update=disable_cost_model_update,
+                few_shot_learning=few_shot_learning
+            )
+
         elif model_type == "random":
             cost_model = RandomModel()
         else:
