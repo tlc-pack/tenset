@@ -45,7 +45,7 @@ def eval_cost_model_on_network(model, network, target, top_ks):
     network_task_key2 = (network_key, str(target))
 
     # Featurizes a dataset 
-    dataset_file = f".dataset_cache/{network_task_key2}.network.pkl"
+    dataset_file = f".dataset_cache/{network_task_key2}.network.feature_cache"
     if not os.path.exists(dataset_file):
         # get file names of these tasks
         filenames = []
