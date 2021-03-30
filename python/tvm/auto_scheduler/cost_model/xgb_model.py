@@ -198,8 +198,6 @@ class XGBModelInternal:
         elif self.few_shot_learning in ["local_only_mix_task", "local_only_per_task"]:
             ret = {}
             for task in dataset.tasks():
-                if task not in self.local_model and self.few_shot_learning == "plus_mix_task":
-                    self.local_model[task] = list(self.local_model.values())[0]
                 local_preds = self._predict_a_task(self.local_model[task], task, dataset.features[task])
                 ret[task] = local_preds
             return ret

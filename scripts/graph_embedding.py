@@ -169,7 +169,6 @@ class GraphEmbeddingModel:
     def add_tensor_type_one_hot(self, graphs):
         for graph in graphs:
             for node, feat in graph.nodes(data=True):
-
                 tensor_type_id = self.tensor_type_one_hot_dict.get(feat['name'])
                 type_embedding = np.zeros(len(self.tensor_type_one_hot_dict), dtype=np.float32)
                 type_embedding[tensor_type_id] = 1.0
