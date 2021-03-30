@@ -209,13 +209,6 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
 
     dataset = Dataset()
     dataset.raw_files = log_files
-
-    excluded_tasks = set()
-    for inp, res in RecordReader('tmp.json'):
-        task = input_to_learning_task(inp)
-        if task not in excluded_tasks:
-            excluded_tasks.add(task)
-
     for filename in tqdm(log_files):
         assert os.path.exists(filename), f"{filename} does not exist."
 
@@ -228,8 +221,6 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             measure_records = {}
             for inp, res in RecordReader(filename):
                 task = input_to_learning_task(inp)
-                if task in excluded_tasks:
-                    continue
                 if task not in measure_records:
                     measure_records[task] = [[], []]
                 measure_records[task][0].append(inp)
