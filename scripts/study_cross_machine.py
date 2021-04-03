@@ -15,7 +15,7 @@ from tvm.auto_scheduler.cost_model.metric import (
     metric_peak_score,
 )
 
-from common import MEASURE_RECORD_FOLDER, load_and_register_tasks
+from common import load_and_register_tasks, get_measure_record_filename
 
 def get_normalized_throughput(filename):
     costs_0 = []
@@ -30,10 +30,8 @@ def get_normalized_throughput(filename):
 
 
 if __name__ == "__main__":
-    target_0 = tvm.target.Target('llvm -mcpu=core-avx2 -model=e5-2666')
+    target_0 = tvm.target.Target('llvm -mcpu=core-avx2 -model=e5-2673')
     target_1 = tvm.target.Target('llvm -mcpu=skylake-avx512 -model=platinum-8272')
-
-    max_lines = 2
 
     print("Load task...")
     tasks = load_and_register_tasks()
@@ -41,10 +39,8 @@ if __name__ == "__main__":
     #random.shuffle(tasks)
 
     for i, task in enumerate(tasks):
-        task_key = (task.workload_key, str(task.target.kind))
-
-        file_0 = f"{MEASURE_RECORD_FOLDER}/{target_0.model}/{task_key}.json"
-        file_1 = f"{MEASURE_RECORD_FOLDER}/{target_1.model}/{task_key}.json"
+        file_0 = get_measure_record_filename(task, target_0)
+        file_1 = get_measure_record_filename(task, target_1)
 
         if not os.path.exists(file_0) or not os.path.exists(file_1):
             continue

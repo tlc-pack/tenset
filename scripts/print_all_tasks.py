@@ -2,9 +2,9 @@
 
 import pickle
 
-from common import TO_MEASURE_PROGRAM_FOLDER
+from common import load_and_register_tasks
 
-tasks = pickle.load(open(f"{TO_MEASURE_PROGRAM_FOLDER}/all_tasks.pkl", "rb"))
+tasks = load_and_register_tasks()
 
 for i, t in enumerate(tasks):
     print("=" * 60)

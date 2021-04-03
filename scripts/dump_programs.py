@@ -11,42 +11,19 @@ from tqdm import tqdm
 
 from tvm import auto_scheduler
 
-from common import NETWORK_INFO_FOLDER, TO_MEASURE_PROGRAM_FOLDER
-
-
-def get_tasks():
-    all_task_keys = set()
-    all_tasks = []
-    duplication = 0
-
-    filenames = glob.glob(f"{NETWORK_INFO_FOLDER}/*.task.pkl")
-    filenames.sort()
-
-    for filename in tqdm(filenames):
-        tasks, task_weights = pickle.load(open(filename, "rb"))
-        for t in tasks:
-            task_key = (t.workload_key, str(t.target.kind))
-
-            if task_key not in all_task_keys:
-                all_task_keys.add(task_key)
-                all_tasks.append(t)
-            else:
-                duplication += 1
-
-    return all_tasks
+from common import load_and_register_tasks, get_to_measure_filename
 
 
 def dump_program(task, size, max_retry_iter=10):
-    folder = TO_MEASURE_PROGRAM_FOLDER
-    task_key = (task.workload_key, str(task.target.kind))
-    filename = f"{folder}/{task_key}.json"
-
+    filename = get_to_measure_filename(task)
     if os.path.exists(filename):
         return
 
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
     policy = auto_scheduler.SketchPolicy(task,
             params={'evolutionary_search_num_iters': 1,
-                    'evolutionary_search_population': min(size, 2048)}, verbose=0)
+                    'evolutionary_search_population': min(size, 2560)}, verbose=0)
 
     states = policy.sample_initial_population()
 
@@ -97,22 +74,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--start-idx", type=int)
     parser.add_argument("--end-idx", type=int)
+    parser.add_argument("--size", type=int, default=4000)
     args = parser.parse_args()
 
-    # Read all tasks
-    tasks = get_tasks()
-    tasks.sort(key=lambda x: (str(x.target.kind), x.compute_dag.flop_ct, x.workload_key))
-
-    # Dump the whole task index
-    folder = TO_MEASURE_PROGRAM_FOLDER
-    os.makedirs(folder, exist_ok=True)
-    pickle.dump(tasks, open(f"{TO_MEASURE_PROGRAM_FOLDER}/all_tasks.pkl", "wb"))
+    tasks = load_and_register_tasks()
 
     start_idx = args.start_idx or 0
     end_idx = args.end_idx or len(tasks)
 
     # Dump programs for all tasks
     for task in tqdm(tasks[start_idx:end_idx]):
-        dump_program(task, size=3000)
+        dump_program(task, size=args.size)
         gc.collect()
 

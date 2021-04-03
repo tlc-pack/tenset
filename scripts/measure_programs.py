@@ -11,8 +11,8 @@ from tqdm import tqdm
 import tvm
 from tvm import auto_scheduler
 
-from common import (TO_MEASURE_PROGRAM_FOLDER, MEASURE_RECORD_FOLDER,
-        load_and_register_tasks)
+from common import (load_and_register_tasks,
+    get_measure_record_filename, get_to_measure_filename)
 
 def make_measurer(run_timeout, repeat, number, enable_cpu_cache_flush,
                   verbose, log_filename):
@@ -29,19 +29,19 @@ def make_measurer(run_timeout, repeat, number, enable_cpu_cache_flush,
     return measurer
 
 
-def remeasure_file(task_idx, reference_filename, target, target_host, batch_size, measurer_kwargs):
+def remeasure_file(task_idx, task, target, target_host, batch_size, measurer_kwargs):
     # Make folder and log filename
     target = tvm.target.Target(target)
-    folder = f"{MEASURE_RECORD_FOLDER}/{target.model}"
-    os.makedirs(folder, exist_ok=True)
-    log_filename = f"{folder}/{os.path.basename(reference_filename)}"
+    log_filename = get_measure_record_filename(task, target)
+    os.makedirs(os.path.dirname(log_filename), exist_ok=True)
 
     # Make measuer
     measurer_kwargs['log_filename'] = log_filename
     measurer = make_measurer(**measurer_kwargs)
 
     # Read reference measurement inputs
-    inputs, _ = auto_scheduler.RecordReader(reference_filename).read_lines()
+    to_measure_filename = get_to_measure_filename(task)
+    inputs, _ = auto_scheduler.RecordReader(to_measure_filename).read_lines()
     task = auto_scheduler.measure.recover_measure_input(inputs[0]).task
     task = auto_scheduler.SearchTask(
         workload_key=task.workload_key,
@@ -106,9 +106,8 @@ if __name__ == "__main__":
 
         # Run measurement
         task_key = (task.workload_key, str(task.target.kind))
-        reference_filename = f"{TO_MEASURE_PROGRAM_FOLDER}/{task_key}.json"
-        remeasure_file(i, reference_filename, args.target, args.target_host,
-                       args.batch_size, measurer_kwargs)
+        target = tvm.target.Target(args.target)
+        remeasure_file(i, task, target, args.target_host, args.batch_size, measurer_kwargs)
 
         with open("progress.txt", "a") as fout:
             fout.write(f"End {i}/{len(tasks)}: {time.time():.2f}\n")
