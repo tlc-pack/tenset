@@ -909,10 +909,8 @@ def _timed_eval_func(
             ctx.sync()
 
             # retry until the coefficient of variation is small enough
-            max_cv = 0.1
-            max_retry = 4
             now_repeat = repeat
-            for i in range(max_retry):
+            for i in range(4):
                 time_f = func.time_evaluator(
                     func.entry_name,
                     ctx,
@@ -922,9 +920,12 @@ def _timed_eval_func(
                     f_preproc=f_prepare,
                 )
                 costs = time_f(*args).results
-                if np.std(costs) / np.mean(costs) <= max_cv:
+                std_cost = np.std(costs)
+                mean_cost = np.mean(costs)
+                # print(f"\ndiv = {std_cost / mean_cost}, mean = {mean_cost}, std = {std_cost}, costs = {costs}")
+                if std_cost / mean_cost <= 0.1:
                     break
-                now_repeat = int(1.5 * now_repeat)
+                now_repeat = now_repeat * 2
         # pylint: disable=broad-except
         except Exception:
             costs = (MAX_FLOAT,)

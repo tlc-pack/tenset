@@ -91,18 +91,21 @@ if __name__ == "__main__":
         # Set measurement arguments
         measurer_kwargs = {
             "run_timeout": 5,
-            "number": 1,
+            "number": 5,
             "enable_cpu_cache_flush": (task.target.kind == "llvm"),
             "verbose": 1,
         }
-        if task.compute_dag.flop_ct >= 2416443392.0:
-            measurer_kwargs['repeat'] = 4
-        elif task.compute_dag.flop_ct >= 834928640.0:
-            measurer_kwargs['repeat'] = 6
-        elif task.compute_dag.flop_ct <= 2097152.0:
-            measurer_kwargs['repeat'] = 10
-        else:
-            measurer_kwargs['repeat'] = 8
+        print(f"########## Task {i}, FLOPs = {task.compute_dag.flop_ct} ##########")
+        print(task.compute_dag)
+        # if task.compute_dag.flop_ct >= 2416443392.0:
+        #     measurer_kwargs['repeat'] = 4
+        # elif task.compute_dag.flop_ct >= 834928640.0:
+        #     measurer_kwargs['repeat'] = 6
+        # elif task.compute_dag.flop_ct <= 2097152.0:
+        #     measurer_kwargs['repeat'] = 10
+        # else:
+        #     measurer_kwargs['repeat'] = 8
+        measurer_kwargs['repeat'] = 3
 
         # Run measurement
         task_key = (task.workload_key, str(task.target.kind))
