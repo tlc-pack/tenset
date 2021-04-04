@@ -156,6 +156,10 @@ def preset_exclude(preset):
                 for scale in ['tiny', 'medium', 'large']:
                     network_keys.append((f'bert_{scale}',
                                          [(batch_size, seq_length)]))
+            else:
+                for scale in ['tiny', 'base', 'medium', 'large']:
+                    network_keys.append((f'bert_{scale}',
+                                         [(batch_size, seq_length)]))
 
     # dcgan
     for batch_size in [1, 4, 8]:
@@ -188,7 +192,6 @@ if __name__ == "__main__":
             network_keys = preset_batch_size_1()
         else:
             print("precluding")
-            print(args.preset)
             network_keys = preset_exclude(args.preset)
 
         target = tvm.target.Target(args.target)
