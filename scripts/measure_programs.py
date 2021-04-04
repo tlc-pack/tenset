@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
         # Set measurement arguments
         measurer_kwargs = {
-            "run_timeout": 5,
+            "run_timeout": 15,
             "number": 5,
             "enable_cpu_cache_flush": (task.target.kind == "llvm"),
             "verbose": 1,
