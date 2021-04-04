@@ -224,8 +224,8 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
     log_file.append(log_files_1)
     log_file.append(log_files_2)
 
-    for i in range(2):
-        log_files = log_file[i]
+    for j in range(2):
+        log_files = log_file[j]
 
         dataset = Dataset()
         dataset.raw_files = log_files
@@ -285,7 +285,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             del dataset.min_latency[task]
 
         # Save to disk
-        out_file = 'dataset_' + str(i) + '.pkl'
+        out_file = 'dataset_' + str(j) + '.pkl'
         pickle.dump(dataset, open(out_file, "wb"))
 
         if verbose >= 0:
