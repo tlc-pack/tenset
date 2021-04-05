@@ -19,7 +19,7 @@ from common import str2bool, log_line, BenchmarkRecord
 def get_network(network_args):
     name, batch_size = network_args['network'], network_args['batch_size']
     if name in ['resnet_18', 'resnet_50', 'mobilenet_v2', 'mobilenet_v3',
-                'wide_resnet_50', 'resnext_50', 'densenet_121']:
+                'wide_resnet_50', 'resnext_50', 'densenet_121', 'vgg_16']:
         network_key = (name, [(batch_size, 3, 224, 224)])
     elif name in ['inception_v3']:
         network_key = (name, [(batch_size, 3, 299, 299)])
