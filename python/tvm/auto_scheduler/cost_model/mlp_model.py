@@ -350,6 +350,7 @@ class MLPModelInternal:
             self.base_model = self._fit_a_model(train_set, valid_set, valid_train_set)
 
     def fit_local(self, train_set, valid_set=None):
+        print("fit local, ", self.few_shot_learning)
         if self.few_shot_learning == "base_only":
             return
         elif self.few_shot_learning == "local_only_mix_task":
@@ -405,6 +406,7 @@ class MLPModelInternal:
             raise ValueError("Invalid few-shot learning method: " + self.few_shot_learning)
 
     def predict(self, dataset):
+        print("predict, ", self.few_shot_learning)
         if self.few_shot_learning in ["base_only", "fine_tune_mix_task", "fine_tune_per_task", "MAML"]:
             return self._predict_a_dataset(self.base_model, dataset)
         elif self.few_shot_learning in ["local_only_mix_task", "local_only_per_task"]:

@@ -99,8 +99,9 @@ def make_search_policies(
                 disable_update=disable_cost_model_update,
                 few_shot_learning=few_shot_learning
             )
-            if few_shot_learning == 'plus_mix_task':
+            if few_shot_learning == 'plus_mix_task' or few_shot_learning == 'plus_per_task':
                 # load base model
+                print("here")
                 cost_model.load(load_model_file)
                 cost_model.model.few_shot_learning = few_shot_learning
                 dataset_file = 'tmp_dataset.pkl'
@@ -121,8 +122,7 @@ def make_search_policies(
                 disable_update=disable_cost_model_update,
                 few_shot_learning=few_shot_learning
             )
-            if few_shot_learning == 'plus_mix_task':
-                # load base model
+            if few_shot_learning == 'plus_mix_task' or few_shot_learning == 'plus_per_task':              # load base model
                 cost_model.load(load_model_file)
                 cost_model.model.few_shot_learning = few_shot_learning
                 dataset_file = 'tmp_dataset.pkl'
@@ -529,7 +529,7 @@ class TaskScheduler:
         self.tic = time.time()
 
         self.num_measures_per_round = min(
-            tune_option.num_measures_per_round, num_measure_trials // len(self.tasks) // 2
+            tune_option.num_measures_per_round, num_measure_trials // len(self.tasks)
         )
 
         if self.num_measures_per_round <= 0:
@@ -552,7 +552,7 @@ class TaskScheduler:
             disable_cost_model_update,
         )
 
-        for idx in range(len(self.tasks)):
+        for idx in range(len(self.tasks) // 2):
             # skip warming up this task if it has been tuned before (restored from the log file)
             # if not self.task_cts[idx]:
             #     self._tune_task(idx)
@@ -574,7 +574,7 @@ class TaskScheduler:
             few_shot_learning='plus_mix_task'
         )
 
-        for idx in range(len(self.tasks)):
+        for idx in range(len(self.tasks) // 2, len(self.tasks)):
             # skip warming up this task if it has been tuned before (restored from the log file)
             # if not self.task_cts[idx]:
             #     self._tune_task(idx)
