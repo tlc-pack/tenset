@@ -261,18 +261,18 @@ def moving_average(average, update):
 
 class MLPModelInternal:
     def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True,
-                 loss_type='rmse'):
+                 loss_type='listNetLoss'):
         if device is None:
             if torch.cuda.device_count():
                 device = 'cuda:0'
             else:
                 device = 'cpu'
-
+        print(device)
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
             "in_dim": 164 + (9 if use_workload_embedding else 0),
-            "hidden_dim": 1024,
+            "hidden_dim": 256,
             "out_dim": 1,
         }
 
