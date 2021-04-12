@@ -31,12 +31,14 @@ def get_network(network_args):
     return get_network_with_key(network_key)
 
 
-def make_plot(network_args):
+def make_plot(network_args, log_file, target):
     mean_inf_time = []
-    _, _, inputs = get_network(network_args)
-    for i in range(0, 1000, 50):
-        # Build module
-        with auto_scheduler.ApplyHistoryBest(log_file, n_lines=i):
+    mod, params, inputs = get_network(network_args)
+
+
+    for i in range(27, 3000, 27):    # Build module
+        print(f"each task is measured {i/27} times")
+        with auto_scheduler.ApplyHistoryBest(log_file):
             with tvm.transform.PassContext(
                     opt_level=3, config={"relay.backend.use_auto_scheduler": True}
             ):
@@ -56,16 +58,21 @@ def make_plot(network_args):
               (np.mean(prof_res) * 1000, np.std(prof_res) * 1000))
         mean_inf_time.append(np.mean(prof_res) * 1000)
 
-        plt.plot(list(range(0, 1000, 50)), mean_inf_time)
-        plt.savefig(f"{network_args['network']}_trials_vs_latency.png")
+    plt.plot(list(range(0, 1000, 50)), mean_inf_time)
+    plt.savefig(f"{network_args['network']}_trials_vs_latency.png")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
     parser.add_argument("--network", type=str, required=True)
     parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument("--target", type=str, default='llvm -mcpu=core-avx2')
+    parser.add_argument("--log-file", type=str)
+    args= parser.parse_args()
 
     network_args = {
         "network": args.network,
         "batch_size": args.batch_size,
     }
-    make_plot(network_args)
+    make_plot(network_args, args.log_file, args.target)
+

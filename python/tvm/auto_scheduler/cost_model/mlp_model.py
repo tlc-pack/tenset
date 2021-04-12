@@ -6,7 +6,7 @@ import os
 import pickle
 import random
 import time
-
+import io
 import json
 import numpy as np
 import xgboost as xgb
@@ -675,11 +675,17 @@ class MLPModelInternal:
 
     def load(self, filename):
         self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec = \
-            pickle.load(open(filename, 'rb'))
+            CPU_Unpickler(open(filename, 'rb')).load()
 
     def save(self, filename):
         pickle.dump((self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec),
             open(filename, 'wb'))
+
+class CPU_Unpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == 'torch.storage' and name == '_load_from_bytes':
+            return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
+        else: return super().find_class(module, name)
 
 
 class MLPModel(PythonBasedModel):

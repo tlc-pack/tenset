@@ -378,6 +378,7 @@ class TaskScheduler:
         self.num_measures_per_round = min(
             tune_option.num_measures_per_round, num_measure_trials // len(self.tasks)
         )
+        #self.num_measures_per_round = 1
         if self.num_measures_per_round <= 0:
             raise ValueError("num_measure_trials is too small. Please set it to a higher value.")
 
