@@ -57,8 +57,8 @@ class SegmentDataLoader:
 
             if use_workload_embedding:
                 task_embedding = get_workload_embedding(task.workload_key)
-                # task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                # task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
+                #task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
+                #task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
             else:
                 task_embedding = None
 
@@ -261,7 +261,7 @@ def moving_average(average, update):
 
 class MLPModelInternal:
     def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True,
-                 loss_type='listNetLoss'):
+                 loss_type='lambdaRankLoss'):
         if device is None:
             if torch.cuda.device_count():
                 device = 'cuda:0'
