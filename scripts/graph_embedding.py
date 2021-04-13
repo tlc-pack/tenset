@@ -105,6 +105,7 @@ class GraphEmbeddingModel:
         embedding = self.model.get_embedding()
         for i in range(len(workload_keys)):
             self.task_embeddings[workload_keys[i]] = embedding[i]
+        print(len(embedding[0]))
 
     def get_UGraphEmb(self, workload_keys, graphs):
         embedding = self.model.predict(self.generator.flow(graphs))
@@ -197,7 +198,7 @@ if __name__ == "__main__":
         load_and_register_tasks()
         graphs = []
         workload_keys = []
-        directory = "dataset/measure_records/e5-2666"
+        directory = "dataset/measure_records/platinum-8272"
 
         for filename in tqdm(os.listdir(directory)):
             if filename.endswith(".json"):

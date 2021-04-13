@@ -57,8 +57,8 @@ class SegmentDataLoader:
 
             if use_workload_embedding:
                 task_embedding = get_workload_embedding(task.workload_key)
-                # task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                # task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
+                #task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
+                #task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
             else:
                 task_embedding = None
 
@@ -261,7 +261,7 @@ def moving_average(average, update):
 
 class MLPModelInternal:
     def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True,
-                 loss_type='listNetLoss'):
+                 loss_type='lambdaRankLoss'):
         if device is None:
             if torch.cuda.device_count():
                 device = 'cuda:0'
@@ -674,12 +674,23 @@ class MLPModelInternal:
         return net
 
     def load(self, filename):
-        self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec = \
-            CPU_Unpickler(open(filename, 'rb')).load()
+        if self.device == 'cpu':
+            self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec = \
+                CPU_Unpickler(open(filename, 'rb')).load()
+        else:
+            self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec = \
+                pickle.load(open(filename, 'rb'))
 
     def save(self, filename):
         pickle.dump((self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec),
             open(filename, 'wb'))
+
+class CPU_Unpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == 'torch.storage' and name == '_load_from_bytes':
+            return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
+        else: return super().find_class(module, name)
+
 
 class CPU_Unpickler(pickle.Unpickler):
     def find_class(self, module, name):
