@@ -9,6 +9,8 @@ import tvm
 from tvm import auto_scheduler
 from tvm.auto_scheduler.dataset import LearningTask
 from tvm.auto_scheduler.cost_model.xgb_model import XGBModelInternal
+from tvm.auto_scheduler.cost_model.mlp_model import MLPModelInternal
+
 
 from common import get_task_info_filename, get_measure_record_filename
 
@@ -77,11 +79,13 @@ if __name__ == "__main__":
         ("mobilenet_v2", [(1, 3, 224,224)]),
         ("resnext_50", [(1, 3, 224,224)]),
         ("bert_base", [(1, 128)]),
-        ("bert_base", [(1, 128)]),
+        ("bert_tiny", [(1, 128)]),
+        ("vgg_16", [(1, 3, 224,224)])
     ]
     target = "llvm -model=platinum-8272"
 
-    model = XGBModelInternal()
+    # model = XGBModelInternal()
+    model = MLPModelInternal()
     model.load(model_file)
 
     top_ks = [1, 5]
