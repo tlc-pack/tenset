@@ -43,6 +43,8 @@ def get_network_with_key(network_key):
             model = getattr(models, name.replace("_", ""))(pretrained=False)
         elif name == 'resnet3d_18':
             model = models.video.r3d_18(pretrained=False)
+        elif name == 'vgg_16':
+            model = getattr(models, name.replace("_", ""))(pretrained=False)
 
         input_shape = args[0]
         dtype = 'float32'
