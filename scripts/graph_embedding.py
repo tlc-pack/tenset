@@ -38,11 +38,24 @@ from tvm.auto_scheduler.measure_record import RecordReader
 
 SHAPE_LENGTH = 6
 
+from tensorflow.python.keras import backend as K
+
+# adjust values to your needs
+#config = tf.compat.v1.ConfigProto(device_count = {'GPU': 4})
+#sess = tf.compat.v1.Session(config=config) 
+#K.set_session(sess)
+
+def node_match(node1, node2):
+    feat1 = node1["feature"]
+    feat2 = node2["feature"]
+    return list(feat1) == list(feat2)
+
 def graph_distance(graph1, graph2):
-    spec1 = nx.laplacian_spectrum(graph1.to_networkx(feature_attr=None))
-    spec2 = nx.laplacian_spectrum(graph2.to_networkx(feature_attr=None))
-    k = min(len(spec1), len(spec2))
-    return np.linalg.norm(spec1[:k] - spec2[:k])
+    return nx.graph_edit_distance(graph1.to_networkx(feature_attr="feature"),graph2.to_networkx(feature_attr="feature"), node_match=node_match)
+    #spec1 = nx.laplacian_spectrum(graph1.to_networkx(feature_attr=None))
+    #spec2 = nx.laplacian_spectrum(graph2.to_networkx(feature_attr=None))
+    #k = min(len(spec1), len(spec2))
+    #return np.linalg.norm(spec1[:k] - spec2[:k])
 
 
 def get_prime_factors(n):
@@ -91,6 +104,7 @@ class GraphEmbeddingModel:
 
 
     def fit_UGraphEmb(self, graphs):
+        graphs = graphs[:100]
         graph_idx = np.random.RandomState(0).randint(len(graphs), size=(100, 2))
         targets = [graph_distance(graphs[left], graphs[right]) for left, right in graph_idx]
         train_gen = self.generator.flow(graph_idx, batch_size=10, targets=targets)
@@ -111,6 +125,7 @@ class GraphEmbeddingModel:
         embedding = self.model.predict(self.generator.flow(graphs))
         for i in range(len(workload_keys)):
             self.task_embeddings[workload_keys[i]] = embedding[i]
+        print(len(embedding[0]))
 
     def traverse_and_build_the_graph(self, tensors):
         visited = set()
