@@ -57,8 +57,8 @@ class SegmentTestDataLoader:
 
             if use_workload_embedding:
                 task_embedding = get_workload_embedding(task.workload_key)
-                # task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                # task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
+                #task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
+                #task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
             else:
                 task_embedding = None
 

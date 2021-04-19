@@ -10,8 +10,11 @@ from tvm import auto_scheduler
 from tvm.auto_scheduler.dataset import LearningTask
 from tvm.auto_scheduler.cost_model.xgb_model import XGBModelInternal
 from tvm.auto_scheduler.cost_model.mlp_model import MLPModelInternal
+<<<<<<< HEAD
+=======
 
 
+>>>>>>> 1f36a81d8c39a6983181291c03c9df0bda690944
 from common import get_task_info_filename, get_measure_record_filename
 
 
