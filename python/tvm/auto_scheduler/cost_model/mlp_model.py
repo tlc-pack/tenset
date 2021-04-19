@@ -428,7 +428,7 @@ class MLPModelInternal:
             self.loss_func = LambdaRankLoss()
             self.net_params['add_sigmoid'] = False
             self.lr = 7e-4
-            self.n_epoch = 20
+            self.n_epoch = 50
         elif loss_type == 'listNetLoss':
             self.loss_func = ListNetLoss()
             self.lr = 9e-4
@@ -557,7 +557,7 @@ class MLPModelInternal:
     def _fit_a_model(self, train_set, valid_set=None, valid_train_set=None, n_epoch=None):
         print("=" * 60 + "\nFit a net. Train size: %d" % len(train_set))
         train_loader = SegmentTrainDataLoader(
-            train_set, self.batch_size, self.device, self.use_workload_embedding, shuffle=True
+            train_set, self.batch_size, self.device, self.use_workload_embedding, shuffle=False
         )
 
         # Normalize features
