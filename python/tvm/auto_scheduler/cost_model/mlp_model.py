@@ -149,6 +149,7 @@ class SegmentTrainDataLoader:
         max_seg_len = 0
         self.segment_sizes = {}
         self.labels = {}
+        self.all_features = []
 
         # Flatten features
         flatten_features = {}
@@ -175,8 +176,10 @@ class SegmentTrainDataLoader:
                     tmp = np.tile(task_embedding, (len(row), 1))
                     # flatten_features.extend(np.concatenate([row, tmp], axis=1))
                     flatten_features[task].extend(np.concatenate([row, tmp], axis=1))
+                    self.all_features.extend(np.concatenate([row, tmp], axis=1))
                 else:
                     flatten_features[task].extend(row)
+                    self.all_features.extend(row)
                 ct += 1
 
             max_seg_len = max(self.segment_sizes[task].max(), max_seg_len)
@@ -185,15 +188,14 @@ class SegmentTrainDataLoader:
         self.features = {}
         for task in flatten_features:
             self.features[task] = torch.tensor(np.array(flatten_features[task], dtype=np.float32))
-
-        self.all_features = np.array(list(self.features.values()))
+        self.all_features = torch.tensor(np.array(self.all_features, dtype=np.float32))
         if fea_norm_vec is not None:
             self.normalize(fea_norm_vec)
 
         self.feature_offsets = {}
         for task in self.segment_sizes:
             self.feature_offsets[task] = (
-                        torch.cumsum(self.segment_sizes, 0, dtype=torch.int32) - self.segment_sizes).cpu().numpy()
+                        torch.cumsum(self.segment_sizes[task], 0, dtype=torch.int32) - self.segment_sizes[task]).cpu().numpy()
         self.iter_order = self.pointer = None
 
     def normalize(self, norm_vector=None):
@@ -223,8 +225,8 @@ class SegmentTrainDataLoader:
         return self._fetch_indices(batch_indices)
 
     def __next__(self):
-        # if self.pointer >= self.number:
-        #     raise StopIteration
+        if self.pointer >= self.number:     
+            raise StopIteration
 
         batch_indices = self.iter_order[self.pointer: self.pointer + self.batch_size]
         self.pointer += self.batch_size
@@ -235,14 +237,15 @@ class SegmentTrainDataLoader:
         features = {}
         labels = {}
         for task in self.segment_sizes:
-            if indices < len(self.segment_sizes[task]):
-                segment_sizes[task] = self.segment_sizes[indices]
-            else:
+            indices = indices[indices < len(self.segment_sizes[task])]
+            if len(indices) <= 1:
                 continue
+            segment_sizes[task] = self.segment_sizes[task][indices]
 
             feature_offsets = self.feature_offsets[task][indices]
             feature_indices = np.empty((segment_sizes[task].sum(),), dtype=np.int32)
             ct = 0
+            
             for offset, seg_size in zip(feature_offsets, segment_sizes[task].numpy()):
                 feature_indices[ct: ct + seg_size] = np.arange(offset, offset + seg_size, 1)
                 ct += seg_size
@@ -425,7 +428,7 @@ class MLPModelInternal:
             self.loss_func = LambdaRankLoss()
             self.net_params['add_sigmoid'] = False
             self.lr = 7e-4
-            self.n_epoch = 50
+            self.n_epoch = 20
         elif loss_type == 'listNetLoss':
             self.loss_func = ListNetLoss()
             self.lr = 9e-4
@@ -440,7 +443,7 @@ class MLPModelInternal:
         self.use_workload_embedding = use_workload_embedding
 
         # Hyperparameters for self.fit_base
-        self.batch_size = 64
+        self.batch_size = 512
         self.infer_batch_size = 4096
         self.wd = 1e-6
         self.device = device
@@ -564,7 +567,7 @@ class MLPModelInternal:
             train_loader.normalize(self.fea_norm_vec)
 
         if valid_set:
-            valid_loader = SegmentTestDataLoader(valid_set, self.infer_batch_size, self.device,
+            valid_loader = SegmentTrainDataLoader(valid_set, self.infer_batch_size, self.device,
                       self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec)
 
         n_epoch = n_epoch or self.n_epoch
@@ -591,8 +594,8 @@ class MLPModelInternal:
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(net.parameters(), self.grad_clip)
                     optimizer.step()
+                    train_loss = moving_average(train_loss, loss.item())
 
-                train_loss = moving_average(train_loss, loss.item())
             lr_scheduler.step()
 
             train_time = time.time() - tic
@@ -617,7 +620,7 @@ class MLPModelInternal:
                 best_epoch = epoch
             elif epoch - best_epoch >= early_stop:
                 print("Early stop. Best epoch: %d" % best_epoch)
-                break
+                #break
 
         return net
 
@@ -669,8 +672,9 @@ class MLPModelInternal:
         model.eval()
         valid_losses = []
         for segment_sizes, features, labels in valid_loader:
-            preds = model(segment_sizes, features)
-            valid_losses.append(self.loss_func(preds, labels).item())
+            for task in labels:
+                preds = model(segment_sizes[task], features[task])
+                valid_losses.append(self.loss_func(preds, labels[task]).item())
         return np.mean(valid_losses)
 
     def _predict_a_dataset(self, model, dataset):
@@ -686,7 +690,7 @@ class MLPModelInternal:
         tmp_set = Dataset.create_one_task(task, features, np.zeros((len(features),)))
 
         preds = []
-        for segment_sizes, features, labels in SegmentDataLoader(
+        for segment_sizes, features, labels in SegmentTestDataLoader(
             tmp_set, self.infer_batch_size, self.device,
             self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec,
         ):
