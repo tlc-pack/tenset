@@ -769,7 +769,11 @@ class LambdaRankLoss(torch.nn.Module):
     def lamdbaRank_scheme(self, G, D, *args):
         return torch.abs(torch.pow(D[:, :, None], -1.) - torch.pow(D[:, None, :], -1.)) * torch.abs(G[:, :, None] - G[:, None, :])
 
-    def forward(self, preds, labels, k=None, eps=1e-10, mu=10., sigma=1., device="cuda:0"):
+    def forward(self, preds, labels, k=None, eps=1e-10, mu=10., sigma=1.):
+        if torch.cuda.device_count():
+            device = 'cuda:0'
+        else:
+            device = 'cpu'        
         preds = preds[None, :]
         labels = labels[None, :]
         y_pred = preds.clone()
