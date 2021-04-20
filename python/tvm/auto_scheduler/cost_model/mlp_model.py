@@ -56,9 +56,9 @@ class SegmentTestDataLoader:
             self.labels[ct : ct + len(throughputs)] = torch.tensor(throughputs)
 
             if use_workload_embedding:
-                task_embedding = get_workload_embedding(task.workload_key)
-                #task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                #task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
+                #task_embedding = get_workload_embedding(task.workload_key)
+                task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
+                task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
             else:
                 task_embedding = None
 
@@ -409,7 +409,7 @@ class MLPModelInternal:
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
-            "in_dim": 164 + (9 if use_workload_embedding else 0),
+            "in_dim": 164 + (96 if use_workload_embedding else 0),
             "hidden_dim": 256,
             "out_dim": 1,
         }
@@ -425,6 +425,7 @@ class MLPModelInternal:
         self.loss_type = loss_type
         self.n_epoch = 100
         self.lr = 7e-4
+        
 
         if loss_type == 'rmse':
             self.loss_func = torch.nn.MSELoss()
@@ -436,8 +437,8 @@ class MLPModelInternal:
         elif loss_type == 'lambdaRankLoss':
             self.loss_func = LambdaRankLoss()
             self.net_params['add_sigmoid'] = False
-            self.lr = 7e-4
-            self.n_epoch = 50
+            self.lr = 5e-4
+            self.n_epoch = 80
         elif loss_type == 'listNetLoss':
             self.loss_func = ListNetLoss()
             self.lr = 9e-4
@@ -570,9 +571,9 @@ class MLPModelInternal:
         # )
         train_loaders = OrderedDict()
         all_features = []
-        for task in dataset.features:
-            features = dataset.features[task]
-            throughputs = dataset.throughputs[task]
+        for task in train_set.features:
+            features = train_set.features[task]
+            throughputs = train_set.throughputs[task]
             tmp_set = Dataset.create_one_task(task, features, throughputs)
             train_loaders[task] = SegmentTestDataLoader(
                     tmp_set, self.batch_size, self.device,
@@ -612,7 +613,7 @@ class MLPModelInternal:
             for task in train_loaders:
                 for batch, (segment_sizes, features, labels) in enumerate(train_loaders[task]):
                     optimizer.zero_grad()
-                    loss = self.loss_func(net(segment_sizes[task], features[task]), labels[task])
+                    loss = self.loss_func(net(segment_sizes, features), labels)
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(net.parameters(), self.grad_clip)
                     optimizer.step()
@@ -634,7 +635,7 @@ class MLPModelInternal:
                     loss_msg = "Train Loss: %.4f\tValid Loss: %.4f" % (train_loss, valid_loss)
 
                 print("Epoch: %d\tBatch: %d\t%s\tTrain Speed: %.0f" % (
-                    epoch, batch, loss_msg, len(train_loader) / train_time,))
+                    epoch, batch, loss_msg, sum(len(train_loader) for train_loader in train_loaders) / train_time,))
 
             # Early stop
             if train_loss < best_train_loss:
@@ -642,7 +643,7 @@ class MLPModelInternal:
                 best_epoch = epoch
             elif epoch - best_epoch >= early_stop:
                 print("Early stop. Best epoch: %d" % best_epoch)
-                break
+                #break
 
         return net
 
