@@ -40,6 +40,9 @@ from .utils import calc_workload_dis_factor, decode_workload_key
 logger = logging.getLogger("auto_scheduler")
 
 
+def input_to_learning_task(inp: MeasureInput):
+    return LearningTask(inp.task.workload_key, str(inp.task.target))
+
 class DispatchContext(object):
     """
     Base class of dispatch context.
@@ -141,7 +144,7 @@ class ApplyHistoryBest(DispatchContext):
         When set to True, compatible records will also be considered.
     """
 
-    def __init__(self, records, n_lines=None, include_compatible=False):
+    def __init__(self, records, n_lines=None, n_line_per_task=None, include_compatible=False):
         super(ApplyHistoryBest, self).__init__()
         self.include_compatible = include_compatible
 
@@ -152,7 +155,7 @@ class ApplyHistoryBest(DispatchContext):
         self.best_by_model = {}
         self._best_user_defined = {}
 
-        self.load(records, n_lines)
+        self.load(records, n_lines, n_line_per_task)
 
     @staticmethod
     def get_workload_entry(best_records, target_key, workload_key):
@@ -183,7 +186,7 @@ class ApplyHistoryBest(DispatchContext):
             best_records[target_key][workload_hash] = {}
         return best_records[target_key][workload_hash], workload_hash, workload_args
 
-    def load(self, records, n_lines=None):
+    def load(self, records, n_lines=None, n_lines_per_task=None):
         """Load records to this dispatch context
 
         Parameters
@@ -195,6 +198,9 @@ class ApplyHistoryBest(DispatchContext):
             Each row of this file is an encoded record pair. Otherwise, it is an iterator.
         n_lines: Optional[int]
             if it is not None, only load the first `n_lines` lines of log
+
+        n_lines_per_task: Optional[int]
+            if it is not None, only load the first `n_lines` lines of log per task
         """
         if isinstance(records, pathlib.Path):
             records = str(records)
@@ -209,10 +215,15 @@ class ApplyHistoryBest(DispatchContext):
         best_by_model = self.best_by_model
 
         counter = 0
+        counter_per_task = {}
         for inp, res in records:
+            task = input_to_learning_task(inp)
             if n_lines is not None and counter >= n_lines:
                 break
+            if n_lines_per_task is not None and counter_per_task[task] >= n_lines_per_task:
+                break
             counter += 1
+            counter_per_task[task] += 1
             if res.error_no != 0:
                 continue
 

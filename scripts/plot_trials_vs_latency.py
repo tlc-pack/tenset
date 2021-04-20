@@ -34,9 +34,9 @@ def get_network(network_args):
 def make_plot(network_args):
     mean_inf_time = []
     _, _, inputs = get_network(network_args)
-    for i in range(0, 1000, 50):
+    for i in range(0, 100):
         # Build module
-        with auto_scheduler.ApplyHistoryBest(log_file, n_lines=i):
+        with auto_scheduler.ApplyHistoryBest(log_file, n_lines_per_task=i):
             with tvm.transform.PassContext(
                     opt_level=3, config={"relay.backend.use_auto_scheduler": True}
             ):
@@ -56,7 +56,7 @@ def make_plot(network_args):
               (np.mean(prof_res) * 1000, np.std(prof_res) * 1000))
         mean_inf_time.append(np.mean(prof_res) * 1000)
 
-        plt.plot(list(range(0, 1000, 50)), mean_inf_time)
+        plt.plot(list(range(0, 1000)), mean_inf_time)
         plt.savefig(f"{network_args['network']}_trials_vs_latency.png")
 
 
