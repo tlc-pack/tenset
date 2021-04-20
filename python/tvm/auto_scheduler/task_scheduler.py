@@ -309,7 +309,7 @@ class TaskScheduler:
         for i, task in enumerate(self.tasks):
             tag = derive_similarity_tag(task.compute_dag)
             self.task_tags.append(tag)
-            self.flop_cts.append(task.compute_dag.flop_ct)
+            self.flop_self.flop_ctscts.append(task.compute_dag.flop_ct)
             if not tag:
                 continue
 
@@ -376,7 +376,7 @@ class TaskScheduler:
 
         # reset num_measures_per_round to make sure every task is tuned at least once
         self.num_measures_per_round = min(
-            tune_option.num_measures_per_round, num_measure_trials // len(self.tasks)
+            tune_option.num_measures_per_round, num_measure_trials // 2 // len(self.tasks)
         )
         #self.num_measures_per_round = 1
         if self.num_measures_per_round <= 0:
@@ -404,8 +404,19 @@ class TaskScheduler:
             # skip warming up this task if it has been tuned before (restored from the log file)
             if not self.task_cts[idx]:
                 self._tune_task(idx)
+
+        sorted_flop_cts = np.array(sorted(self.flop_cts))
+        sorted_idx = np.argsort(sorted_flop_cts)[::-1]
+
+        for idx in sorted_idx[len(sorted_idx)//2]:
+            self._tune_task(idx)
+
+        for idx in sorted_idx[len(sorted_idx)//4]:
+            self._tune_task(idx)
+
         self.best_ct = self.ct
         self.best_score = self.cur_score
+
 
         # use the specific strategy to choose workload to tune
         task_idx = -1
