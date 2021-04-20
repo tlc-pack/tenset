@@ -309,7 +309,7 @@ class TaskScheduler:
         for i, task in enumerate(self.tasks):
             tag = derive_similarity_tag(task.compute_dag)
             self.task_tags.append(tag)
-            self.flop_self.flop_ctscts.append(task.compute_dag.flop_ct)
+            self.flop_cts.append(task.compute_dag.flop_ct)
             if not tag:
                 continue
 
@@ -408,10 +408,12 @@ class TaskScheduler:
         sorted_flop_cts = np.array(sorted(self.flop_cts))
         sorted_idx = np.argsort(sorted_flop_cts)[::-1]
 
-        for idx in sorted_idx[len(sorted_idx)//2]:
+        print(sorted_idx)
+        for idx in sorted_idx[:len(sorted_idx)//2]:
             self._tune_task(idx)
 
-        for idx in sorted_idx[len(sorted_idx)//4]:
+        for idx in sorted_idx[:len(sorted_idx)//4]:
+            self._tune_task(idx)
             self._tune_task(idx)
 
         self.best_ct = self.ct

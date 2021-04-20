@@ -20,7 +20,9 @@ from torchmeta.modules import (
 )  # pip3 intall torchmeta
 from torchmeta.utils import gradient_update_parameters
 import torch.nn.functional as F
+import logging
 
+logger = logging.getLogger("auto_scheduler")
 
 from tvm.auto_scheduler.dataset import Dataset, LearningTask
 from tvm.auto_scheduler.feature import (
