@@ -58,7 +58,7 @@ def make_plot(network_args, log_file, target):
     
         mean_inf_time.append(np.mean(prof_res) * 1000)
 
-    plt.plot(list(range(0, 100)), mean_inf_time)
+    plt.plot(list(range(1, 100)), mean_inf_time[1:])
     plt.savefig(f"{network_args['network']}_trials_vs_latency.png")
 
 if __name__ == "__main__":
