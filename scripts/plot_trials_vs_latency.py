@@ -34,11 +34,10 @@ def get_network(network_args):
 def make_plot(network_args, log_file, target):
     mean_inf_time = []
     mod, params, inputs = get_network(network_args)
-
-
-    for i in range(27, 3000, 27):    # Build module
-        print(f"each task is measured {i/27} times")
-        with auto_scheduler.ApplyHistoryBest(log_file):
+    for i in range(0, 100):
+        # Build module
+        print(f"each task is measured {i} time")
+        with auto_scheduler.ApplyHistoryBest(log_file, n_line_per_task=i):
             with tvm.transform.PassContext(
                     opt_level=3, config={"relay.backend.use_auto_scheduler": True}
             ):
@@ -56,11 +55,11 @@ def make_plot(network_args, log_file, target):
         prof_res = np.array(ftimer().results)
         print("Mean inference time (std dev): %.2f ms (%.2f ms)" %
               (np.mean(prof_res) * 1000, np.std(prof_res) * 1000))
+    
         mean_inf_time.append(np.mean(prof_res) * 1000)
 
-    plt.plot(list(range(0, 1000, 50)), mean_inf_time)
+    plt.plot(list(range(0, 100)), mean_inf_time)
     plt.savefig(f"{network_args['network']}_trials_vs_latency.png")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -68,11 +67,22 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--target", type=str, default='llvm -mcpu=core-avx2')
     parser.add_argument("--log-file", type=str)
+    parser.add_argument("--seed", type=int, default=0, help='random seed')
     args= parser.parse_args()
 
+    np.random.seed(args.seed)
+    random.seed(args.seed)
+    
+    target = tvm.target.Target(args.target)
+    if target.model == "unknown":
+        log_file = args.log_file or "%s-B%d-%s.json" % (args.network, args.batch_size,
+                                                        target.kind)
+    else:
+        log_file = args.log_file or "%s-B%d-%s-%s.json" % (args.network, args.batch_size,
+                                                           target.kind, target.model)
     network_args = {
         "network": args.network,
         "batch_size": args.batch_size,
     }
-    make_plot(network_args, args.log_file, args.target)
+    make_plot(network_args, log_file, target)
 
