@@ -574,9 +574,9 @@ class MLPModelInternal:
         # )
         train_loaders = OrderedDict()
         all_features = []
-        for task in dataset.features:
-            features = dataset.features[task]
-            throughputs = dataset.throughputs[task]
+        for task in train_set.features:
+            features = train_set.features[task]
+            throughputs = train_set.throughputs[task]
             tmp_set = Dataset.create_one_task(task, features, throughputs)
             train_loaders[task] = SegmentTestDataLoader(
                     tmp_set, self.batch_size, self.device,
@@ -591,10 +591,16 @@ class MLPModelInternal:
             else:
                 train_loaders[task].normalize(self.fea_norm_vec)
 
-        valid_set = None
+        # valid_set = None
+        valid_loaders = {}
         if valid_set:
-            valid_loader = SegmentTrainDataLoader(valid_set, self.infer_batch_size, self.device,
+            for task in valid_set.features:
+                features = valid_set.features[task]
+                throughputs = valid_set.throughputs[task]
+                tmp_set = Dataset.create_one_task(task, features, throughputs)
+                valid_loaders[task] = SegmentTrainDataLoader(tmp_set, self.infer_batch_size, self.device,
                       self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec)
+
 
         n_epoch = n_epoch or self.n_epoch
         early_stop = n_epoch // 6
@@ -610,13 +616,15 @@ class MLPModelInternal:
         best_train_loss = 1e10
         for epoch in range(n_epoch):
             tic = time.time()
-
             # train
             net.train()
-            for task in train_loaders:
-                for batch, (segment_sizes, features, labels) in enumerate(train_loaders[task]):
+            keys = list(train_loaders.keys())
+            random.shuffle(keys)
+            for key in keys:
+                train_loader = train_loaders[key]
+                for batch, (segment_sizes, features, labels) in enumerate(train_loader):
                     optimizer.zero_grad()
-                    loss = self.loss_func(net(segment_sizes[task], features[task]), labels[task])
+                    loss = self.loss_func(net(segment_sizes, features), labels)
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(net.parameters(), self.grad_clip)
                     optimizer.step()
@@ -628,7 +636,7 @@ class MLPModelInternal:
 
             if epoch % self.print_per_epoches == 0 or epoch == n_epoch - 1:
                 if valid_set and valid_loader:
-                    valid_loss = self._validate(net, valid_loader)
+                    valid_loss = self._validate(net, valid_loaders)
                 else:
                     valid_loss = 0.0
 
@@ -697,10 +705,11 @@ class MLPModelInternal:
     def _validate(self, model, valid_loader):
         model.eval()
         valid_losses = []
-        for segment_sizes, features, labels in valid_loader:
-            for task in labels:
-                preds = model(segment_sizes[task], features[task])
-                valid_losses.append(self.loss_func(preds, labels[task]).item())
+        for task in valid_loader:
+            for segment_sizes, features, labels in valid_loader[task]:
+                for task in labels:
+                    preds = model(segment_sizes, features)
+                    valid_losses.append(self.loss_func(preds, labels[task]).item())
         return np.mean(valid_losses)
 
     def _predict_a_dataset(self, model, dataset):
