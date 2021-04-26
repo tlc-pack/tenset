@@ -399,16 +399,16 @@ class TaskScheduler:
             disable_cost_model_update,
         )
 
+        sorted_idx = np.argsort(np.array(self.flop_cts))[::-1]
+        print(self.flop_cts)
+        print(sorted_idx)
         # do a round robin first to warm up
         for idx in range(len(self.tasks)):
             # skip warming up this task if it has been tuned before (restored from the log file)
             if not self.task_cts[idx]:
                 self._tune_task(idx)
 
-        sorted_flop_cts = np.array(sorted(self.flop_cts))
-        sorted_idx = np.argsort(sorted_flop_cts)[::-1]
 
-        print(sorted_idx)
         for idx in sorted_idx[:len(sorted_idx)//2]:
             self._tune_task(idx)
 
