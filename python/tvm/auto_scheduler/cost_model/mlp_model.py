@@ -58,9 +58,9 @@ class SegmentTestDataLoader:
             self.labels[ct : ct + len(throughputs)] = torch.tensor(throughputs)
 
             if use_workload_embedding:
-                #task_embedding = get_workload_embedding(task.workload_key)
-                task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
+                task_embedding = get_workload_embedding(task.workload_key)
+                #task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
+                #task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
             else:
                 task_embedding = None
 
@@ -411,7 +411,7 @@ class MLPModelInternal:
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
-            "in_dim": 164 + (96 if use_workload_embedding else 0),
+            "in_dim": 164 + (9 if use_workload_embedding else 0),
             "hidden_dim": 256,
             "out_dim": 1,
         }
@@ -599,7 +599,7 @@ class MLPModelInternal:
                 features = valid_set.features[task]
                 throughputs = valid_set.throughputs[task]
                 tmp_set = Dataset.create_one_task(task, features, throughputs)
-                valid_loaders[task] = SegmentTrainDataLoader(tmp_set, self.infer_batch_size, self.device,
+                valid_loaders[task] = SegmentTestDataLoader(tmp_set, self.infer_batch_size, self.device,
                       self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec)
 
 
@@ -636,7 +636,7 @@ class MLPModelInternal:
             train_time = time.time() - tic
 
             if epoch % self.print_per_epoches == 0 or epoch == n_epoch - 1:
-                if valid_set and valid_loader:
+                if valid_set and valid_loaders:
                     valid_loss = self._validate(net, valid_loaders)
                 else:
                     valid_loss = 0.0
@@ -655,7 +655,7 @@ class MLPModelInternal:
                 best_epoch = epoch
             elif epoch - best_epoch >= early_stop:
                 print("Early stop. Best epoch: %d" % best_epoch)
-                #break
+                break
 
         return net
 
@@ -710,7 +710,7 @@ class MLPModelInternal:
             for segment_sizes, features, labels in valid_loader[task]:
                 for task in labels:
                     preds = model(segment_sizes, features)
-                    valid_losses.append(self.loss_func(preds, labels[task]).item())
+                    valid_losses.append(self.loss_func(preds, labels).item())
         return np.mean(valid_losses)
 
     def _predict_a_dataset(self, model, dataset):
