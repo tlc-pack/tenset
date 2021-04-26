@@ -23,7 +23,7 @@ def get_network_with_key(network_key):
 
     if name in ['resnet_18', 'resnet_50', 'mobilenet_v2', 'mobilenet_v3',
                 'wide_resnet_50', 'resnext_50', 'resnet3d_18', 'inception_v3',
-                'densenet_121']:
+                'densenet_121', 'vgg_16']:
         import torch
         import torchvision.models as models   # torchvision>=0.9.0
 

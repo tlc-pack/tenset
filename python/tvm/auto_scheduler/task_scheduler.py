@@ -99,8 +99,9 @@ def make_search_policies(
                 disable_update=disable_cost_model_update,
                 few_shot_learning=few_shot_learning
             )
-            if few_shot_learning == 'plus_mix_task':
+            if few_shot_learning == 'plus_mix_task' or few_shot_learning == 'plus_per_task':
                 # load base model
+                print("here")
                 cost_model.load(load_model_file)
                 cost_model.model.few_shot_learning = few_shot_learning
                 dataset_file = 'tmp_dataset.pkl'
@@ -121,8 +122,7 @@ def make_search_policies(
                 disable_update=disable_cost_model_update,
                 few_shot_learning=few_shot_learning
             )
-            if few_shot_learning == 'plus_mix_task':
-                # load base model
+            if few_shot_learning == 'plus_mix_task' or few_shot_learning == 'plus_per_task':              # load base model
                 cost_model.load(load_model_file)
                 cost_model.model.few_shot_learning = few_shot_learning
                 dataset_file = 'tmp_dataset.pkl'
@@ -376,8 +376,9 @@ class TaskScheduler:
 
         # reset num_measures_per_round to make sure every task is tuned at least once
         self.num_measures_per_round = min(
-            tune_option.num_measures_per_round, num_measure_trials // len(self.tasks)
+            tune_option.num_measures_per_round, num_measure_trials // 2 // len(self.tasks)
         )
+        #self.num_measures_per_round = 1
         if self.num_measures_per_round <= 0:
             raise ValueError("num_measure_trials is too small. Please set it to a higher value.")
 
@@ -403,8 +404,21 @@ class TaskScheduler:
             # skip warming up this task if it has been tuned before (restored from the log file)
             if not self.task_cts[idx]:
                 self._tune_task(idx)
+
+        sorted_flop_cts = np.array(sorted(self.flop_cts))
+        sorted_idx = np.argsort(sorted_flop_cts)[::-1]
+
+        print(sorted_idx)
+        for idx in sorted_idx[:len(sorted_idx)//2]:
+            self._tune_task(idx)
+
+        for idx in sorted_idx[:len(sorted_idx)//4]:
+            self._tune_task(idx)
+            self._tune_task(idx)
+
         self.best_ct = self.ct
         self.best_score = self.cur_score
+
 
         # use the specific strategy to choose workload to tune
         task_idx = -1
@@ -552,7 +566,7 @@ class TaskScheduler:
             disable_cost_model_update,
         )
 
-        for idx in range(len(self.tasks)//2):
+        for idx in range(len(self.tasks) // 2):
             # skip warming up this task if it has been tuned before (restored from the log file)
             # if not self.task_cts[idx]:
             #     self._tune_task(idx)
@@ -574,7 +588,7 @@ class TaskScheduler:
             few_shot_learning='plus_mix_task'
         )
 
-        for idx in range(len(self.tasks)//2, len(self.tasks)):
+        for idx in range(len(self.tasks) // 2, len(self.tasks)):
             # skip warming up this task if it has been tuned before (restored from the log file)
             # if not self.task_cts[idx]:
             #     self._tune_task(idx)

@@ -6,7 +6,7 @@ import os
 import pickle
 import random
 import time
-
+import io
 import json
 import numpy as np
 import xgboost as xgb
@@ -20,7 +20,9 @@ from torchmeta.modules import (
 )  # pip3 intall torchmeta
 from torchmeta.utils import gradient_update_parameters
 import torch.nn.functional as F
+import logging
 
+logger = logging.getLogger("auto_scheduler")
 
 from tvm.auto_scheduler.dataset import Dataset, LearningTask
 from tvm.auto_scheduler.feature import (
@@ -489,6 +491,7 @@ class MLPModelInternal:
             self.base_model = self._fit_a_model(train_set, valid_set, valid_train_set)
 
     def fit_local(self, train_set, valid_set=None):
+        print("fit local, ", self.few_shot_learning)
         if self.few_shot_learning == "base_only":
             return
         elif self.few_shot_learning == "local_only_mix_task":
@@ -544,6 +547,7 @@ class MLPModelInternal:
             raise ValueError("Invalid few-shot learning method: " + self.few_shot_learning)
 
     def predict(self, dataset):
+        print("predict, ", self.few_shot_learning)
         if self.few_shot_learning in ["base_only", "fine_tune_mix_task", "fine_tune_per_task", "MAML"]:
             return self._predict_a_dataset(self.base_model, dataset)
         elif self.few_shot_learning in ["local_only_mix_task", "local_only_per_task"]:
@@ -588,10 +592,16 @@ class MLPModelInternal:
             else:
                 train_loaders[task].normalize(self.fea_norm_vec)
 
-        valid_set = None
+        # valid_set = None
+        valid_loaders = {}
         if valid_set:
-            valid_loader = SegmentTrainDataLoader(valid_set, self.infer_batch_size, self.device,
+            for task in valid_set.features:
+                features = valid_set.features[task]
+                throughputs = valid_set.throughputs[task]
+                tmp_set = Dataset.create_one_task(task, features, throughputs)
+                valid_loaders[task] = SegmentTrainDataLoader(tmp_set, self.infer_batch_size, self.device,
                       self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec)
+
 
         n_epoch = n_epoch or self.n_epoch
         early_stop = n_epoch // 6
@@ -607,11 +617,13 @@ class MLPModelInternal:
         best_train_loss = 1e10
         for epoch in range(n_epoch):
             tic = time.time()
-
             # train
             net.train()
-            for task in train_loaders:
-                for batch, (segment_sizes, features, labels) in enumerate(train_loaders[task]):
+            keys = list(train_loaders.keys())
+            random.shuffle(keys)
+            for key in keys:
+                train_loader = train_loaders[key]
+                for batch, (segment_sizes, features, labels) in enumerate(train_loader):
                     optimizer.zero_grad()
                     loss = self.loss_func(net(segment_sizes, features), labels)
                     loss.backward()
@@ -625,7 +637,7 @@ class MLPModelInternal:
 
             if epoch % self.print_per_epoches == 0 or epoch == n_epoch - 1:
                 if valid_set and valid_loader:
-                    valid_loss = self._validate(net, valid_loader)
+                    valid_loss = self._validate(net, valid_loaders)
                 else:
                     valid_loss = 0.0
 
@@ -694,10 +706,11 @@ class MLPModelInternal:
     def _validate(self, model, valid_loader):
         model.eval()
         valid_losses = []
-        for segment_sizes, features, labels in valid_loader:
-            for task in labels:
-                preds = model(segment_sizes[task], features[task])
-                valid_losses.append(self.loss_func(preds, labels[task]).item())
+        for task in valid_loader:
+            for segment_sizes, features, labels in valid_loader[task]:
+                for task in labels:
+                    preds = model(segment_sizes, features)
+                    valid_losses.append(self.loss_func(preds, labels[task]).item())
         return np.mean(valid_losses)
 
     def _predict_a_dataset(self, model, dataset):
@@ -837,6 +850,12 @@ class MLPModelInternal:
         pickle.dump((self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec),
             open(filename, 'wb'))
 
+class CPU_Unpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == 'torch.storage' and name == '_load_from_bytes':
+            return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
+        else: return super().find_class(module, name)
+
 
 class CPU_Unpickler(pickle.Unpickler):
     def find_class(self, module, name):
@@ -915,7 +934,11 @@ class LambdaRankLoss(torch.nn.Module):
     def lamdbaRank_scheme(self, G, D, *args):
         return torch.abs(torch.pow(D[:, :, None], -1.) - torch.pow(D[:, None, :], -1.)) * torch.abs(G[:, :, None] - G[:, None, :])
 
-    def forward(self, preds, labels, k=None, eps=1e-10, mu=10., sigma=1., device="cuda:0"):
+    def forward(self, preds, labels, k=None, eps=1e-10, mu=10., sigma=1.):
+        if torch.cuda.device_count():
+            device = 'cuda:0'
+        else:
+            device = 'cpu'        
         preds = preds[None, :]
         labels = labels[None, :]
         y_pred = preds.clone()

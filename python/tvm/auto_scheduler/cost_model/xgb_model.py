@@ -178,6 +178,7 @@ class XGBModelInternal:
                 local_model = self._fit_a_model(task_train_set, valid_set)
                 self.local_model[task] = local_model
         elif self.few_shot_learning == "plus_mix_task":
+            print("fit local ", self.few_shot_learning)
             diff_train_set = self.make_diff_set(self.base_model, train_set)
             diff_valid_set = self.make_diff_set(self.base_model, valid_set) if valid_set else None
             diff_model = self._fit_a_model(diff_train_set, diff_valid_set)
@@ -207,6 +208,7 @@ class XGBModelInternal:
                 ret[task] = local_preds
             return ret
         elif self.few_shot_learning in ["plus_mix_task", "plus_per_task"]:
+            print("predicting", self.few_shot_learning)
             base_preds = self._predict_a_dataset(self.base_model, dataset)
             ret = {}
             for task in dataset.tasks():
