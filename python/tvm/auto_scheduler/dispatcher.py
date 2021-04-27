@@ -285,6 +285,7 @@ class ApplyHistoryBest(DispatchContext):
                 for args in self.best_by_targetkey[key][hash]:
                     rand = random.uniform(0, 1)
                     if rand < 0.2:
+                        print("replacing")
                         self.best_by_targetkey[key][hash][args] = second_by_targetkey[key][hash][args]
 
         for key in self.best_by_model:
@@ -292,6 +293,7 @@ class ApplyHistoryBest(DispatchContext):
                 for args in self.best_by_model[key][hash]:
                     rand = random.uniform(0, 1)
                     if rand < 0.2:
+                        print("replacing")
                         self.best_by_model[key][hash][args] = second_by_model[key][hash][args]
 
 
