@@ -175,7 +175,7 @@ def random_search(global_search_space, network_args, target, total_cts=5, top_k=
     return best_cost
 
 
-def beam_search(global_search_space, network_args, target, beam=2, tmp_file='tmp_log.json'):
+def beam_search(global_search_space, network_args, target, beam=3, tmp_file='tmp_log.json'):
     best_cost = None
     selected_candidates = {}
     for key in global_search_space:
