@@ -216,9 +216,6 @@ class ApplyHistoryBest(DispatchContext):
         best_by_targetkey = self.best_by_targetkey
         best_by_model = self.best_by_model
 
-        second_by_targetkey = {}
-        second_by_model = {}
-
         counter = 0
         counter_per_task = {}
         for inp, res in records:
@@ -239,63 +236,30 @@ class ApplyHistoryBest(DispatchContext):
 
             # use target keys in tvm target system as key to build best map
             for k in inp.task.target.keys:
-                entry, workload_hash, workload_args = self.get_workload_entry(
+                entry, _, workload_args = self.get_workload_entry(
                     best_by_targetkey, k, inp.task.workload_key
                 )
 
-                if k not in second_by_targetkey:
-                    second_by_targetkey[k] = {}
-                if workload_hash not in second_by_targetkey[k]:
-                    second_by_targetkey[k][workload_hash] = {}
-
                 if workload_args not in entry:
                     entry[workload_args] = (inp.state, cost)
-                    second_by_targetkey[k][workload_hash][workload_args] = (inp.state, cost)
                 else:
                     _, other_cost = entry[workload_args]
                     if other_cost > cost:
                         entry[workload_args] = (inp.state, cost)
-                        second_by_targetkey[k][workload_hash][workload_args] = (inp.state, other_cost)
-
 
             # use model as key to build best map
             entry, _, workload_args = self.get_workload_entry(
                 best_by_model, inp.task.target.model, inp.task.workload_key
             )
 
-            if inp.task.target.model not in second_by_model:
-                second_by_model[inp.task.target.model] = {}
-            if workload_hash not in second_by_model[inp.task.target.model]:
-                second_by_model[inp.task.target.model][workload_hash] = {}
-
             if workload_args not in entry:
                 if inp.task.target.model != "unknown":
                     entry[workload_args] = (inp.state, cost)
-                second_by_model[inp.task.target.model][workload_hash][workload_args] = (inp.state, cost)
 
             else:
                 _, other_cost = entry[workload_args]
                 if other_cost > cost:
                     entry[workload_args] = (inp.state, cost)
-                    second_by_model[inp.task.target.model][workload_hash][workload_args] = (inp.state, other_cost)
-
-
-        for key in self.best_by_targetkey:
-            for hash in self.best_by_targetkey[key]:
-                for args in self.best_by_targetkey[key][hash]:
-                    rand = random.uniform(0, 1)
-                    if rand < 0.2:
-                        print("replacing")
-                        self.best_by_targetkey[key][hash][args] = second_by_targetkey[key][hash][args]
-
-        for key in self.best_by_model:
-            for hash in self.best_by_model[key]:
-                for args in self.best_by_model[key][hash]:
-                    rand = random.uniform(0, 1)
-                    if rand < 0.2:
-                        print("replacing")
-                        self.best_by_model[key][hash][args] = second_by_model[key][hash][args]
-
 
         logger.debug("Finish loading %d records", counter)
 
