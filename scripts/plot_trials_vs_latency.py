@@ -3,18 +3,24 @@ import logging
 import os
 import random
 import time
-
+from collections import namedtuple
 import heapq
 import numpy as np
 import matplotlib.pyplot as plt
-
+import pathlib
 import tvm
+from tvm.tir.expr import FloatImm
 from tvm import relay, auto_scheduler
 import tvm.contrib.graph_runtime as runtime
-from .measure_record import RecordToFile, load_records, save_records
+from tvm.auto_scheduler.measure_record import RecordToFile, load_records, save_records
+from tvm.auto_scheduler.measure import MeasureInput, MeasureResult
+from tvm.auto_scheduler.utils import decode_workload_key
 
 from dump_network_info import get_network_with_key
 
+LearningTask = namedtuple("LearningTask", ['workload_key', 'target'])
+def input_to_learning_task(inp: MeasureInput):
+    return LearningTask(inp.task.workload_key, str(inp.task.target))
 
 def get_network(network_args):
     name, batch_size = network_args['network'], network_args['batch_size']
@@ -93,7 +99,8 @@ def local_search(records, n_lines=None, n_lines_per_task=None):
         if workload_args not in entry:
             if inp.task.target.model != "unknown":
                 entry[workload_args] = []
-        heapq.heappush(entry[workload_args], (cost, inp, res))
+        if inp.task.target.model != "unknown":
+            heapq.heappush(entry[workload_args], (cost, inp, res))
 
     return best_by_targetkey, best_by_model
 
@@ -150,8 +157,10 @@ def measure(tmp_file, network_args, target, n_line_per_task=None):
     return np.mean(prof_res) * 1000
 
 
-def random_search(global_search_space, network_args, target, total_cts=10, top_k=5, tmp_file='tmp_log.json'):
+def random_search(global_search_space, network_args, target, total_cts=5, top_k=3, tmp_file='tmp_log.json'):
     ct = 0
+    if os.path.exists(tmp_file):
+        os.system("rm -rf %s" % tmp_file)
     # best_candidate = None
     best_cost = 1e20
     while ct < total_cts:
@@ -161,6 +170,8 @@ def random_search(global_search_space, network_args, target, total_cts=10, top_k
         if cost < best_cost:
             best_cost = cost
             # best_candidate = candidate
+        ct += 1
+    print(f"The best cost is {best_cost}")
     return best_cost
 
 
@@ -198,33 +209,38 @@ def beam_search(global_search_space, network_args, target, beam=2, tmp_file='tmp
 
 def make_random_plot(network_args, log_file, target):
     mean_inf_time = []
-    for i in range(1, 100):
+    for i in range(0, 100):
+        print(f"Each task is measured {i} times")
         best_by_targetkey, _ = local_search(log_file, n_lines_per_task=i)
         cost = random_search(best_by_targetkey, network_args, target)
         mean_inf_time.append(cost)
 
     plt.plot(list(range(1, 100)), mean_inf_time[1:])
     plt.savefig(f"{network_args['network']}_trials_vs_latency_random.png")
-
+    print(mean_inf_time)
+    
 def make_beam_plot(network_args, log_file, target):
     mean_inf_time = []
     for i in range(1, 100):
+        print(f"Each task is measured {i} times")
         best_by_targetkey, _ = local_search(log_file, n_lines_per_task=i)
         cost = beam_search(best_by_targetkey, network_args, target)
         mean_inf_time.append(cost)
 
     plt.plot(list(range(1, 100)), mean_inf_time[1:])
     plt.savefig(f"{network_args['network']}_trials_vs_latency_beam.png")
+    print(mean_inf_time)
 
 def make_all_best_plot(network_args, log_file, target):
     mean_inf_time = []
     for i in range(0, 100):
+        print(f"Each task is measured {i} times")
         cost = measure(log_file, network_args, target, n_line_per_task=i)
         mean_inf_time.append(cost)
 
     plt.plot(list(range(1, 100)), mean_inf_time[1:])
     plt.savefig(f"{network_args['network']}_trials_vs_latency_all_best.png")
-
+    print(mean_inf_time)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
