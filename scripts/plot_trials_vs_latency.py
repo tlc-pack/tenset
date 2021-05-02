@@ -90,7 +90,10 @@ def local_search(records, n_lines=None, n_lines_per_task=None):
             )
             if workload_args not in entry:
                 entry[workload_args] = []
-            heapq.heappush(entry[workload_args], (cost, inp, res))
+            try:
+                heapq.heappush(entry[workload_args], (cost, inp, res))
+            except:
+                print("same cost. continue")
 
         # use model as key to build best map
         entry, _, workload_args = get_workload_entry(
@@ -128,7 +131,7 @@ def beam_choose(global_search_space, selected_candidates):
                     inputs.append(candidate[1])
                     results.append(candidate[2])
                 else:
-                    best = heapq.nsmallest(1, global_search_space[key][hash][arg])
+                    best = heapq.nsmallest(1, global_search_space[key][hash][arg])[0]
                     inputs.append(best[1])
                     results.append(best[2])
     return inputs, results
@@ -157,7 +160,7 @@ def measure(tmp_file, network_args, target, n_line_per_task=None):
     return np.mean(prof_res) * 1000
 
 
-def random_search(global_search_space, network_args, target, total_cts=5, top_k=3, tmp_file='tmp_log.json'):
+def random_search(global_search_space, network_args, target, total_cts=8, top_k=3, tmp_file='tmp_log.json'):
     ct = 0
     if os.path.exists(tmp_file):
         os.system("rm -rf %s" % tmp_file)
@@ -175,12 +178,16 @@ def random_search(global_search_space, network_args, target, total_cts=5, top_k=
     return best_cost
 
 
-def beam_search(global_search_space, network_args, target, beam=3, tmp_file='tmp_log.json'):
+def beam_search(global_search_space, network_args, target, beam=2, tmp_file='tmp_log.json'):
     best_cost = None
     selected_candidates = {}
+    if os.path.exists(tmp_file):
+        os.system("rm -rf %s" % tmp_file)
+    ct = 0
     for key in global_search_space:
         for hash in global_search_space[key]:
             for arg in global_search_space[key][hash]:
+                print(f"starting task {ct}")
                 if key not in selected_candidates:
                     selected_candidates[key] = {}
                 if hash not in selected_candidates[key]:
@@ -201,23 +208,25 @@ def beam_search(global_search_space, network_args, target, beam=3, tmp_file='tmp
                             best_candidate = candidate
 
                 selected_candidates[key][hash][arg] = best_candidate
+                ct += 1
 
     inputs, results = beam_choose(global_search_space, selected_candidates)
     save_records(tmp_file, inputs, results)
-    cost = measure(tmp_file)
+    cost = measure(tmp_file, network_args, target)
+    print(f"The final cost is {cost}")
     return cost
 
 def make_random_plot(network_args, log_file, target):
     mean_inf_time = []
-    for i in range(0, 100):
+    for i in range(1, 100):
         print(f"Each task is measured {i} times")
         best_by_targetkey, _ = local_search(log_file, n_lines_per_task=i)
         cost = random_search(best_by_targetkey, network_args, target)
         mean_inf_time.append(cost)
 
-    plt.plot(list(range(1, 100)), mean_inf_time[1:])
-    plt.savefig(f"{network_args['network']}_trials_vs_latency_random.png")
     print(mean_inf_time)
+    plt.plot(list(range(1, 100)), mean_inf_time)
+    plt.savefig(f"{network_args['network']}_trials_vs_latency_random.png")
     
 def make_beam_plot(network_args, log_file, target):
     mean_inf_time = []
@@ -227,7 +236,7 @@ def make_beam_plot(network_args, log_file, target):
         cost = beam_search(best_by_targetkey, network_args, target)
         mean_inf_time.append(cost)
 
-    plt.plot(list(range(1, 100)), mean_inf_time[1:])
+    plt.plot(list(range(1, 100)), mean_inf_time)
     plt.savefig(f"{network_args['network']}_trials_vs_latency_beam.png")
     print(mean_inf_time)
 

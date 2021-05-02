@@ -376,7 +376,7 @@ class TaskScheduler:
 
         # reset num_measures_per_round to make sure every task is tuned at least once
         self.num_measures_per_round = min(
-            tune_option.num_measures_per_round, num_measure_trials // 2 // len(self.tasks)
+            100, num_measure_trials // len(self.tasks)
         )
         #self.num_measures_per_round = 1
         if self.num_measures_per_round <= 0:
@@ -399,9 +399,9 @@ class TaskScheduler:
             disable_cost_model_update,
         )
 
-        sorted_idx = np.argsort(np.array(self.flop_cts))[::-1]
-        print(self.flop_cts)
-        print(sorted_idx)
+        #sorted_idx = np.argsort(np.array(self.flop_cts))[::-1]
+        #print(self.flop_cts)
+        #print(sorted_idx)
         # do a round robin first to warm up
         for idx in range(len(self.tasks)):
             # skip warming up this task if it has been tuned before (restored from the log file)
@@ -409,12 +409,12 @@ class TaskScheduler:
                 self._tune_task(idx)
 
 
-        for idx in sorted_idx[:len(sorted_idx)//2]:
-            self._tune_task(idx)
+        #for idx in sorted_idx[:len(sorted_idx)//2]:
+        #    self._tune_task(idx)
 
-        for idx in sorted_idx[:len(sorted_idx)//4]:
-            self._tune_task(idx)
-            self._tune_task(idx)
+        #for idx in sorted_idx[:len(sorted_idx)//4]:
+        #    self._tune_task(idx)
+        #    self._tune_task(idx)
 
         self.best_ct = self.ct
         self.best_score = self.cur_score
