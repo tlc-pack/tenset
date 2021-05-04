@@ -15,6 +15,8 @@ from tvm.auto_scheduler.utils import to_str_round
 from dump_network_info import get_network_with_key
 from common import str2bool, log_line, BenchmarkRecord
 
+from .plot_trials_vs_latency import random_search, local_search
+
 
 def get_network(network_args):
     name, batch_size = network_args['network'], network_args['batch_size']
@@ -50,7 +52,7 @@ def get_tuning_option(tuning_args, target):
     return tuning_opt
 
 
-def tune_and_evaluate(network_args, tuning_args, target, target_host, result_file, transfer_tune):
+def tune_and_evaluate(network_args, tuning_args, target, target_host, result_file, transfer_tune, search_type):
     mod, params, inputs = get_network(network_args)
 
     # Do auto-tuning
@@ -81,25 +83,36 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
         else:
             tuner.transfer_tune(tuning_opt, search_policy=policy)
 
-    # Build module
-    with auto_scheduler.ApplyHistoryBest(log_file):
-        with tvm.transform.PassContext(
-            opt_level=3, config={"relay.backend.use_auto_scheduler": True}
-        ):
-            lib = relay.build(mod, target=target, params=params)
-    ctx = tvm.context(str(target), 0)
-    module = runtime.GraphModule(lib["default"](ctx))
+    # start_eval = time.time()
+    #
+    # # Build module
+    # with auto_scheduler.ApplyHistoryBest(log_file):
+    #     with tvm.transform.PassContext(
+    #         opt_level=3, config={"relay.backend.use_auto_scheduler": True}
+    #     ):
+    #         lib = relay.build(mod, target=target, params=params)
+    # ctx = tvm.context(str(target), 0)
+    # module = runtime.GraphModule(lib["default"](ctx))
+    #
+    # # Feed input data
+    # for name, shape, dtype in inputs:
+    #     data_np = np.random.uniform(size=shape).astype(dtype)
+    #     module.set_input(name, data_np)
+    #
+    # # Evaluate
+    # ftimer = module.module.time_evaluator("run", ctx, min_repeat_ms=500, repeat=3)
+    # prof_res = np.array(ftimer().results)
+    # print("Mean inference time (std dev): %.2f ms (%.2f ms)" %
+    #       (np.mean(prof_res) * 1000, np.std(prof_res) * 1000))
+    #
+    #
+    # print(f"eval takes {time.time()-start_eval}.")
 
-    # Feed input data
-    for name, shape, dtype in inputs:
-        data_np = np.random.uniform(size=shape).astype(dtype)
-        module.set_input(name, data_np)
+    best_by_targetkey, _ = local_search(log_file)
+    if search_type == "random":
+        cost, all_best_cost = random_search(best_by_targetkey, network_args, target)
 
-    # Evaluate
-    ftimer = module.module.time_evaluator("run", ctx, min_repeat_ms=500, repeat=3)
-    prof_res = np.array(ftimer().results)
-    print("Mean inference time (std dev): %.2f ms (%.2f ms)" %
-          (np.mean(prof_res) * 1000, np.std(prof_res) * 1000))
+
 
     # Dump results
     log_line(BenchmarkRecord(str(target.kind), 'gpu' if 'gpu' in target.keys else 'cpu',
@@ -142,6 +155,7 @@ if __name__ == "__main__":
     parser.add_argument("--run-timeout", type=int, default=25)
     parser.add_argument("--early-stopping", type=int, default=-1)
     parser.add_argument("--verbose", type=int, default=1)
+    parser.add_argument("--search-type", type=str, default='random', choices=['random', 'all_best', 'beam'])
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -174,5 +188,5 @@ if __name__ == "__main__":
     }
 
     tune_and_evaluate(network_args, tuning_args, target, args.target_host,
-                      args.result_file, args.transfer_tune)
+                      args.result_file, args.transfer_tune, args.search_type)
 

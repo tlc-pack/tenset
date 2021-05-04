@@ -160,18 +160,20 @@ def measure(tmp_file, network_args, target, n_line_per_task=None):
     return np.mean(prof_res) * 1000
 
 
-def random_search(global_search_space, network_args, target, total_cts=8, top_k=3, tmp_file='tmp_log.json'):
+def random_search(global_search_space, network_args, target, total_cts=15, top_k=5, tmp_file='tmp_log.json'):
     ct = 0
     # best_candidate = None
     best_cost = 1e20
     if os.path.exists(tmp_file):
         os.system("rm -rf %s" % tmp_file)
+    start_all_best = time.time()
     inputs, results = random_choose(global_search_space, 1)
     save_records(tmp_file, inputs, results)
     all_best_cost = measure(tmp_file, network_args, target)
     best_cost = all_best_cost
-    print(f"The cost of using all best is {all_best_cost}")
+    print(f"Time used for all best eval is {time.time()-start_all_best}")
     while ct < total_cts:
+        start_search = time.time()
         if os.path.exists(tmp_file):
             os.system("rm -rf %s" % tmp_file)
         inputs, results = random_choose(global_search_space, top_k)
@@ -181,7 +183,8 @@ def random_search(global_search_space, network_args, target, total_cts=8, top_k=
             best_cost = cost
             # best_candidate = candidate
         ct += 1
-    print(f"The best cost is {best_cost}")
+        print(f"Cost for current round is {best_cost}. Time used is {time.time()-start_search}")
+    # print(f"The best cost is {best_cost}")
     return best_cost, all_best_cost
 
 
