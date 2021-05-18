@@ -113,7 +113,9 @@ if __name__ == "__main__":
             print(f"Network: {network_key}\tTop-{top_k} score: {best_latency / latency}")
 
     if args.log_file:
-        latencies, best_latency = eval_cost_model_on_log_file(model, args.log_file, args.log_file_network, top_ks)
+        if args.log_file_network == "resnet_50":
+            network_key = ("resnet_50", [(1, 3, 224,224)])
+        latencies, best_latency = eval_cost_model_on_log_file(model, args.log_file, network_key, target, top_ks)
         for top_k, latency in zip(top_ks, latencies):
             print(f"Log file\tTop-{top_k} score: {best_latency / latency}")
 
