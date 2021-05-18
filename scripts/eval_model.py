@@ -38,7 +38,7 @@ def eval_cost_model_on_weighted_tasks(model, eval_task_dict, eval_dataset, top_k
     return latencies, best_latency
 
 
-def eval_cost_model_on_network(model, network, target, top_ks):
+def eval_cost_model_on_network(model, network_key, target, top_ks):
     # Read tasks of the network
     target = tvm.target.Target(target)
     task_info_filename = get_task_info_filename(network_key, target)
@@ -71,11 +71,29 @@ def eval_cost_model_on_log_file(model, log_file, top_ks):
     dataset_file = "tmp_dataset_file.pkl"
     auto_scheduler.dataset.make_dataset_from_log_file(
         [log_file], dataset_file, min_sample_size=0)
-    dataset = pickle.load(open(dataset_file, "rb"))
-    target = dataset.tasks()[0].target
-    learning_tasks = [LearningTask(t.workload_key, target) for t in tasks]
-    task_dict = {task: weight for task, weight in zip(learning_tasks, task_weights)}
-    return eval_cost_model_on_weighted_tasks(model, task_dict, dataset, top_ks)
+    eval_dataset = pickle.load(open(dataset_file, "rb"))
+    learning_tasks = dataset.tasks()
+
+    preds_dict = model.predict(eval_dataset)
+
+    best_latency = 0
+    latencies = [0] * len(top_ks)
+    for task in learning_tasks:
+        if task not in eval_dataset.throughputs:
+            print(f"Warning: cannot find {task.workload_key} in the eval_dataset. Skipped.")
+            continue
+
+        preds = preds_dict[task]
+        labels, min_latency = eval_dataset.throughputs[task], eval_dataset.min_latency[task]
+
+        real_values = labels[np.argsort(-preds)]
+        real_latency = min_latency / np.maximum(real_values, 1e-5)
+
+        for i, top_k in enumerate(top_ks):
+            latencies[i] += np.min(real_latency[:top_k])
+        best_latency += min_latency * weight
+
+    return latencies, best_latency
 
 
 if __name__ == "__main__":
