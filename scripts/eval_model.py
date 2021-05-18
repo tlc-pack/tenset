@@ -102,8 +102,8 @@ if __name__ == "__main__":
     ]
     target = "llvm -model=platinum-8272"
 
-    model = XGBModelInternal()
-    #model = MLPModelInternal()
+    #model = XGBModelInternal()
+    model = MLPModelInternal()
     model.load(model_file)
 
     top_ks = [1, 5]
