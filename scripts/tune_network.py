@@ -15,7 +15,7 @@ from tvm.auto_scheduler.utils import to_str_round
 from dump_network_info import get_network_with_key
 from common import str2bool, log_line, BenchmarkRecord
 
-from .plot_trials_vs_latency import random_search, local_search
+from plot_trials_vs_latency import random_search, local_search
 
 
 def get_network(network_args):
@@ -115,12 +115,12 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
 
 
     # Dump results
-    log_line(BenchmarkRecord(str(target.kind), 'gpu' if 'gpu' in target.keys else 'cpu',
-                             'network',
-                             "%s.B%d" % (network_args['network'], network_args['batch_size']),
-			     'ours', 'default',
-                             {"costs": prof_res}, time.time()),
-                             args.result_file)
+    #log_line(BenchmarkRecord(str(target.kind), 'gpu' if 'gpu' in target.keys else 'cpu',
+    #                         'network',
+    #                         "%s.B%d" % (network_args['network'], network_args['batch_size']),
+    #			     'ours', 'default',
+    #                         {"costs": prof_res}, time.time()),
+    #                         args.result_file)
 
 
 if __name__ == "__main__":

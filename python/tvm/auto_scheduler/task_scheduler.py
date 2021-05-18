@@ -376,7 +376,7 @@ class TaskScheduler:
 
         # reset num_measures_per_round to make sure every task is tuned at least once
         self.num_measures_per_round = min(
-            100, num_measure_trials // len(self.tasks)
+            64, num_measure_trials // len(self.tasks)
         )
         #self.num_measures_per_round = 1
         if self.num_measures_per_round <= 0:

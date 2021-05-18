@@ -160,7 +160,7 @@ def measure(tmp_file, network_args, target, n_line_per_task=None):
     return np.mean(prof_res) * 1000
 
 
-def random_search(global_search_space, network_args, target, total_cts=15, top_k=5, tmp_file='tmp_log.json'):
+def random_search(global_search_space, network_args, target, total_cts=30, top_k=3, tmp_file='tmp_log.json'):
     ct = 0
     # best_candidate = None
     best_cost = 1e20
