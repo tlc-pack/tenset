@@ -67,39 +67,29 @@ def eval_cost_model_on_network(model, network_key, target, top_ks):
     return eval_cost_model_on_weighted_tasks(model, task_dict, dataset, top_ks)
 
 
-def eval_cost_model_on_log_file(model, log_file, top_ks):
+def eval_cost_model_on_log_file(model, log_file, network_key, target, top_ks):
+    target = tvm.target.Target(target)
+    task_info_filename = get_task_info_filename(network_key, target)
+    tasks, task_weights = pickle.load(open(task_info_filename, "rb"))
+
     dataset_file = "tmp_dataset_file.pkl"
     auto_scheduler.dataset.make_dataset_from_log_file(
         [log_file], dataset_file, min_sample_size=0)
-    eval_dataset = pickle.load(open(dataset_file, "rb"))
-    learning_tasks = dataset.tasks()
+    dataset = pickle.load(open(dataset_file, "rb"))
 
-    preds_dict = model.predict(eval_dataset)
+    target = dataset.tasks()[0].target
+    learning_tasks = [LearningTask(t.workload_key, target) for t in tasks]
+    task_dict = {task: weight for task, weight in zip(learning_tasks, task_weights)}
 
-    best_latency = 0
-    latencies = [0] * len(top_ks)
-    for task in learning_tasks:
-        if task not in eval_dataset.throughputs:
-            print(f"Warning: cannot find {task.workload_key} in the eval_dataset. Skipped.")
-            continue
+    return eval_cost_model_on_weighted_tasks(model, task_dict, dataset, top_ks)
 
-        preds = preds_dict[task]
-        labels, min_latency = eval_dataset.throughputs[task], eval_dataset.min_latency[task]
-
-        real_values = labels[np.argsort(-preds)]
-        real_latency = min_latency / np.maximum(real_values, 1e-5)
-
-        for i, top_k in enumerate(top_ks):
-            latencies[i] += np.min(real_latency[:top_k])
-        best_latency += min_latency * weight
-
-    return latencies, best_latency
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-file", type=str)
     parser.add_argument("--log-file", type=str)
+    parser.add_argument("--log-file-network", type=str)
     args= parser.parse_args()
 
     model_file = args.model_file
@@ -123,7 +113,7 @@ if __name__ == "__main__":
             print(f"Network: {network_key}\tTop-{top_k} score: {best_latency / latency}")
 
     if args.log_file:
-        latencies, best_latency = eval_cost_model_on_log_file(model, args.log_file, top_ks)
+        latencies, best_latency = eval_cost_model_on_log_file(model, args.log_file, args.log_file_network, top_ks)
         for top_k, latency in zip(top_ks, latencies):
             print(f"Log file\tTop-{top_k} score: {best_latency / latency}")
 
