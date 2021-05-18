@@ -375,9 +375,11 @@ class XGBModel(PythonBasedModel):
         if self.disable_update or len(inputs) <= 0:
             return
         tic = time.time()
+
         self.dataset.update_from_measure_pairs(inputs, results)
         self.model.fit_base(self.dataset)
         logger.info("XGBModel Training time: %.2f s", time.time() - tic)
+        self.save("ansor_xgb.pkl")
 
     def predict(self, task, states):
         features = get_per_store_features_from_states(states, task)
