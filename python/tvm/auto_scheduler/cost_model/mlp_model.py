@@ -11,14 +11,14 @@ import json
 import numpy as np
 import xgboost as xgb
 import torch
-# from torchmeta.modules import (
-#    MetaModule,
-#    MetaSequential,
-#    MetaConv2d,
-#    MetaBatchNorm2d,
-#    MetaLinear,
-# )  # pip3 intall torchmeta
-from torchmeta.utils import gradient_update_parameters
+from torchmeta.modules import (
+   MetaModule,
+   MetaSequential,
+   MetaConv2d,
+   MetaBatchNorm2d,
+   MetaLinear,
+)  # pip3 intall torchmeta
+# from torchmeta.utils import gradient_update_parameters
 import torch.nn.functional as F
 import logging
 
@@ -134,14 +134,14 @@ class SegmentDataLoader:
         return self.number
 
 
-class SegmentSumMLPModule(torch.nn.Module):
+class SegmentSumMLPModule(MetaModule):
     def __init__(self, in_dim, hidden_dim, out_dim, use_norm=False, add_sigmoid=False):
         super().__init__()
 
-        self.segment_encoder = torch.nn.Sequential(
-            torch.nn.Linear(in_dim, hidden_dim),
+        self.segment_encoder = MetaSequential(
+            MetaLinear(in_dim, hidden_dim),
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden_dim, hidden_dim),
+            MetaLinear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
         )
 
@@ -152,15 +152,15 @@ class SegmentSumMLPModule(torch.nn.Module):
         else:
             self.norm = torch.nn.Identity()
 
-        self.l0 = torch.nn.Sequential(
-            torch.nn.Linear(hidden_dim, hidden_dim),
+        self.l0 = MetaSequential(
+            MetaLinear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
         )
-        self.l1 = torch.nn.Sequential(
-            torch.nn.Linear(hidden_dim, hidden_dim),
+        self.l1 = MetaSequential(
+            MetaLinear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
         )
-        self.decoder = torch.nn.Linear(hidden_dim, out_dim)
+        self.decoder = MetaLinear(hidden_dim, out_dim)
 
     def freeze_for_fine_tuning(self):
         for x in self.segment_encoder.parameters():
