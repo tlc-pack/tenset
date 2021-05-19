@@ -11,15 +11,15 @@ import json
 import numpy as np
 import xgboost as xgb
 import torch
-from torchmeta.modules import (
-    MetaModule,
-    MetaSequential,
-    MetaConv2d,
-    MetaBatchNorm2d,
-    MetaLinear,
-)  # pip3 intall torchmeta
-from torchmeta.utils import gradient_update_parameters
-import torch.nn.functional as F
+#from torchmeta.modules import (
+#    MetaModule,
+#    MetaSequential,
+#    MetaConv2d,
+#    MetaBatchNorm2d,
+#    MetaLinear,
+#)  # pip3 intall torchmeta
+#from torchmeta.utils import gradient_update_parameters
+#import torch.nn.functional as F
 import logging
 
 logger = logging.getLogger("auto_scheduler")
@@ -270,111 +270,111 @@ class SegmentTrainDataLoader:
     def __len__(self):
         return self.number
 
+#
+# class SegmentSumMLPModule(MetaModule):
+#     def __init__(self, in_dim, hidden_dim, out_dim, use_norm=False, add_sigmoid=False):
+#         super().__init__()
+#
+#         self.segment_encoder = MetaSequential(
+#             MetaLinear(in_dim, hidden_dim),
+#             torch.nn.ReLU(),
+#             MetaLinear(hidden_dim, hidden_dim),
+#             torch.nn.ReLU(),
+#         )
+#
+#         self.add_sigmoid = add_sigmoid
+#
+#         if use_norm:
+#             self.norm = torch.nn.BatchNorm1d(hidden_dim)
+#         else:
+#             self.norm = torch.nn.Identity()
+#
+#         self.l0 = MetaSequential(
+#             MetaLinear(hidden_dim, hidden_dim),
+#             torch.nn.ReLU(),
+#         )
+#         self.l1 = MetaSequential(
+#             MetaLinear(hidden_dim, hidden_dim),
+#             torch.nn.ReLU(),
+#         )
+#         self.decoder = MetaLinear(hidden_dim, out_dim)
+#
+#     def freeze_for_fine_tuning(self):
+#         for x in self.segment_encoder.parameters():
+#             x.requires_grad_(False)
+#
+#     def forward(self, segment_sizes, features, params=None):
+#         n_seg = segment_sizes.shape[0]
+#         device = features.device
+#
+#         segment_sizes = segment_sizes.long()
+#
+#         features = self.segment_encoder(
+#             features, params=self.get_subdict(params, "segment_encoder")
+#         )
+#         segment_indices = torch.repeat_interleave(
+#             torch.arange(n_seg, device=device), segment_sizes
+#         )
+#
+#         n_dim = features.shape[1]
+#         segment_sum = torch.scatter_add(
+#             torch.zeros((n_seg, n_dim), dtype=features.dtype, device=device),
+#             0,
+#             segment_indices.view(-1, 1).expand(-1, n_dim),
+#             features,
+#         )
+#         output = self.norm(segment_sum)
+#         output = self.l0(output, params=self.get_subdict(params, "l0")) + output
+#         output = self.l1(output, params=self.get_subdict(params, "l1")) + output
+#         output = self.decoder(
+#             output, params=self.get_subdict(params, "decoder")
+#         ).squeeze()
+#
+#         if self.add_sigmoid:
+#             output = torch.sigmoid(output)
+#
+#         return output
 
-class SegmentSumMLPModule(MetaModule):
-    def __init__(self, in_dim, hidden_dim, out_dim, use_norm=False, add_sigmoid=False):
-        super().__init__()
 
-        self.segment_encoder = MetaSequential(
-            MetaLinear(in_dim, hidden_dim),
-            torch.nn.ReLU(),
-            MetaLinear(hidden_dim, hidden_dim),
-            torch.nn.ReLU(),
-        )
-
-        self.add_sigmoid = add_sigmoid
-
-        if use_norm:
-            self.norm = torch.nn.BatchNorm1d(hidden_dim)
-        else:
-            self.norm = torch.nn.Identity()
-
-        self.l0 = MetaSequential(
-            MetaLinear(hidden_dim, hidden_dim),
-            torch.nn.ReLU(),
-        )
-        self.l1 = MetaSequential(
-            MetaLinear(hidden_dim, hidden_dim),
-            torch.nn.ReLU(),
-        )
-        self.decoder = MetaLinear(hidden_dim, out_dim)
-
-    def freeze_for_fine_tuning(self):
-        for x in self.segment_encoder.parameters():
-            x.requires_grad_(False)
-
-    def forward(self, segment_sizes, features, params=None):
-        n_seg = segment_sizes.shape[0]
-        device = features.device
-
-        segment_sizes = segment_sizes.long()
-
-        features = self.segment_encoder(
-            features, params=self.get_subdict(params, "segment_encoder")
-        )
-        segment_indices = torch.repeat_interleave(
-            torch.arange(n_seg, device=device), segment_sizes
-        )
-
-        n_dim = features.shape[1]
-        segment_sum = torch.scatter_add(
-            torch.zeros((n_seg, n_dim), dtype=features.dtype, device=device),
-            0,
-            segment_indices.view(-1, 1).expand(-1, n_dim),
-            features,
-        )
-        output = self.norm(segment_sum)
-        output = self.l0(output, params=self.get_subdict(params, "l0")) + output
-        output = self.l1(output, params=self.get_subdict(params, "l1")) + output
-        output = self.decoder(
-            output, params=self.get_subdict(params, "decoder")
-        ).squeeze()
-
-        if self.add_sigmoid:
-            output = torch.sigmoid(output)
-
-        return output
-
-
-class MHAModule(torch.nn.Module):
-    def __init__(self, in_dim, hidden_dim, num_heads, out_dim, add_sigmoid=False):
-        super().__init__()
-
-        self.add_sigmoid = add_sigmoid
-
-        self.encoder = torch.nn.Sequential(
-            torch.nn.Linear(in_dim, hidden_dim),
-            torch.nn.ReLU(),
-            torch.nn.Linear(hidden_dim, hidden_dim),
-            torch.nn.ReLU(),
-        )
-
-        self.l0 = torch.nn.MultiheadAttention(hidden_dim, num_heads)
-
-        self.decoder = torch.nn.Sequential(
-            torch.nn.Linear(hidden_dim, out_dim),
-        )
-
-    def forward(self, segment_sizes, features):
-        n_seg = segment_sizes.shape[0]
-        device = features.device
-
-        features = self.encoder(features)
-
-        seqs = []
-        ct = 0
-        for seg_size in segment_sizes:
-            seqs.append(features[ct : ct + seg_size])
-            ct += seg_size
-        output = torch.nn.utils.rnn.pad_sequence(seqs)
-
-        output = self.l0(output, output, output)[0] + output
-        output = self.decoder(output).sum(0).squeeze()
-
-        if self.add_sigmoid:
-            output = torch.sigmoid(output)
-
-        return output
+# class MHAModule(torch.nn.Module):
+#     def __init__(self, in_dim, hidden_dim, num_heads, out_dim, add_sigmoid=False):
+#         super().__init__()
+#
+#         self.add_sigmoid = add_sigmoid
+#
+#         self.encoder = torch.nn.Sequential(
+#             torch.nn.Linear(in_dim, hidden_dim),
+#             torch.nn.ReLU(),
+#             torch.nn.Linear(hidden_dim, hidden_dim),
+#             torch.nn.ReLU(),
+#         )
+#
+#         self.l0 = torch.nn.MultiheadAttention(hidden_dim, num_heads)
+#
+#         self.decoder = torch.nn.Sequential(
+#             torch.nn.Linear(hidden_dim, out_dim),
+#         )
+#
+#     def forward(self, segment_sizes, features):
+#         n_seg = segment_sizes.shape[0]
+#         device = features.device
+#
+#         features = self.encoder(features)
+#
+#         seqs = []
+#         ct = 0
+#         for seg_size in segment_sizes:
+#             seqs.append(features[ct : ct + seg_size])
+#             ct += seg_size
+#         output = torch.nn.utils.rnn.pad_sequence(seqs)
+#
+#         output = self.l0(output, output, output)[0] + output
+#         output = self.decoder(output).sum(0).squeeze()
+#
+#         if self.add_sigmoid:
+#             output = torch.sigmoid(output)
+#
+#         return output
 
 
 def make_net(params):
@@ -732,110 +732,110 @@ class MLPModelInternal:
             preds.append(model(segment_sizes, features))
         return torch.cat(preds).detach().cpu().numpy()
 
-    def _fit_a_MAML_model(self, train_set, valid_set=None, valid_train_set=None):
-        print("=" * 60 + "\nFit a MAML net. Train size: %d" % len(train_set))
-        batch_size_tasks = self.meta_batch_size_tasks
-        batch_size_per_task = self.meta_batch_size_per_task
-        few_shot_number = self.few_shot_number
-
-        print_per_batches = 20
-        n_batches = 3000
-        early_stop = 200
-
-        # Compute normalization vector over the whole dataset
-        if self.fea_norm_vec is None:
-            all_train_loader = SegmentDataLoader(
-                train_set, self.batch_size, self.device, self.use_workload_embedding,
-            )
-            self.fea_norm_vec = all_train_loader.normalize()
-            del all_train_loader
-
-        # Build dataloaders
-        train_loaders = {}
-        for task in train_set.feature_data:
-            task_dataset = train_set.extract_subset(task)
-            train_loaders[task] = SegmentDataLoader(
-                task_dataset, None, self.device, self.use_workload_embedding,
-                fea_norm_vec=self.fea_norm_vec, shuffle=True,
-            )
-
-        # Make network
-        net = make_net(self.net_params).to(self.device)
-        optimizer = torch.optim.Adam(
-            net.parameters(), lr=self.meta_outer_lr, weight_decay=self.wd
-        )
-
-        # Training
-        avg_outer_loss = None
-        avg_inner_loss = None
-        task_list = list(train_set.tasks())
-        best_batch = None
-        best_train_loss = 1e10
-        for batch in range(n_batches):
-            tasks = random.choices(task_list, k=batch_size_tasks)
-            net.train()
-            outer_loss = torch.tensor(0.0, device=self.device)
-            # outer loss
-            for task in tasks:
-                train_loader = train_loaders[task]
-
-                train_segment_sizes, train_features, train_labels = train_loader.sample_batch(
-                    few_shot_number
-                )
-                test_segment_sizes, test_features, test_labels = train_loader.sample_batch(
-                    batch_size_per_task
-                )
-
-                # inner loss
-                params = OrderedDict(net.meta_named_parameters())
-                for _ in range(self.meta_test_num_steps):
-                    inner_loss = self.loss_func(
-                        net(train_segment_sizes, train_features, params=params), train_labels
-                    )
-                    params = gradient_update_parameters(
-                        net,
-                        inner_loss,
-                        params=params,
-                        step_size=self.meta_inner_lr,
-                        first_order=False,
-                    )
-                    avg_inner_loss = moving_average(avg_inner_loss, inner_loss.item())
-
-                # acculate gradient for meta-update
-                outer_loss += self.loss_func(
-                    net(test_segment_sizes, test_features, params=params), test_labels
-                )
-
-            optimizer.zero_grad()
-            outer_loss /= len(tasks)
-            outer_loss.backward()
-            torch.nn.utils.clip_grad_norm_(net.parameters(), self.grad_clip)
-            optimizer.step()
-
-            avg_outer_loss = moving_average(avg_outer_loss, outer_loss.item())
-
-            if batch % print_per_batches == 0 or batch == n_batches - 1:
-                # validate
-                valid_loss = self._validate(net, valid_set, valid_train_set, verbose=0)
-                print(
-                    "Task Batch: %d\tOuter RMSE: %.4f\tInner RMSE: %.4f\tValid RMSE: %.4f"
-                    % (
-                        batch,
-                        np.sqrt(avg_outer_loss),
-                        np.sqrt(avg_inner_loss),
-                        np.sqrt(valid_loss),
-                    )
-                )
-
-            # Early stop
-            if avg_outer_loss < best_train_loss:
-                best_train_loss = avg_outer_loss
-                best_batch = batch
-            elif batch - best_batch >= early_stop:
-                print("Early stop. Best batch: %d" % best_batch)
-                break
-
-        return net
+    # def _fit_a_MAML_model(self, train_set, valid_set=None, valid_train_set=None):
+    #     print("=" * 60 + "\nFit a MAML net. Train size: %d" % len(train_set))
+    #     batch_size_tasks = self.meta_batch_size_tasks
+    #     batch_size_per_task = self.meta_batch_size_per_task
+    #     few_shot_number = self.few_shot_number
+    #
+    #     print_per_batches = 20
+    #     n_batches = 3000
+    #     early_stop = 200
+    #
+    #     # Compute normalization vector over the whole dataset
+    #     if self.fea_norm_vec is None:
+    #         all_train_loader = SegmentDataLoader(
+    #             train_set, self.batch_size, self.device, self.use_workload_embedding,
+    #         )
+    #         self.fea_norm_vec = all_train_loader.normalize()
+    #         del all_train_loader
+    #
+    #     # Build dataloaders
+    #     train_loaders = {}
+    #     for task in train_set.feature_data:
+    #         task_dataset = train_set.extract_subset(task)
+    #         train_loaders[task] = SegmentDataLoader(
+    #             task_dataset, None, self.device, self.use_workload_embedding,
+    #             fea_norm_vec=self.fea_norm_vec, shuffle=True,
+    #         )
+    #
+    #     # Make network
+    #     net = make_net(self.net_params).to(self.device)
+    #     optimizer = torch.optim.Adam(
+    #         net.parameters(), lr=self.meta_outer_lr, weight_decay=self.wd
+    #     )
+    #
+    #     # Training
+    #     avg_outer_loss = None
+    #     avg_inner_loss = None
+    #     task_list = list(train_set.tasks())
+    #     best_batch = None
+    #     best_train_loss = 1e10
+    #     for batch in range(n_batches):
+    #         tasks = random.choices(task_list, k=batch_size_tasks)
+    #         net.train()
+    #         outer_loss = torch.tensor(0.0, device=self.device)
+    #         # outer loss
+    #         for task in tasks:
+    #             train_loader = train_loaders[task]
+    #
+    #             train_segment_sizes, train_features, train_labels = train_loader.sample_batch(
+    #                 few_shot_number
+    #             )
+    #             test_segment_sizes, test_features, test_labels = train_loader.sample_batch(
+    #                 batch_size_per_task
+    #             )
+    #
+    #             # inner loss
+    #             params = OrderedDict(net.meta_named_parameters())
+    #             for _ in range(self.meta_test_num_steps):
+    #                 inner_loss = self.loss_func(
+    #                     net(train_segment_sizes, train_features, params=params), train_labels
+    #                 )
+    #                 params = gradient_update_parameters(
+    #                     net,
+    #                     inner_loss,
+    #                     params=params,
+    #                     step_size=self.meta_inner_lr,
+    #                     first_order=False,
+    #                 )
+    #                 avg_inner_loss = moving_average(avg_inner_loss, inner_loss.item())
+    #
+    #             # acculate gradient for meta-update
+    #             outer_loss += self.loss_func(
+    #                 net(test_segment_sizes, test_features, params=params), test_labels
+    #             )
+    #
+    #         optimizer.zero_grad()
+    #         outer_loss /= len(tasks)
+    #         outer_loss.backward()
+    #         torch.nn.utils.clip_grad_norm_(net.parameters(), self.grad_clip)
+    #         optimizer.step()
+    #
+    #         avg_outer_loss = moving_average(avg_outer_loss, outer_loss.item())
+    #
+    #         if batch % print_per_batches == 0 or batch == n_batches - 1:
+    #             # validate
+    #             valid_loss = self._validate(net, valid_set, valid_train_set, verbose=0)
+    #             print(
+    #                 "Task Batch: %d\tOuter RMSE: %.4f\tInner RMSE: %.4f\tValid RMSE: %.4f"
+    #                 % (
+    #                     batch,
+    #                     np.sqrt(avg_outer_loss),
+    #                     np.sqrt(avg_inner_loss),
+    #                     np.sqrt(valid_loss),
+    #                 )
+    #             )
+    #
+    #         # Early stop
+    #         if avg_outer_loss < best_train_loss:
+    #             best_train_loss = avg_outer_loss
+    #             best_batch = batch
+    #         elif batch - best_batch >= early_stop:
+    #             print("Early stop. Best batch: %d" % best_batch)
+    #             break
+    #
+    #     return net
 
     def load(self, filename):
         if self.device == 'cpu':
