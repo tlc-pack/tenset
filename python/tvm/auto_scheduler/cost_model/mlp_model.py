@@ -11,13 +11,13 @@ import json
 import numpy as np
 import xgboost as xgb
 import torch
-from torchmeta.modules import (
-   MetaModule,
-   MetaSequential,
-   MetaConv2d,
-   MetaBatchNorm2d,
-   MetaLinear,
-)  # pip3 intall torchmeta
+# from torchmeta.modules import (
+#    MetaModule,
+#    MetaSequential,
+#    MetaConv2d,
+#    MetaBatchNorm2d,
+#    MetaLinear,
+# )  # pip3 intall torchmeta
 # from torchmeta.utils import gradient_update_parameters
 import torch.nn.functional as F
 import logging
@@ -134,14 +134,14 @@ class SegmentDataLoader:
         return self.number
 
 
-class SegmentSumMLPModule(MetaModule):
+class SegmentSumMLPModule(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, use_norm=False, add_sigmoid=False):
         super().__init__()
 
-        self.segment_encoder = MetaSequential(
-            MetaLinear(in_dim, hidden_dim),
+        self.segment_encoder = torch.nn.Sequential(
+            torch.nn.Linear(in_dim, hidden_dim),
             torch.nn.ReLU(),
-            MetaLinear(hidden_dim, hidden_dim),
+            torch.nn.Linear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
         )
 
@@ -152,15 +152,15 @@ class SegmentSumMLPModule(MetaModule):
         else:
             self.norm = torch.nn.Identity()
 
-        self.l0 = MetaSequential(
-            MetaLinear(hidden_dim, hidden_dim),
+        self.l0 = torch.nn.Sequential(
+            torch.nn.Linear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
         )
-        self.l1 = MetaSequential(
-            MetaLinear(hidden_dim, hidden_dim),
+        self.l1 = torch.nn.Sequential(
+            torch.nn.Linear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
         )
-        self.decoder = MetaLinear(hidden_dim, out_dim)
+        self.decoder = torch.nn.Linear(hidden_dim, out_dim)
 
     def freeze_for_fine_tuning(self):
         for x in self.segment_encoder.parameters():
@@ -173,7 +173,7 @@ class SegmentSumMLPModule(MetaModule):
         segment_sizes = segment_sizes.long()
 
         features = self.segment_encoder(
-            features, params=self.get_subdict(params, "segment_encoder")
+            features
         )
         segment_indices = torch.repeat_interleave(
             torch.arange(n_seg, device=device), segment_sizes
@@ -187,10 +187,10 @@ class SegmentSumMLPModule(MetaModule):
             features,
         )
         output = self.norm(segment_sum)
-        output = self.l0(output, params=self.get_subdict(params, "l0")) + output
-        output = self.l1(output, params=self.get_subdict(params, "l1")) + output
+        output = self.l0(output) + output
+        output = self.l1(output) + output
         output = self.decoder(
-            output, params=self.get_subdict(params, "decoder")
+            output
         ).squeeze()
 
         if self.add_sigmoid:
