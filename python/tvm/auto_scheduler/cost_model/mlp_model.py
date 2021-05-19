@@ -11,15 +11,15 @@ import json
 import numpy as np
 import xgboost as xgb
 import torch
-#from torchmeta.modules import (
-#    MetaModule,
-#    MetaSequential,
-#    MetaConv2d,
-#    MetaBatchNorm2d,
-#    MetaLinear,
-#)  # pip3 intall torchmeta
-#from torchmeta.utils import gradient_update_parameters
-#import torch.nn.functional as F
+from torchmeta.modules import (
+   MetaModule,
+   MetaSequential,
+   MetaConv2d,
+   MetaBatchNorm2d,
+   MetaLinear,
+)  # pip3 intall torchmeta
+from torchmeta.utils import gradient_update_parameters
+import torch.nn.functional as F
 import logging
 
 logger = logging.getLogger("auto_scheduler")
@@ -270,111 +270,111 @@ class SegmentTrainDataLoader:
     def __len__(self):
         return self.number
 
-#
-# class SegmentSumMLPModule(MetaModule):
-#     def __init__(self, in_dim, hidden_dim, out_dim, use_norm=False, add_sigmoid=False):
-#         super().__init__()
-#
-#         self.segment_encoder = MetaSequential(
-#             MetaLinear(in_dim, hidden_dim),
-#             torch.nn.ReLU(),
-#             MetaLinear(hidden_dim, hidden_dim),
-#             torch.nn.ReLU(),
-#         )
-#
-#         self.add_sigmoid = add_sigmoid
-#
-#         if use_norm:
-#             self.norm = torch.nn.BatchNorm1d(hidden_dim)
-#         else:
-#             self.norm = torch.nn.Identity()
-#
-#         self.l0 = MetaSequential(
-#             MetaLinear(hidden_dim, hidden_dim),
-#             torch.nn.ReLU(),
-#         )
-#         self.l1 = MetaSequential(
-#             MetaLinear(hidden_dim, hidden_dim),
-#             torch.nn.ReLU(),
-#         )
-#         self.decoder = MetaLinear(hidden_dim, out_dim)
-#
-#     def freeze_for_fine_tuning(self):
-#         for x in self.segment_encoder.parameters():
-#             x.requires_grad_(False)
-#
-#     def forward(self, segment_sizes, features, params=None):
-#         n_seg = segment_sizes.shape[0]
-#         device = features.device
-#
-#         segment_sizes = segment_sizes.long()
-#
-#         features = self.segment_encoder(
-#             features, params=self.get_subdict(params, "segment_encoder")
-#         )
-#         segment_indices = torch.repeat_interleave(
-#             torch.arange(n_seg, device=device), segment_sizes
-#         )
-#
-#         n_dim = features.shape[1]
-#         segment_sum = torch.scatter_add(
-#             torch.zeros((n_seg, n_dim), dtype=features.dtype, device=device),
-#             0,
-#             segment_indices.view(-1, 1).expand(-1, n_dim),
-#             features,
-#         )
-#         output = self.norm(segment_sum)
-#         output = self.l0(output, params=self.get_subdict(params, "l0")) + output
-#         output = self.l1(output, params=self.get_subdict(params, "l1")) + output
-#         output = self.decoder(
-#             output, params=self.get_subdict(params, "decoder")
-#         ).squeeze()
-#
-#         if self.add_sigmoid:
-#             output = torch.sigmoid(output)
-#
-#         return output
+
+class SegmentSumMLPModule(MetaModule):
+    def __init__(self, in_dim, hidden_dim, out_dim, use_norm=False, add_sigmoid=False):
+        super().__init__()
+
+        self.segment_encoder = MetaSequential(
+            MetaLinear(in_dim, hidden_dim),
+            torch.nn.ReLU(),
+            MetaLinear(hidden_dim, hidden_dim),
+            torch.nn.ReLU(),
+        )
+
+        self.add_sigmoid = add_sigmoid
+
+        if use_norm:
+            self.norm = torch.nn.BatchNorm1d(hidden_dim)
+        else:
+            self.norm = torch.nn.Identity()
+
+        self.l0 = MetaSequential(
+            MetaLinear(hidden_dim, hidden_dim),
+            torch.nn.ReLU(),
+        )
+        self.l1 = MetaSequential(
+            MetaLinear(hidden_dim, hidden_dim),
+            torch.nn.ReLU(),
+        )
+        self.decoder = MetaLinear(hidden_dim, out_dim)
+
+    def freeze_for_fine_tuning(self):
+        for x in self.segment_encoder.parameters():
+            x.requires_grad_(False)
+
+    def forward(self, segment_sizes, features, params=None):
+        n_seg = segment_sizes.shape[0]
+        device = features.device
+
+        segment_sizes = segment_sizes.long()
+
+        features = self.segment_encoder(
+            features, params=self.get_subdict(params, "segment_encoder")
+        )
+        segment_indices = torch.repeat_interleave(
+            torch.arange(n_seg, device=device), segment_sizes
+        )
+
+        n_dim = features.shape[1]
+        segment_sum = torch.scatter_add(
+            torch.zeros((n_seg, n_dim), dtype=features.dtype, device=device),
+            0,
+            segment_indices.view(-1, 1).expand(-1, n_dim),
+            features,
+        )
+        output = self.norm(segment_sum)
+        output = self.l0(output, params=self.get_subdict(params, "l0")) + output
+        output = self.l1(output, params=self.get_subdict(params, "l1")) + output
+        output = self.decoder(
+            output, params=self.get_subdict(params, "decoder")
+        ).squeeze()
+
+        if self.add_sigmoid:
+            output = torch.sigmoid(output)
+
+        return output
 
 
-# class MHAModule(torch.nn.Module):
-#     def __init__(self, in_dim, hidden_dim, num_heads, out_dim, add_sigmoid=False):
-#         super().__init__()
-#
-#         self.add_sigmoid = add_sigmoid
-#
-#         self.encoder = torch.nn.Sequential(
-#             torch.nn.Linear(in_dim, hidden_dim),
-#             torch.nn.ReLU(),
-#             torch.nn.Linear(hidden_dim, hidden_dim),
-#             torch.nn.ReLU(),
-#         )
-#
-#         self.l0 = torch.nn.MultiheadAttention(hidden_dim, num_heads)
-#
-#         self.decoder = torch.nn.Sequential(
-#             torch.nn.Linear(hidden_dim, out_dim),
-#         )
-#
-#     def forward(self, segment_sizes, features):
-#         n_seg = segment_sizes.shape[0]
-#         device = features.device
-#
-#         features = self.encoder(features)
-#
-#         seqs = []
-#         ct = 0
-#         for seg_size in segment_sizes:
-#             seqs.append(features[ct : ct + seg_size])
-#             ct += seg_size
-#         output = torch.nn.utils.rnn.pad_sequence(seqs)
-#
-#         output = self.l0(output, output, output)[0] + output
-#         output = self.decoder(output).sum(0).squeeze()
-#
-#         if self.add_sigmoid:
-#             output = torch.sigmoid(output)
-#
-#         return output
+class MHAModule(torch.nn.Module):
+    def __init__(self, in_dim, hidden_dim, num_heads, out_dim, add_sigmoid=False):
+        super().__init__()
+
+        self.add_sigmoid = add_sigmoid
+
+        self.encoder = torch.nn.Sequential(
+            torch.nn.Linear(in_dim, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, hidden_dim),
+            torch.nn.ReLU(),
+        )
+
+        self.l0 = torch.nn.MultiheadAttention(hidden_dim, num_heads)
+
+        self.decoder = torch.nn.Sequential(
+            torch.nn.Linear(hidden_dim, out_dim),
+        )
+
+    def forward(self, segment_sizes, features):
+        n_seg = segment_sizes.shape[0]
+        device = features.device
+
+        features = self.encoder(features)
+
+        seqs = []
+        ct = 0
+        for seg_size in segment_sizes:
+            seqs.append(features[ct : ct + seg_size])
+            ct += seg_size
+        output = torch.nn.utils.rnn.pad_sequence(seqs)
+
+        output = self.l0(output, output, output)[0] + output
+        output = self.decoder(output).sum(0).squeeze()
+
+        if self.add_sigmoid:
+            output = torch.sigmoid(output)
+
+        return output
 
 
 def make_net(params):
