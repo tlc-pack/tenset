@@ -25,7 +25,7 @@ as a schedule configuration here.
 from collections import namedtuple
 import logging
 import pathlib
-
+import random
 import numpy as np
 
 from tvm.contrib.utils import tempdir
@@ -239,6 +239,7 @@ class ApplyHistoryBest(DispatchContext):
                 entry, _, workload_args = self.get_workload_entry(
                     best_by_targetkey, k, inp.task.workload_key
                 )
+
                 if workload_args not in entry:
                     entry[workload_args] = (inp.state, cost)
                 else:
@@ -250,9 +251,11 @@ class ApplyHistoryBest(DispatchContext):
             entry, _, workload_args = self.get_workload_entry(
                 best_by_model, inp.task.target.model, inp.task.workload_key
             )
+
             if workload_args not in entry:
                 if inp.task.target.model != "unknown":
                     entry[workload_args] = (inp.state, cost)
+
             else:
                 _, other_cost = entry[workload_args]
                 if other_cost > cost:
