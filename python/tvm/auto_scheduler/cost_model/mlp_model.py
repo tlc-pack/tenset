@@ -11,13 +11,13 @@ import json
 import numpy as np
 import xgboost as xgb
 import torch
-from torchmeta.modules import (
-   MetaModule,
-   MetaSequential,
-   MetaConv2d,
-   MetaBatchNorm2d,
-   MetaLinear,
-)  # pip3 intall torchmeta
+# from torchmeta.modules import (
+#    MetaModule,
+#    MetaSequential,
+#    MetaConv2d,
+#    MetaBatchNorm2d,
+#    MetaLinear,
+# )  # pip3 intall torchmeta
 from torchmeta.utils import gradient_update_parameters
 import torch.nn.functional as F
 import logging
@@ -32,15 +32,15 @@ from .xgb_model import get_workload_embedding
 from .cost_model import PythonBasedModel
 
 
-class SegmentTestDataLoader:
+class SegmentDataLoader:
     def __init__(
-        self,
-        dataset,
-        batch_size,
-        device,
-        use_workload_embedding,
-        fea_norm_vec=None,
-        shuffle=False,
+            self,
+            dataset,
+            batch_size,
+            device,
+            use_workload_embedding,
+            fea_norm_vec=None,
+            shuffle=False,
     ):
         self.device = device
         self.shuffle = shuffle
@@ -49,18 +49,18 @@ class SegmentTestDataLoader:
 
         self.segment_sizes = torch.empty((self.number,), dtype=torch.int32)
         self.labels = torch.empty((self.number,), dtype=torch.float32)
-        
+
         # Flatten features
         flatten_features = []
         ct = 0
         for task in dataset.features:
             throughputs = dataset.throughputs[task]
-            self.labels[ct : ct + len(throughputs)] = torch.tensor(throughputs)
+            self.labels[ct: ct + len(throughputs)] = torch.tensor(throughputs)
 
             if use_workload_embedding:
                 task_embedding = get_workload_embedding(task.workload_key)
-                #task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                #task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
+                # task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
+                # task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
             else:
                 task_embedding = None
 
@@ -71,7 +71,7 @@ class SegmentTestDataLoader:
                     tmp = np.tile(task_embedding, (len(row), 1))
                     flatten_features.extend(np.concatenate([row, tmp], axis=1))
                 else:
-                    flatten_features[task].extend(row)
+                    flatten_features.extend(row)
                 ct += 1
 
         max_seg_len = self.segment_sizes.max()
@@ -79,22 +79,19 @@ class SegmentTestDataLoader:
         if fea_norm_vec is not None:
             self.normalize(fea_norm_vec)
 
-        self.feature_offsets = (torch.cumsum(self.segment_sizes, 0, dtype=torch.int32) - self.segment_sizes).cpu().numpy()
+        self.feature_offsets = (
+                    torch.cumsum(self.segment_sizes, 0, dtype=torch.int32) - self.segment_sizes).cpu().numpy()
         self.iter_order = self.pointer = None
 
-    def normalize(self, norm_vector=None, all_features=None):
+    def normalize(self, norm_vector=None):
         if norm_vector is None:
-            if all_features is not None:
-                features = torch.tensor(np.array(all_features, dtype=np.float32))
-            else:
-                features = self.features
-            norm_vector = torch.ones((features.shape[1],))
-            for i in range(features.shape[1]):
-                max_val = features[:, i].max().item()
+            norm_vector = torch.ones((self.features.shape[1],))
+            for i in range(self.features.shape[1]):
+                max_val = self.features[:, i].max().item()
                 if max_val > 0:
                     norm_vector[i] = max_val
         self.features /= norm_vector
-        
+
         return norm_vector
 
     def __iter__(self):
@@ -103,7 +100,6 @@ class SegmentTestDataLoader:
         else:
             self.iter_order = torch.arange(self.number)
         self.pointer = 0
-
 
         return self
 
@@ -116,7 +112,7 @@ class SegmentTestDataLoader:
         if self.pointer >= self.number:
             raise StopIteration
 
-        batch_indices = self.iter_order[self.pointer : self.pointer + self.batch_size]
+        batch_indices = self.iter_order[self.pointer: self.pointer + self.batch_size]
         self.pointer += self.batch_size
         return self._fetch_indices(batch_indices)
 
@@ -137,148 +133,15 @@ class SegmentTestDataLoader:
     def __len__(self):
         return self.number
 
-    def get_feature(self):
-        return list(np.array(self.features))
 
-
-class SegmentTrainDataLoader:
-    def __init__(
-            self,
-            dataset,
-            batch_size,
-            device,
-            use_workload_embedding,
-            fea_norm_vec=None,
-            shuffle=False,
-    ):
-        self.device = device
-        self.shuffle = shuffle
-        self.batch_size = batch_size
-        self.number = 0
-
-        max_seg_len = 0
-        self.segment_sizes = OrderedDict
-        self.labels = OrderedDict
-        self.all_features = []
-
-        # Flatten features
-        flatten_features = OrderedDict
-        for task in dataset.features:
-            number = len(dataset.throughputs[task])
-            self.segment_sizes[task] = torch.empty((number,), dtype=torch.int32)
-            self.labels[task] = torch.empty((number,), dtype=torch.float32)
-            ct = 0
-            flatten_features[task] = []
-            throughputs = dataset.throughputs[task]
-            self.labels[task][ct: ct + len(throughputs)] = torch.tensor(throughputs)
-
-            if use_workload_embedding:
-                task_embedding = get_workload_embedding(task.workload_key)
-                # task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                # task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
-            else:
-                task_embedding = None
-
-            for row in dataset.features[task]:
-                self.segment_sizes[task][ct] = len(row)
-
-                if task_embedding is not None:
-                    tmp = np.tile(task_embedding, (len(row), 1))
-                    # flatten_features.extend(np.concatenate([row, tmp], axis=1))
-                    flatten_features[task].extend(np.concatenate([row, tmp], axis=1))
-                    self.all_features.extend(np.concatenate([row, tmp], axis=1))
-                else:
-                    flatten_features[task].extend(row)
-                    self.all_features.extend(row)
-                ct += 1
-
-            max_seg_len = max(self.segment_sizes[task].max(), max_seg_len)
-            self.number = max(len(self.labels[task]), self.number)
-
-        self.features = OrderedDict
-        for task in flatten_features:
-            self.features[task] = torch.tensor(np.array(flatten_features[task], dtype=np.float32))
-        self.all_features = torch.tensor(np.array(self.all_features, dtype=np.float32))
-        if fea_norm_vec is not None:
-            self.normalize(fea_norm_vec)
-
-        self.feature_offsets = OrderedDict
-        for task in self.segment_sizes:
-            self.feature_offsets[task] = (
-                        torch.cumsum(self.segment_sizes[task], 0, dtype=torch.int32) - self.segment_sizes[task]).cpu().numpy()
-        self.iter_order = self.pointer = None
-
-    def normalize(self, norm_vector=None):
-        if norm_vector is None:
-            norm_vector = torch.ones((self.all_features.shape[1],))
-            for i in range(self.all_features.shape[1]):
-                max_val = self.all_features[:, i].max().item()
-                if max_val > 0:
-                    norm_vector[i] = max_val
-        for task in self.features:
-            self.features[task] /= norm_vector
-
-        return norm_vector
-
-    def __iter__(self):
-        if self.shuffle:
-            self.iter_order = torch.randperm(self.number)
-        else:
-            self.iter_order = torch.arange(self.number)
-        self.pointer = 0
-
-        return self
-
-    def sample_batch(self, batch_size):
-        raise NotImplemented
-        batch_indices = np.random.choice(self.number, batch_size)
-        return self._fetch_indices(batch_indices)
-
-    def __next__(self):
-        self.number = len(self.segment_sizes)
-        if self.pointer >= self.number:
-            raise StopIteration
-
-        batch_indices = self.iter_order[self.pointer: self.pointer + self.batch_size]
-        self.pointer += self.batch_size
-        return self._fetch_indices(batch_indices)
-
-    def _fetch_indices(self, indices):
-        segment_sizes = {}
-        features = {}
-        labels = {}
-        for task in self.segment_sizes:
-            indices = indices[indices < len(self.segment_sizes[task])]
-            if len(indices) <= 1:
-                continue
-            segment_sizes[task] = self.segment_sizes[task][indices]
-
-            feature_offsets = self.feature_offsets[task][indices]
-            feature_indices = np.empty((segment_sizes[task].sum(),), dtype=np.int32)
-            ct = 0
-            
-            for offset, seg_size in zip(feature_offsets, segment_sizes[task].numpy()):
-                feature_indices[ct: ct + seg_size] = np.arange(offset, offset + seg_size, 1)
-                ct += seg_size
-
-            features[task] = self.features[task][feature_indices].to(self.device)
-            labels[task] = self.labels[task][indices].to(self.device)
-            segment_sizes[task] =  segment_sizes[task].to(self.device)
-
-        return segment_sizes, features, labels
-
-    def __len__(self):
-        return self.number
-
-
-class SegmentSumMLPModule(MetaModule):
+class SegmentSumMLPModule(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, use_norm=False, add_sigmoid=False):
         super().__init__()
 
-        self.segment_encoder = MetaSequential(
-            MetaLinear(in_dim, hidden_dim),
+        self.segment_encoder = torch.nn.Sequential(
+            torch.nn.Linear(in_dim, hidden_dim),
             torch.nn.ReLU(),
-            MetaLinear(hidden_dim, hidden_dim),
+            torch.nn.Linear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
         )
 
@@ -289,15 +152,15 @@ class SegmentSumMLPModule(MetaModule):
         else:
             self.norm = torch.nn.Identity()
 
-        self.l0 = MetaSequential(
-            MetaLinear(hidden_dim, hidden_dim),
+        self.l0 = torch.nn.Sequential(
+            torch.nn.Linear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
         )
-        self.l1 = MetaSequential(
-            MetaLinear(hidden_dim, hidden_dim),
+        self.l1 = torch.nn.Sequential(
+            torch.nn.Linear(hidden_dim, hidden_dim),
             torch.nn.ReLU(),
         )
-        self.decoder = MetaLinear(hidden_dim, out_dim)
+        self.decoder = torch.nn.Linear(hidden_dim, out_dim)
 
     def freeze_for_fine_tuning(self):
         for x in self.segment_encoder.parameters():
@@ -364,7 +227,7 @@ class MHAModule(torch.nn.Module):
         seqs = []
         ct = 0
         for seg_size in segment_sizes:
-            seqs.append(features[ct : ct + seg_size])
+            seqs.append(features[ct: ct + seg_size])
             ct += seg_size
         output = torch.nn.utils.rnn.pad_sequence(seqs)
 
@@ -416,13 +279,13 @@ class MLPModelInternal:
             "out_dim": 1,
         }
 
-        #self.net_params = {
+        # self.net_params = {
         #    "type": "MultiHeadAttention",
         #    "in_dim": 164,
         #    "num_heads": 8,
         #    "hidden_dim": 1024,
         #    "out_dim": 1,
-        #}
+        # }
 
         self.loss_type = loss_type
         self.n_epoch = 100
@@ -454,7 +317,7 @@ class MLPModelInternal:
         self.use_workload_embedding = use_workload_embedding
 
         # Hyperparameters for self.fit_base
-        self.batch_size = 1024
+        self.batch_size = 512
         self.infer_batch_size = 4096
         self.wd = 1e-6
         self.device = device
@@ -490,7 +353,6 @@ class MLPModelInternal:
             self.base_model = self._fit_a_model(train_set, valid_set, valid_train_set)
 
     def fit_local(self, train_set, valid_set=None):
-        print("fit local, ", self.few_shot_learning)
         if self.few_shot_learning == "base_only":
             return
         elif self.few_shot_learning == "local_only_mix_task":
@@ -546,7 +408,6 @@ class MLPModelInternal:
             raise ValueError("Invalid few-shot learning method: " + self.few_shot_learning)
 
     def predict(self, dataset):
-        print("predict, ", self.few_shot_learning)
         if self.few_shot_learning in ["base_only", "fine_tune_mix_task", "fine_tune_per_task", "MAML"]:
             return self._predict_a_dataset(self.base_model, dataset)
         elif self.few_shot_learning in ["local_only_mix_task", "local_only_per_task"]:
@@ -569,38 +430,19 @@ class MLPModelInternal:
 
     def _fit_a_model(self, train_set, valid_set=None, valid_train_set=None, n_epoch=None):
         print("=" * 60 + "\nFit a net. Train size: %d" % len(train_set))
-        # train_loader = SegmentTrainDataLoader(
-        #     train_set, self.batch_size, self.device, self.use_workload_embedding, shuffle=False
-        # )
-        train_loaders = OrderedDict()
-        all_features = []
-        for task in train_set.features:
-            features = train_set.features[task]
-            throughputs = train_set.throughputs[task]
-            tmp_set = Dataset.create_one_task(task, features, throughputs)
-            train_loaders[task] = SegmentTestDataLoader(
-                    tmp_set, self.batch_size, self.device,
-                    self.use_workload_embedding, shuffle=True
-            )
-            all_features.extend(train_loaders[task].get_feature())
+        train_loader = SegmentDataLoader(
+            train_set, self.batch_size, self.device, self.use_workload_embedding, shuffle=True
+        )
 
         # Normalize features
-        for task in train_loaders:
-            if self.fea_norm_vec is None:
-                self.fea_norm_vec = train_loaders[task].normalize(all_features=all_features)
-            else:
-                train_loaders[task].normalize(self.fea_norm_vec)
+        if self.fea_norm_vec is None:
+            self.fea_norm_vec = train_loader.normalize()
+        else:
+            train_loader.normalize(self.fea_norm_vec)
 
-        # valid_set = None
-        valid_loaders = {}
         if valid_set:
-            for task in valid_set.features:
-                features = valid_set.features[task]
-                throughputs = valid_set.throughputs[task]
-                tmp_set = Dataset.create_one_task(task, features, throughputs)
-                valid_loaders[task] = SegmentTrainDataLoader(tmp_set, self.infer_batch_size, self.device,
-                      self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec)
-
+            valid_loader = SegmentDataLoader(valid_set, self.infer_batch_size, self.device,
+                                             self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec)
 
         n_epoch = n_epoch or self.n_epoch
         early_stop = n_epoch // 6
@@ -609,34 +451,31 @@ class MLPModelInternal:
         optimizer = torch.optim.Adam(
             net.parameters(), lr=self.lr, weight_decay=self.wd
         )
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = n_epoch // 3, gamma=1)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=n_epoch // 3, gamma=1)
 
         train_loss = None
         best_epoch = None
         best_train_loss = 1e10
         for epoch in range(n_epoch):
             tic = time.time()
+
             # train
             net.train()
-            keys = list(train_loaders.keys())
-            random.shuffle(keys)
-            for key in keys:
-                train_loader = train_loaders[key]
-                for batch, (segment_sizes, features, labels) in enumerate(train_loader):
-                    optimizer.zero_grad()
-                    loss = self.loss_func(net(segment_sizes, features), labels)
-                    loss.backward()
-                    torch.nn.utils.clip_grad_norm_(net.parameters(), self.grad_clip)
-                    optimizer.step()
-                    train_loss = moving_average(train_loss, loss.item())
+            for batch, (segment_sizes, features, labels) in enumerate(train_loader):
+                optimizer.zero_grad()
+                loss = self.loss_func(net(segment_sizes, features), labels)
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(net.parameters(), self.grad_clip)
+                optimizer.step()
 
+                train_loss = moving_average(train_loss, loss.item())
             lr_scheduler.step()
 
             train_time = time.time() - tic
 
             if epoch % self.print_per_epoches == 0 or epoch == n_epoch - 1:
                 if valid_set and valid_loader:
-                    valid_loss = self._validate(net, valid_loaders)
+                    valid_loss = self._validate(net, valid_loader)
                 else:
                     valid_loss = 0.0
 
@@ -662,7 +501,7 @@ class MLPModelInternal:
         if verbose >= 1:
             print("=" * 60 + "\nFine-tune a net. Train size: %d" % len(train_set))
 
-        #model.freeze_for_fine_tuning()
+        # model.freeze_for_fine_tuning()
 
         train_loader = SegmentDataLoader(
             train_set, self.fine_tune_batch_size or len(train_set),
@@ -671,11 +510,11 @@ class MLPModelInternal:
 
         if valid_set:
             valid_loader = SegmentDataLoader(valid_set, self.infer_batch_size,
-                self.device, self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec)
+                                             self.device, self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec)
 
         tic = time.time()
         optimizer = torch.optim.SGD(model.parameters(), lr=self.fine_tune_lr, weight_decay=self.fine_tune_wd)
-        #optimizer = torch.optim.Adam(model.parameters(), lr=self.fine_tune_lr, weight_decay=self.wd)
+        # optimizer = torch.optim.Adam(model.parameters(), lr=self.fine_tune_lr, weight_decay=self.wd)
         for step in range(self.fine_tune_num_steps):
             # train
             model.train()
@@ -705,11 +544,9 @@ class MLPModelInternal:
     def _validate(self, model, valid_loader):
         model.eval()
         valid_losses = []
-        for task in valid_loader:
-            for segment_sizes, features, labels in valid_loader[task]:
-                for task in labels:
-                    preds = model(segment_sizes, features)
-                    valid_losses.append(self.loss_func(preds, labels[task]).item())
+        for segment_sizes, features, labels in valid_loader:
+            preds = model(segment_sizes, features)
+            valid_losses.append(self.loss_func(preds, labels).item())
         return np.mean(valid_losses)
 
     def _predict_a_dataset(self, model, dataset):
@@ -725,117 +562,117 @@ class MLPModelInternal:
         tmp_set = Dataset.create_one_task(task, features, np.zeros((len(features),)))
 
         preds = []
-        for segment_sizes, features, labels in SegmentTestDataLoader(
-            tmp_set, self.infer_batch_size, self.device,
-            self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec,
+        for segment_sizes, features, labels in SegmentDataLoader(
+                tmp_set, self.infer_batch_size, self.device,
+                self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec,
         ):
             preds.append(model(segment_sizes, features))
         return torch.cat(preds).detach().cpu().numpy()
 
-    # def _fit_a_MAML_model(self, train_set, valid_set=None, valid_train_set=None):
-    #     print("=" * 60 + "\nFit a MAML net. Train size: %d" % len(train_set))
-    #     batch_size_tasks = self.meta_batch_size_tasks
-    #     batch_size_per_task = self.meta_batch_size_per_task
-    #     few_shot_number = self.few_shot_number
-    #
-    #     print_per_batches = 20
-    #     n_batches = 3000
-    #     early_stop = 200
-    #
-    #     # Compute normalization vector over the whole dataset
-    #     if self.fea_norm_vec is None:
-    #         all_train_loader = SegmentDataLoader(
-    #             train_set, self.batch_size, self.device, self.use_workload_embedding,
-    #         )
-    #         self.fea_norm_vec = all_train_loader.normalize()
-    #         del all_train_loader
-    #
-    #     # Build dataloaders
-    #     train_loaders = {}
-    #     for task in train_set.feature_data:
-    #         task_dataset = train_set.extract_subset(task)
-    #         train_loaders[task] = SegmentDataLoader(
-    #             task_dataset, None, self.device, self.use_workload_embedding,
-    #             fea_norm_vec=self.fea_norm_vec, shuffle=True,
-    #         )
-    #
-    #     # Make network
-    #     net = make_net(self.net_params).to(self.device)
-    #     optimizer = torch.optim.Adam(
-    #         net.parameters(), lr=self.meta_outer_lr, weight_decay=self.wd
-    #     )
-    #
-    #     # Training
-    #     avg_outer_loss = None
-    #     avg_inner_loss = None
-    #     task_list = list(train_set.tasks())
-    #     best_batch = None
-    #     best_train_loss = 1e10
-    #     for batch in range(n_batches):
-    #         tasks = random.choices(task_list, k=batch_size_tasks)
-    #         net.train()
-    #         outer_loss = torch.tensor(0.0, device=self.device)
-    #         # outer loss
-    #         for task in tasks:
-    #             train_loader = train_loaders[task]
-    #
-    #             train_segment_sizes, train_features, train_labels = train_loader.sample_batch(
-    #                 few_shot_number
-    #             )
-    #             test_segment_sizes, test_features, test_labels = train_loader.sample_batch(
-    #                 batch_size_per_task
-    #             )
-    #
-    #             # inner loss
-    #             params = OrderedDict(net.meta_named_parameters())
-    #             for _ in range(self.meta_test_num_steps):
-    #                 inner_loss = self.loss_func(
-    #                     net(train_segment_sizes, train_features, params=params), train_labels
-    #                 )
-    #                 params = gradient_update_parameters(
-    #                     net,
-    #                     inner_loss,
-    #                     params=params,
-    #                     step_size=self.meta_inner_lr,
-    #                     first_order=False,
-    #                 )
-    #                 avg_inner_loss = moving_average(avg_inner_loss, inner_loss.item())
-    #
-    #             # acculate gradient for meta-update
-    #             outer_loss += self.loss_func(
-    #                 net(test_segment_sizes, test_features, params=params), test_labels
-    #             )
-    #
-    #         optimizer.zero_grad()
-    #         outer_loss /= len(tasks)
-    #         outer_loss.backward()
-    #         torch.nn.utils.clip_grad_norm_(net.parameters(), self.grad_clip)
-    #         optimizer.step()
-    #
-    #         avg_outer_loss = moving_average(avg_outer_loss, outer_loss.item())
-    #
-    #         if batch % print_per_batches == 0 or batch == n_batches - 1:
-    #             # validate
-    #             valid_loss = self._validate(net, valid_set, valid_train_set, verbose=0)
-    #             print(
-    #                 "Task Batch: %d\tOuter RMSE: %.4f\tInner RMSE: %.4f\tValid RMSE: %.4f"
-    #                 % (
-    #                     batch,
-    #                     np.sqrt(avg_outer_loss),
-    #                     np.sqrt(avg_inner_loss),
-    #                     np.sqrt(valid_loss),
-    #                 )
-    #             )
-    #
-    #         # Early stop
-    #         if avg_outer_loss < best_train_loss:
-    #             best_train_loss = avg_outer_loss
-    #             best_batch = batch
-    #         elif batch - best_batch >= early_stop:
-    #             print("Early stop. Best batch: %d" % best_batch)
-    #             break
-    #
-    #     return net
+    def _fit_a_MAML_model(self, train_set, valid_set=None, valid_train_set=None):
+        print("=" * 60 + "\nFit a MAML net. Train size: %d" % len(train_set))
+        batch_size_tasks = self.meta_batch_size_tasks
+        batch_size_per_task = self.meta_batch_size_per_task
+        few_shot_number = self.few_shot_number
+
+        print_per_batches = 20
+        n_batches = 3000
+        early_stop = 200
+
+        # Compute normalization vector over the whole dataset
+        if self.fea_norm_vec is None:
+            all_train_loader = SegmentDataLoader(
+                train_set, self.batch_size, self.device, self.use_workload_embedding,
+            )
+            self.fea_norm_vec = all_train_loader.normalize()
+            del all_train_loader
+
+        # Build dataloaders
+        train_loaders = {}
+        for task in train_set.feature_data:
+            task_dataset = train_set.extract_subset(task)
+            train_loaders[task] = SegmentDataLoader(
+                task_dataset, None, self.device, self.use_workload_embedding,
+                fea_norm_vec=self.fea_norm_vec, shuffle=True,
+            )
+
+        # Make network
+        net = make_net(self.net_params).to(self.device)
+        optimizer = torch.optim.Adam(
+            net.parameters(), lr=self.meta_outer_lr, weight_decay=self.wd
+        )
+
+        # Training
+        avg_outer_loss = None
+        avg_inner_loss = None
+        task_list = list(train_set.tasks())
+        best_batch = None
+        best_train_loss = 1e10
+        for batch in range(n_batches):
+            tasks = random.choices(task_list, k=batch_size_tasks)
+            net.train()
+            outer_loss = torch.tensor(0.0, device=self.device)
+            # outer loss
+            for task in tasks:
+                train_loader = train_loaders[task]
+
+                train_segment_sizes, train_features, train_labels = train_loader.sample_batch(
+                    few_shot_number
+                )
+                test_segment_sizes, test_features, test_labels = train_loader.sample_batch(
+                    batch_size_per_task
+                )
+
+                # inner loss
+                params = OrderedDict(net.meta_named_parameters())
+                for _ in range(self.meta_test_num_steps):
+                    inner_loss = self.loss_func(
+                        net(train_segment_sizes, train_features, params=params), train_labels
+                    )
+                    params = gradient_update_parameters(
+                        net,
+                        inner_loss,
+                        params=params,
+                        step_size=self.meta_inner_lr,
+                        first_order=False,
+                    )
+                    avg_inner_loss = moving_average(avg_inner_loss, inner_loss.item())
+
+                # acculate gradient for meta-update
+                outer_loss += self.loss_func(
+                    net(test_segment_sizes, test_features, params=params), test_labels
+                )
+
+            optimizer.zero_grad()
+            outer_loss /= len(tasks)
+            outer_loss.backward()
+            torch.nn.utils.clip_grad_norm_(net.parameters(), self.grad_clip)
+            optimizer.step()
+
+            avg_outer_loss = moving_average(avg_outer_loss, outer_loss.item())
+
+            if batch % print_per_batches == 0 or batch == n_batches - 1:
+                # validate
+                valid_loss = self._validate(net, valid_set, valid_train_set, verbose=0)
+                print(
+                    "Task Batch: %d\tOuter RMSE: %.4f\tInner RMSE: %.4f\tValid RMSE: %.4f"
+                    % (
+                        batch,
+                        np.sqrt(avg_outer_loss),
+                        np.sqrt(avg_inner_loss),
+                        np.sqrt(valid_loss),
+                    )
+                )
+
+            # Early stop
+            if avg_outer_loss < best_train_loss:
+                best_train_loss = avg_outer_loss
+                best_batch = batch
+            elif batch - best_batch >= early_stop:
+                print("Early stop. Best batch: %d" % best_batch)
+                break
+
+        return net
 
     def load(self, filename):
         if self.device == 'cpu':
@@ -847,24 +684,20 @@ class MLPModelInternal:
 
     def save(self, filename):
         pickle.dump((self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec),
-            open(filename, 'wb'))
-
-class CPU_Unpickler(pickle.Unpickler):
-    def find_class(self, module, name):
-        if module == 'torch.storage' and name == '_load_from_bytes':
-            return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
-        else: return super().find_class(module, name)
+                    open(filename, 'wb'))
 
 
 class CPU_Unpickler(pickle.Unpickler):
     def find_class(self, module, name):
         if module == 'torch.storage' and name == '_load_from_bytes':
             return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
-        else: return super().find_class(module, name)
+        else:
+            return super().find_class(module, name)
 
 
 class MLPModel(PythonBasedModel):
     """The wrapper of MLPModelInternal. So we can use it in end-to-end search."""
+
     def __init__(self, few_shot_learning="base_only", disable_update=False):
         super().__init__()
 
@@ -926,18 +759,16 @@ class RankNetLoss(torch.nn.Module):
         labels_prob = torch.triu((labels.unsqueeze(1) > labels).float(), diagonal=1)
         return torch.nn.functional.binary_cross_entropy(preds_prob, labels_prob)
 
+
 class LambdaRankLoss(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
     def lamdbaRank_scheme(self, G, D, *args):
-        return torch.abs(torch.pow(D[:, :, None], -1.) - torch.pow(D[:, None, :], -1.)) * torch.abs(G[:, :, None] - G[:, None, :])
+        return torch.abs(torch.pow(D[:, :, None], -1.) - torch.pow(D[:, None, :], -1.)) * torch.abs(
+            G[:, :, None] - G[:, None, :])
 
-    def forward(self, preds, labels, k=None, eps=1e-10, mu=10., sigma=1.):
-        if torch.cuda.device_count():
-            device = 'cuda:0'
-        else:
-            device = 'cpu'        
+    def forward(self, preds, labels, k=None, eps=1e-10, mu=10., sigma=1., device="cuda:0"):
         preds = preds[None, :]
         labels = labels[None, :]
         y_pred = preds.clone()
