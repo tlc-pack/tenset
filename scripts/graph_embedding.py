@@ -213,7 +213,7 @@ if __name__ == "__main__":
         load_and_register_tasks()
         graphs = []
         workload_keys = []
-        directory = "dataset/measure_records/platinum-8272"
+        directory = "dataset/measure_records/e5-2673"
 
         for filename in tqdm(os.listdir(directory)):
             if filename.endswith(".json"):

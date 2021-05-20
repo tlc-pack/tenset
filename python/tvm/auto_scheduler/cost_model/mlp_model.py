@@ -275,7 +275,7 @@ class MLPModelInternal:
         self.net_params = {
             "type": "SegmentSumMLP",
             "in_dim": 164 + (160 if use_workload_embedding else 0),
-            "hidden_dim": 256,
+            "hididen_dim": 256,
             "out_dim": 1,
         }
 
@@ -475,8 +475,15 @@ class MLPModelInternal:
             train_time = time.time() - tic
 
             if epoch % self.print_per_epoches == 0 or epoch == n_epoch - 1:
+<<<<<<< HEAD
                 if valid_set and valid_loader:
                     valid_loss = self._validate(net, valid_loader)
+=======
+
+                if valid_set and valid_loader:
+                    valid_loss = self._validate(net, valid_loader)
+
+>>>>>>> d9a2b88badaaffd4967398e93d580e37bcc93037
                 else:
                     valid_loss = 0.0
 
@@ -545,6 +552,10 @@ class MLPModelInternal:
     def _validate(self, model, valid_loader):
         model.eval()
         valid_losses = []
+<<<<<<< HEAD
+=======
+
+>>>>>>> d9a2b88badaaffd4967398e93d580e37bcc93037
         for segment_sizes, features, labels in valid_loader:
             preds = model(segment_sizes, features)
             valid_losses.append(self.loss_func(preds, labels).item())
