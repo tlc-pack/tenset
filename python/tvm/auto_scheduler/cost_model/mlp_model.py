@@ -548,10 +548,7 @@ class MLPModelInternal:
     def _validate(self, model, valid_loader):
         model.eval()
         valid_losses = []
-<<<<<<< HEAD
-=======
 
->>>>>>> d9a2b88badaaffd4967398e93d580e37bcc93037
         for segment_sizes, features, labels in valid_loader:
             preds = model(segment_sizes, features)
             valid_losses.append(self.loss_func(preds, labels).item())
