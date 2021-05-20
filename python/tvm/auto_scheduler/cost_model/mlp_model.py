@@ -475,15 +475,11 @@ class MLPModelInternal:
             train_time = time.time() - tic
 
             if epoch % self.print_per_epoches == 0 or epoch == n_epoch - 1:
-<<<<<<< HEAD
-                if valid_set and valid_loader:
-                    valid_loss = self._validate(net, valid_loader)
-=======
+
 
                 if valid_set and valid_loader:
                     valid_loss = self._validate(net, valid_loader)
 
->>>>>>> d9a2b88badaaffd4967398e93d580e37bcc93037
                 else:
                     valid_loss = 0.0
 
