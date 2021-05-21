@@ -169,6 +169,37 @@ def preset_exclude(preset):
 
     return network_keys
 
+def get_hold_out_task(target):
+    network_keys = []
+
+    # resnet_18 and resnet_50
+    for layer in [18, 50]:
+        network_keys.append((f'resnet_{layer}',[(1, 3, 224, 224)]))
+
+    # mobilenet_v2
+    network_keys.append(('mobilenet_v2', [(1, 3, 224, 224)]))
+
+    # resnext
+    network_keys.append(('resnext_50', [(1, 3, 224, 224)]))
+
+    # bert
+    for scale in ['tiny', 'base']:
+        network_keys.append((f'bert_{scale}', [(1, 128)]))
+
+    all_tasks = []
+    exists = set()  # a set to remove redundant tasks
+    print("hold out...")
+    for network_key in tqdm(network_keys):
+        # Read tasks of the network
+        task_info_filename = get_task_info_filename(network_key, target)
+        tasks, _ = pickle.load(open(task_info_filename, "rb"))
+        for task in tasks:
+            if task.workload_key not in exists:
+                exists.add(task.workload_key)
+                all_tasks.append(task)
+
+    return all_tasks
+
 
 
 if __name__ == "__main__":
@@ -181,29 +212,26 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out-file", type=str, default='dataset.pkl')
     parser.add_argument("--min-sample-size", type=int, default=48)
+    parser.add_argument("--hold-out", action='store_true')
     args = parser.parse_args()
 
     random.seed(args.seed)
 
-    if args.preset is not None:
-        # Only use tasks from networks with batch-size = 1
-        # Load tasks from networks
-        if args.preset == 'batch-size-1':
-            network_keys = preset_batch_size_1()
-        else:
-            print("precluding")
-            network_keys = preset_exclude(args.preset)
-
+    if args.hold_out:
         target = tvm.target.Target(args.target)
+        to_be_excluded = get_hold_out_task(target)
+        print(len(to_be_excluded))
+        network_keys = preset_exclude()
+
         all_tasks = []
-        exists = set()   # a set to remove redundant tasks
+        exists = set()  # a set to remove redundant tasks
         print("Load tasks...")
         for network_key in tqdm(network_keys):
             # Read tasks of the network
             task_info_filename = get_task_info_filename(network_key, target)
             tasks, _ = pickle.load(open(task_info_filename, "rb"))
             for task in tasks:
-                if task.workload_key not in exists:
+                if task not in to_be_excluded and task.workload_key not in exists:
                     exists.add(task.workload_key)
                     all_tasks.append(task)
 
@@ -214,13 +242,43 @@ if __name__ == "__main__":
             files.append(filename)
 
     else:
-        # use all tasks
-        print("Load tasks...")
-        load_and_register_tasks()
-        files = args.logs
 
-    if args.sample_in_files:
-        files = random.sample(files, args.sample_in_files)
+        if args.preset is not None:
+            # Only use tasks from networks with batch-size = 1
+            # Load tasks from networks
+            if args.preset == 'batch-size-1':
+                network_keys = preset_batch_size_1()
+            else:
+                print("precluding")
+                network_keys = preset_exclude(args.preset)
+
+            target = tvm.target.Target(args.target)
+            all_tasks = []
+            exists = set()   # a set to remove redundant tasks
+            print("Load tasks...")
+            for network_key in tqdm(network_keys):
+                # Read tasks of the network
+                task_info_filename = get_task_info_filename(network_key, target)
+                tasks, _ = pickle.load(open(task_info_filename, "rb"))
+                for task in tasks:
+                    if task.workload_key not in exists:
+                        exists.add(task.workload_key)
+                        all_tasks.append(task)
+
+            # Convert tasks to filenames
+            files = []
+            for task in all_tasks:
+                filename = get_measure_record_filename(task, target)
+                files.append(filename)
+
+        else:
+            # use all tasks
+            print("Load tasks...")
+            load_and_register_tasks()
+            files = args.logs
+
+        if args.sample_in_files:
+            files = random.sample(files, args.sample_in_files)
 
     print("Featurize measurement records...")
     auto_scheduler.dataset.make_dataset_from_log_file(
