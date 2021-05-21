@@ -38,16 +38,24 @@ def get_tuning_option(tuning_args, target):
         tuning_args['n_trials'], tuning_args['run_timeout'], tuning_args['log_file'])
 
     if "cpu" in target.keys:
+        measure_ctx = None
         tuning_opt = auto_scheduler.TuningOptions(
             num_measure_trials=n_trials,
             runner=auto_scheduler.LocalRunner(
-                timeout=run_timeout, repeat=10, number=1, enable_cpu_cache_flush=True),
+                repeat=10, number=1, enable_cpu_cache_flush=True, timeout=run_timeout),
+            measure_callbacks=[auto_scheduler.RecordToFile(log_file)],
+        )
+    elif "cuda" in target.keys:
+        measure_ctx = auto_scheduler.LocalRPCMeasureContext(repeat=1, min_repeat_ms=300, timeout=run_timeout)
+        tuning_opt = auto_scheduler.TuningOptions(
+            num_measure_trials=n_trials,
+            runner=measure_ctx.runner,
             measure_callbacks=[auto_scheduler.RecordToFile(log_file)],
         )
     else:
         raise NotImplementedError
 
-    return tuning_opt
+    return tuning_opt, measure_ctx
 
 
 def tune_and_evaluate(network_args, tuning_args, target, target_host, result_file):
@@ -70,7 +78,7 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
             )
             print(task.compute_dag)
 
-        tuning_opt = get_tuning_option(tuning_args, target)
+        tuning_opt, measure_ctx = get_tuning_option(tuning_args, target)
 
         # Run search
         tuner = auto_scheduler.TaskScheduler(tasks, task_weights,
@@ -105,6 +113,9 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
 			     'ours', 'default',
                              {"costs": prof_res}, time.time()),
                              args.result_file)
+
+    if measure_ctx is not None:
+        del measure_ctx
 
 
 if __name__ == "__main__":
