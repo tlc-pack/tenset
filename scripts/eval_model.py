@@ -7,11 +7,13 @@ import numpy as np
 
 import tvm
 from tvm import auto_scheduler
+from tvm.auto_scheduler.utils import to_str_round
 from tvm.auto_scheduler.dataset import LearningTask
 from tvm.auto_scheduler.cost_model.xgb_model import XGBModelInternal
 from tvm.auto_scheduler.cost_model.mlp_model import MLPModelInternal
 
 from common import get_task_info_filename, get_measure_record_filename
+from train_model import evaluate_model
 
 
 def eval_cost_model_on_weighted_tasks(model, eval_task_dict, eval_dataset, top_ks):
@@ -59,6 +61,10 @@ def eval_cost_model_on_network(model, network_key, target, top_ks):
             filenames, dataset_file, min_sample_size=0)
     dataset = pickle.load(open(dataset_file, "rb"))
 
+    eval_res = evaluate_model(model, dataset)
+    print(to_str_round(eval_res))
+    print("===============================================")
+
     # Make learning tasks and attach weights
     target = dataset.tasks()[0].target
     learning_tasks = [LearningTask(t.workload_key, target) for t in tasks]
@@ -95,10 +101,10 @@ if __name__ == "__main__":
     model_file = args.model_file
     network_keys = [
         ("resnet_50", [(1, 3, 224,224)]),
-        ("mobilenet_v2", [(1, 3, 224,224)]),
-        ("resnext_50", [(1, 3, 224,224)]),
-        ("bert_base", [(1, 128)]),
-        ("bert_tiny", [(1, 128)]),
+        # ("mobilenet_v2", [(1, 3, 224,224)]),
+        # ("resnext_50", [(1, 3, 224,224)]),
+        # ("bert_base", [(1, 128)]),
+        # ("bert_tiny", [(1, 128)]),
     ]
     target = "llvm -model=platinum-8272"
 
@@ -118,4 +124,6 @@ if __name__ == "__main__":
         latencies, best_latency = eval_cost_model_on_log_file(model, args.log_file, network_key, target, top_ks)
         for top_k, latency in zip(top_ks, latencies):
             print(f"Log file\tTop-{top_k} score: {best_latency / latency}")
+
+
 
