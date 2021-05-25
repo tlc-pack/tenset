@@ -55,6 +55,9 @@ def metric_peak_score(preds, labels, top_k):
     curve = max_curve(trial_scores) / np.max(labels)
     return np.mean(curve)
 
+def metric_mape(preds, labels):
+    return np.mean(np.abs((labels-preds)/labels))
+
 
 def random_mix(values, randomness):
     random_values = np.random.uniform(np.min(values), np.max(values), len(values))

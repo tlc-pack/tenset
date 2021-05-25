@@ -22,6 +22,7 @@ from tvm.auto_scheduler.cost_model.metric import (
     metric_pairwise_comp_accuracy,
     metric_top_k_recall,
     metric_peak_score,
+    metric_mape,
     random_mix,
 )
 
@@ -38,8 +39,10 @@ def evaluate_model(model, test_set):
     rmse_list = []
     r_sqaured_list = []
     pair_acc_list = []
+    mape_list = []
     peak_score1_list = []
     peak_score5_list = []
+
 
     for task in tasks:
         preds = prediction[task]
@@ -48,12 +51,14 @@ def evaluate_model(model, test_set):
         rmse_list.append(np.square(metric_rmse(preds, labels)))
         r_sqaured_list.append(metric_r_squared(preds, labels))
         pair_acc_list.append(metric_pairwise_comp_accuracy(preds, labels))
+        mape_list.append(metric_mape(preds, labels))
         peak_score1_list.append(metric_peak_score(preds, labels, 1))
         peak_score5_list.append(metric_peak_score(preds, labels, 5))
 
     rmse = np.sqrt(np.average(rmse_list, weights=weights))
     r_sqaured = np.average(r_sqaured_list, weights=weights)
     pair_acc = np.average(pair_acc_list, weights=weights)
+    mape = np.average(mape_list, weights=weights)
     peak_score1 = np.average(peak_score1_list, weights=weights)
     peak_score5 = np.average(peak_score5_list, weights=weights)
 
@@ -61,6 +66,7 @@ def evaluate_model(model, test_set):
         "RMSE": rmse,
         "R^2": r_sqaured,
         "pairwise comparision accuracy": pair_acc,
+        "mape": mape,
         "average peak score@1": peak_score1,
         "average peak score@5": peak_score5,
     }
