@@ -213,6 +213,9 @@ if __name__ == "__main__":
     parser.add_argument("--out-file", type=str, default='dataset.pkl')
     parser.add_argument("--min-sample-size", type=int, default=48)
     parser.add_argument("--hold-out", action='store_true')
+    parser.add_argument("--n-task", type=int)
+    parser.add_argument("--n-measurement", type=int)
+
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -240,6 +243,32 @@ if __name__ == "__main__":
         for task in all_tasks:
             filename = get_measure_record_filename(task, target)
             files.append(filename)
+
+
+    elif args.n_task:
+        network_keys = preset_exclude()
+        target = tvm.target.Target(args.target)
+        all_tasks = []
+        exists = set()  # a set to remove redundant tasks
+        print("Load tasks...")
+        task_cnt = 0
+        for network_key in tqdm(network_keys):
+            # Read tasks of the network
+            task_info_filename = get_task_info_filename(network_key, target)
+            tasks, _ = pickle.load(open(task_info_filename, "rb"))
+            random.shuffle(tasks)
+            for task in tasks:
+                if task_cnt < args.n_task and task.workload_key not in exists:
+                    exists.add(task.workload_key)
+                    all_tasks.append(task)
+                    task_cnt += 1
+
+        # Convert tasks to filenames
+        files = []
+        for task in all_tasks:
+            filename = get_measure_record_filename(task, target)
+            files.append(filename)
+
 
     else:
 
@@ -282,5 +311,5 @@ if __name__ == "__main__":
 
     print("Featurize measurement records...")
     auto_scheduler.dataset.make_dataset_from_log_file(
-        files, args.out_file, args.min_sample_size)
+        files, args.out_file, args.min_sample_size, n_measurement=args.n_measurement)
 
