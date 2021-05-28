@@ -241,7 +241,6 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1, 
                 measure_records[task][0].append(inp)
                 measure_records[task][1].append(res)
                 measurement_cnt += 1
-            print(len(measure_records))
 
             # Featurize
             features = {}

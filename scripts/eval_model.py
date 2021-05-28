@@ -134,10 +134,10 @@ if __name__ == "__main__":
     model_file = args.model_file
     network_keys = [
         ("resnet_50", [(1, 3, 224,224)]),
-        # ("mobilenet_v2", [(1, 3, 224,224)]),
-        # ("resnext_50", [(1, 3, 224,224)]),
-        # ("bert_base", [(1, 128)]),
-        # ("bert_tiny", [(1, 128)]),
+        ("mobilenet_v2", [(1, 3, 224,224)]),
+        ("resnext_50", [(1, 3, 224,224)]),
+        ("bert_base", [(1, 128)]),
+        ("bert_tiny", [(1, 128)]),
     ]
     target = "llvm -model=platinum-8272"
 
