@@ -275,7 +275,7 @@ class MLPModelInternal:
         self.net_params = {
             "type": "SegmentSumMLP",
             "in_dim": 164 + (160 if use_workload_embedding else 0),
-            "hididen_dim": 256,
+            "hidden_dim": 256,
             "out_dim": 1,
         }
 

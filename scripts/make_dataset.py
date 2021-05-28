@@ -83,7 +83,7 @@ def preset_batch_size_1():
 
     return network_keys
 
-def preset_exclude(preset):
+def preset_exclude(preset=None):
     network_keys = []
 
     # resnet_18 and resnet_50
