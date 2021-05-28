@@ -83,7 +83,7 @@ def preset_batch_size_1():
 
     return network_keys
 
-def preset_exclude(preset):
+def preset_exclude(preset=None):
     network_keys = []
 
     # resnet_18 and resnet_50
@@ -186,7 +186,6 @@ def get_hold_out_task(target):
     for scale in ['tiny', 'base']:
         network_keys.append((f'bert_{scale}', [(1, 128)]))
 
-    all_tasks = []
     exists = set()  # a set to remove redundant tasks
     print("hold out...")
     for network_key in tqdm(network_keys):
@@ -196,9 +195,8 @@ def get_hold_out_task(target):
         for task in tasks:
             if task.workload_key not in exists:
                 exists.add(task.workload_key)
-                all_tasks.append(task)
 
-    return all_tasks
+    return exists
 
 
 
@@ -234,7 +232,7 @@ if __name__ == "__main__":
             task_info_filename = get_task_info_filename(network_key, target)
             tasks, _ = pickle.load(open(task_info_filename, "rb"))
             for task in tasks:
-                if task not in to_be_excluded and task.workload_key not in exists:
+                if task.workload_key not in to_be_excluded and task.workload_key not in exists:
                     exists.add(task.workload_key)
                     all_tasks.append(task)
 
@@ -244,10 +242,11 @@ if __name__ == "__main__":
             filename = get_measure_record_filename(task, target)
             files.append(filename)
 
-
     elif args.n_task:
-        network_keys = preset_exclude()
         target = tvm.target.Target(args.target)
+        to_be_excluded = get_hold_out_task(target)
+        network_keys = preset_exclude()
+
         all_tasks = []
         exists = set()  # a set to remove redundant tasks
         print("Load tasks...")
@@ -258,7 +257,7 @@ if __name__ == "__main__":
             tasks, _ = pickle.load(open(task_info_filename, "rb"))
             random.shuffle(tasks)
             for task in tasks:
-                if task_cnt < args.n_task and task.workload_key not in exists:
+                if task.workload_key not in to_be_excluded and task_cnt < args.n_task and task.workload_key not in exists:
                     exists.add(task.workload_key)
                     all_tasks.append(task)
                     task_cnt += 1
