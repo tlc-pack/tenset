@@ -64,7 +64,6 @@ def remeasure_file(task_idx, task, target, target_host, batch_size, measurer_kwa
         for res in res_batch:
             if res.error_no == auto_scheduler.measure.MeasureErrorNo.BUILD_TIMEOUT:
                 timeout_ct += 1
-        break
 
 
 if __name__ == "__main__":
