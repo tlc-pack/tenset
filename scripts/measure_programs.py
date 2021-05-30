@@ -64,6 +64,7 @@ def remeasure_file(task_idx, task, target, target_host, batch_size, measurer_kwa
         for res in res_batch:
             if res.error_no == auto_scheduler.measure.MeasureErrorNo.BUILD_TIMEOUT:
                 timeout_ct += 1
+        break
 
 
 if __name__ == "__main__":
@@ -82,6 +83,7 @@ if __name__ == "__main__":
 
     end_idx = min(args.end_idx, len(tasks))
 
+    print(f"tasks: range(start={args.start_idx}, end={end_idx}, step={args.step_idx})")
     # Remeasure all tasks
     for i in range(args.start_idx, end_idx, args.step_idx):
         with open("progress.txt", "a") as fout:
@@ -91,9 +93,10 @@ if __name__ == "__main__":
         # Set measurement arguments
         measurer_kwargs = {
             "run_timeout": 15,
-            "number": 5,
+            "number": 2,
             "enable_cpu_cache_flush": (task.target.kind == "llvm"),
             "verbose": 1,
+            "repeat": 2,
         }
         print(f"########## Task {i}, FLOPs = {task.compute_dag.flop_ct} ##########")
         print(task.compute_dag)
@@ -105,7 +108,6 @@ if __name__ == "__main__":
         #     measurer_kwargs['repeat'] = 10
         # else:
         #     measurer_kwargs['repeat'] = 8
-        measurer_kwargs['repeat'] = 3
 
         # Run measurement
         task_key = (task.workload_key, str(task.target.kind))
