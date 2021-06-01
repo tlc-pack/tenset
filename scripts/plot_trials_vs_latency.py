@@ -25,7 +25,7 @@ def input_to_learning_task(inp: MeasureInput):
 def get_network(network_args):
     name, batch_size = network_args['network'], network_args['batch_size']
     if name in ['resnet_18', 'resnet_50', 'mobilenet_v2', 'mobilenet_v3',
-                'wide_resnet_50', 'resnext_50', 'densenet_121']:
+                'wide_resnet_50', 'resnext_50', 'densenet_121', 'vgg_16']:
         network_key = (name, [(batch_size, 3, 224, 224)])
     elif name in ['inception_v3']:
         network_key = (name, [(batch_size, 3, 299, 299)])
@@ -160,7 +160,7 @@ def measure(tmp_file, network_args, target, n_line_per_task=None):
     return np.mean(prof_res) * 1000
 
 
-def random_search(global_search_space, network_args, target, total_cts=30, top_k=3, tmp_file='tmp_log.json'):
+def random_search(global_search_space, network_args, target, total_cts=80, top_k=3, tmp_file='tmp_log.json'):
     ct = 0
     # best_candidate = None
     best_cost = 1e20
@@ -173,6 +173,7 @@ def random_search(global_search_space, network_args, target, total_cts=30, top_k
     best_cost = all_best_cost
     print(f"Time used for all best eval is {time.time()-start_all_best}")
     while ct < total_cts:
+        print(ct)
         start_search = time.time()
         if os.path.exists(tmp_file):
             os.system("rm -rf %s" % tmp_file)
