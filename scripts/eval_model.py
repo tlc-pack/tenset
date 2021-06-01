@@ -73,6 +73,36 @@ def eval_cost_model_on_network(model, network_key, target, top_ks):
     return eval_cost_model_on_weighted_tasks(model, task_dict, dataset, top_ks)
 
 
+def eval_cost_model_on_network_combined(model, network_keys, target):
+    target = tvm.target.Target(target)
+    task = []
+    task_weights = []
+    dataset = Dataset()
+    for network_key in network_keys:
+        task_info_filename = get_task_info_filename(network_key, target)
+        tmp_tasks, tmp_task_weights = pickle.load(open(task_info_filename, "rb"))
+        task += tmp_tasks
+        task_weights += tmp_task_weights
+        network_task_key2 = (network_key, str(target))
+
+        dataset_file = f".dataset_cache/{network_task_key2}.network.feature_cache"
+        if not os.path.exists(dataset_file):
+            # get file names of these tasks
+            filenames = []
+            for task in tasks:
+                filename = get_measure_record_filename(task, target)
+                filenames.append(filename)
+
+            # make a dataset
+            auto_scheduler.dataset.make_dataset_from_log_file(
+                filenames, dataset_file, min_sample_size=0)
+        tmp_dataset = pickle.load(open(dataset_file, "rb"))
+        dataset.update_from_dataset(tmp_dataset)
+
+    eval_res = evaluate_model(model, dataset)
+    print(to_str_round(eval_res))
+
+
 def eval_cost_model_on_log_file(model, log_file, network_key, target, top_ks):
     target = tvm.target.Target(target)
     task_info_filename = get_task_info_filename(network_key, target)
@@ -91,26 +121,33 @@ def eval_cost_model_on_log_file(model, log_file, network_key, target, top_ks):
 
 
 
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-file", type=str)
     parser.add_argument("--log-file", type=str)
     parser.add_argument("--log-file-network", type=str)
+    parser.add_argument("--combine", type=str)
     args= parser.parse_args()
 
     model_file = args.model_file
     network_keys = [
         ("resnet_50", [(1, 3, 224,224)]),
-        # ("mobilenet_v2", [(1, 3, 224,224)]),
-        # ("resnext_50", [(1, 3, 224,224)]),
-        # ("bert_base", [(1, 128)]),
-        # ("bert_tiny", [(1, 128)]),
+        ("mobilenet_v2", [(1, 3, 224,224)]),
+        ("resnext_50", [(1, 3, 224,224)]),
+        ("bert_base", [(1, 128)]),
+        ("bert_tiny", [(1, 128)]),
     ]
     target = "llvm -model=platinum-8272"
 
     #model = XGBModelInternal()
     model = MLPModelInternal()
     model.load(model_file)
+
+    if args.combine:
+        eval_cost_model_on_network_combined(model, network_keys, target, top_ks)
+
 
     top_ks = [1, 5]
     for network_key in network_keys:

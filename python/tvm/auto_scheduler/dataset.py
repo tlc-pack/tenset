@@ -210,7 +210,7 @@ class Dataset:
         return sum(len(x) for x in self.throughputs.values())
 
 
-def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
+def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1, n_measurement=None):
     """Make a dataset file from raw log files"""
     from tqdm import tqdm
 
@@ -230,13 +230,17 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             features, throughputs, min_latency = pickle.load(open(cache_file, "rb"))
         else:
             # Read measure records
+            measurement_cnt = 0
             measure_records = {}
             for inp, res in RecordReader(filename):
+                if measurement_cnt >= n_measurement:
+                    break
                 task = input_to_learning_task(inp)
                 if task not in measure_records:
                     measure_records[task] = [[], []]
                 measure_records[task][0].append(inp)
                 measure_records[task][1].append(res)
+                measurement_cnt += 1
 
             # Featurize
             features = {}
