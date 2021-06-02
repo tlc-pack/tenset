@@ -9,7 +9,6 @@ import time
 import io
 import json
 import numpy as np
-import xgboost as xgb
 import torch
 # from torchmeta.modules import (
 #    MetaModule,
@@ -198,6 +197,59 @@ class SegmentSumMLPModule(torch.nn.Module):
 
         return output
 
+class LSTMModuel(torch.nn.Module):
+    def __init__(self, in_dim, hidden_dim, out_dim):
+        super().__init__()
+
+        self.segment_encoder = torch.nn.Sequential(
+            torch.nn.Linear(in_dim, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, hidden_dim),
+            torch.nn.ReLU(),
+        )
+
+        self.norm = torch.nn.Identity()
+
+        self.l0 = torch.nn.Sequential(
+            torch.nn.LSTM(hidden_dim, hidden_dim),
+        )
+        self.l1 = torch.nn.Sequential(
+            torch.nn.LSTM(hidden_dim, hidden_dim),
+        )
+        self.decoder = torch.nn.Linear(hidden_dim, out_dim)
+
+
+    def forward(self, segment_sizes, features, params=None):
+        n_seg = segment_sizes.shape[0]
+        device = features.device
+
+        segment_sizes = segment_sizes.long()
+
+        features = self.segment_encoder(
+            features
+        )
+        segment_indices = torch.repeat_interleave(
+            torch.arange(n_seg, device=device), segment_sizes
+        )
+
+        n_dim = features.shape[1]
+        segment_sum = torch.scatter_add(
+            torch.zeros((n_seg, n_dim), dtype=features.dtype, device=device),
+            0,
+            segment_indices.view(-1, 1).expand(-1, n_dim),
+            features,
+        )
+        output = self.norm(segment_sum)
+        output = output[:, None]
+        lstm_output, (hidden, cell)  = self.l0(output)
+        # lstm_output, (hidden, cell) = self.l1(lstm_output, hidden, cell)
+        output = self.decoder(
+            lstm_output
+        ).squeeze()
+
+        return output
+
+
 
 class MHAModule(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim, num_heads, out_dim, add_sigmoid=False):
@@ -251,6 +303,10 @@ def make_net(params):
             params['in_dim'], params['hidden_dim'], params['num_heads'], params['out_dim'],
             add_sigmoid=params['add_sigmoid']
         )
+    elif params["type"] == "LSTM":
+        return LSTMModuel(
+            params["in_dim"], params["hidden_dim"], params["out_dim"],
+        )
     else:
         raise ValueError("Invalid type: " + params["type"])
 
@@ -273,7 +329,7 @@ class MLPModelInternal:
         print(device)
         # Common parameters
         self.net_params = {
-            "type": "SegmentSumMLP",
+            "type": "LSTM",
             "in_dim": 164 + (160 if use_workload_embedding else 0),
             "hididen_dim": 256,
             "out_dim": 1,
