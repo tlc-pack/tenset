@@ -210,41 +210,33 @@ class LSTMModuel(torch.nn.Module):
 
         self.norm = torch.nn.Identity()
 
+        self.lstm = torch.nn.LSTM(hidden_dim, hidden_dim)
         self.l0 = torch.nn.Sequential(
-            torch.nn.LSTM(hidden_dim, hidden_dim),
+            torch.nn.Linear(hidden_dim, hidden_dim),
+            torch.nn.ReLU(),
         )
         self.l1 = torch.nn.Sequential(
-            torch.nn.LSTM(hidden_dim, hidden_dim),
+            torch.nn.Linear(hidden_dim, hidden_dim),
+            torch.nn.ReLU(),
         )
         self.decoder = torch.nn.Linear(hidden_dim, out_dim)
 
 
     def forward(self, segment_sizes, features, params=None):
-        n_seg = segment_sizes.shape[0]
-        device = features.device
-
-        segment_sizes = segment_sizes.long()
-
         features = self.segment_encoder(
             features
         )
-        segment_indices = torch.repeat_interleave(
-            torch.arange(n_seg, device=device), segment_sizes
-        )
 
-        n_dim = features.shape[1]
-        segment_sum = torch.scatter_add(
-            torch.zeros((n_seg, n_dim), dtype=features.dtype, device=device),
-            0,
-            segment_indices.view(-1, 1).expand(-1, n_dim),
-            features,
-        )
-        output = self.norm(segment_sum)
-        output = output[:, None]
-        lstm_output, (hidden, cell)  = self.l0(output)
-        # lstm_output, (hidden, cell) = self.l1(lstm_output, hidden, cell)
+        features = torch.split(features, list(np.array(segment_sizes)))
+        features = torch.nn.utils.rnn.pad_sequence(features)
+
+        lstm_output, _  = self.lstm(features)
+        output = self.norm(lstm_output)
+        output = self.l0(output) + output
+        output = self.l1(output) + output
+
         output = self.decoder(
-            lstm_output
+            output
         ).squeeze()
 
         return output
@@ -830,7 +822,12 @@ class LambdaRankLoss(torch.nn.Module):
         return torch.abs(torch.pow(D[:, :, None], -1.) - torch.pow(D[:, None, :], -1.)) * torch.abs(
             G[:, :, None] - G[:, None, :])
 
-    def forward(self, preds, labels, k=None, eps=1e-10, mu=10., sigma=1., device="cuda:0"):
+    def forward(self, preds, labels, k=None, eps=1e-10, mu=10., sigma=1., device=None):
+        if device is None:
+            if torch.cuda.device_count():
+                device = 'cuda:0'
+            else:
+                device = 'cpu'
         preds = preds[None, :]
         labels = labels[None, :]
         y_pred = preds.clone()
