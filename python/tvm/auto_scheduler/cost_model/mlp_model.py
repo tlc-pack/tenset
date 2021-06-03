@@ -227,11 +227,15 @@ class LSTMModuel(torch.nn.Module):
             features
         )
 
-        features = torch.split(features, list(np.array(segment_sizes)))
-        features = torch.nn.utils.rnn.pad_sequence(features)
+        seqs = []
+        ct = 0
+        for seg_size in segment_sizes:
+            seqs.append(features[ct: ct + seg_size])
+            ct += seg_size
+        output = torch.nn.utils.rnn.pad_sequence(seqs)
 
-        lstm_output, _  = self.lstm(features)
-        output = self.norm(lstm_output)
+        output, (h, c)  = self.lstm(output)
+        output = self.norm(output)
         output = self.l0(output) + output
         output = self.l1(output) + output
 
