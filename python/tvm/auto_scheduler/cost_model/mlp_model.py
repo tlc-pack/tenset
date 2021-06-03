@@ -235,6 +235,7 @@ class LSTMModuel(torch.nn.Module):
         output = torch.nn.utils.rnn.pad_sequence(seqs)
 
         output, (h, c)  = self.lstm(output)
+        output = torch.sum(output, dim=0)
         output = self.norm(output)
         output = self.l0(output) + output
         output = self.l1(output) + output
