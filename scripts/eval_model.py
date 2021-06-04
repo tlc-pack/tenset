@@ -121,8 +121,6 @@ def eval_cost_model_on_log_file(model, log_file, network_key, target, top_ks):
 
 
 
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-file", type=str)
@@ -150,10 +148,20 @@ if __name__ == "__main__":
 
 
     top_ks = [1, 5]
+    top_1_total = []
+    top_5_total = []
     for network_key in network_keys:
         latencies, best_latency = eval_cost_model_on_network(model, network_key, target, top_ks)
         for top_k, latency in zip(top_ks, latencies):
             print(f"Network: {network_key}\tTop-{top_k} score: {best_latency / latency}")
+
+        top_1_total.append(best_latency/latencies[0])
+        print(f"top 1 score: {best_latency/latencies[0]}")
+        top_5_total.append(best_latency / latencies[1])
+        print(f"top 5 score: {best_latency / latencies[1]}")
+
+    print(f"average top 1 score is {sum(top_1_total) / len(top_1_total)}")
+    print(f"average top 5 score is {sum(top_5_total) / len(top_5_total)}")
 
     if args.log_file:
         if args.log_file_network == "resnet_50":
