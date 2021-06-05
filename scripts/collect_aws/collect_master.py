@@ -32,12 +32,12 @@ if __name__ == "__main__":
         host_name = f"c64_{i:02d}"
 
         # fetch code
-        ssh_run(host_name, "cd tvm-cost-model; git reset --hard 15691e2d; git pull;")
+        ssh_run(host_name, "cd tenset; git reset --hard 15691e2d; git pull;")
 
         # run collection
         worker_commond = "source ~/.bashrc; cd tenset/scripts; "\
                          "PYTHONPATH=~/tenset/python python3 collect_aws/collect_worker.py "\
-                        f"--start-idx {i} --end-idx {n_tasks} --step-idx {n_machines}"
+                        f"--start-idx {i} --end-idx {n_tasks} --step-idx {n_machines} "\
                         f"--target '{target}'"
         ssh_tmux_run(host_name, worker_commond)
 
