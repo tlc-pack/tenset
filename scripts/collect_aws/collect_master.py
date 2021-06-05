@@ -19,28 +19,25 @@ def ssh_tmux_run(host, cmd):
     ssh_run(host, cmd)
 
 
-n_tasks = 1577
+n_tasks = 2308
 n_machines = 50
 tasks_per_machine = (n_tasks + n_machines - 1) // n_machines
 
 if __name__ == "__main__":
-    target = "llvm -mcpu=core-avx2 -model=e5-2666"
+    target = "llvm -mtriple=aarch64-linux-gnu -mattr=+neon,+v8.2a,+dotprod -model=graviton2"
 
     print(f"Tasks_per_machine: {tasks_per_machine}")
 
     for i in tqdm(range(n_machines)):
-        host_name = f"c44X_{i:02d}"
-        print(host_name)
-
-        start_idx = i * tasks_per_machine
-        end_idx = (i + 1) * tasks_per_machine
+        host_name = f"c64_{i:02d}"
 
         # fetch code
-        ssh_run(host_name, "cd tvm-cost-model; git reset --hard 6d80e45af5; git pull;")
+        ssh_run(host_name, "cd tvm-cost-model; git reset --hard 15691e2d; git pull;")
 
         # run collection
-        worker_commond = "source ~/.bashrc; cd tvm-cost-model/scripts; "\
-                         "PYTHONPATH=~/tvm-cost-model/python python3 collect_aws/collect_worker.py "\
-                        f"--start-idx {start_idx} --end-idx {end_idx} --target '{target}'"
+        worker_commond = "source ~/.bashrc; cd tenset/scripts; "\
+                         "PYTHONPATH=~/tenset/python python3 collect_aws/collect_worker.py "\
+                        f"--start-idx {i} --end-idx {n_tasks} --step-idx {n_machines}"
+                        f"--target '{target}'"
         ssh_tmux_run(host_name, worker_commond)
 
