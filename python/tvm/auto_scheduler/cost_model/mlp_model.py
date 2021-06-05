@@ -38,6 +38,8 @@ class SegmentDataLoader:
             batch_size,
             device,
             use_workload_embedding,
+            use_target_embedding,
+            target_id_dict,
             fea_norm_vec=None,
             shuffle=False,
     ):
@@ -55,13 +57,25 @@ class SegmentDataLoader:
         for task in dataset.features:
             throughputs = dataset.throughputs[task]
             self.labels[ct: ct + len(throughputs)] = torch.tensor(throughputs)
+            task_embedding = None
+            if use_workload_embedding or use_target_embedding:
+                task_embedding = np.zeros(
+                    160 + len(target_id_dict),
+                    dtype=np.float32,
+                )
 
-            if use_workload_embedding:
-                #task_embedding = get_workload_embedding(task.workload_key)
-                task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                task_embedding = task_embeddings[json.loads(task.workload_key)[0]]
-            else:
-                task_embedding = None
+                if use_workload_embedding:
+                    #task_embedding = get_workload_embedding(task.workload_key)
+                    tmp_task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
+                    tmp_task_embedding = tmp_task_embeddings[json.loads(task.workload_key)[0]]
+                    task_embedding[:160] = tmp_task_embedding
+
+                if use_target_embedding:
+                    target_id = target_id_dict.get(
+                        str(task.target), np.random.randint(0, len(target_id_dict))
+                    )
+                    task_embedding[160+target_id] = 1.0
+
 
             for row in dataset.features[task]:
                 self.segment_sizes[ct] = len(row)
@@ -235,7 +249,6 @@ class LSTMModuel(torch.nn.Module):
         output = torch.nn.utils.rnn.pad_sequence(seqs)
 
         output, (h, c)  = self.lstm(output)
-        print(h[0].shape)
         output = self.norm(h[0])
         output = self.l0(output) + output
         output = self.l1(output) + output
@@ -316,7 +329,7 @@ def moving_average(average, update):
 
 
 class MLPModelInternal:
-    def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True,
+    def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=True,
                  loss_type='lambdaRankLoss'):
         if device is None:
             if torch.cuda.device_count():
@@ -326,7 +339,7 @@ class MLPModelInternal:
         print(device)
         # Common parameters
         self.net_params = {
-            "type": "LSTM",
+            "type": "SegmentSumMLP",
             "in_dim": 164 + (160 if use_workload_embedding else 0),
             "hidden_dim": 256,
             "out_dim": 1,
@@ -340,6 +353,7 @@ class MLPModelInternal:
         #    "out_dim": 1,
         # }
 
+        self.target_id_dict = {}
         self.loss_type = loss_type
         self.n_epoch = 100
         self.lr = 7e-4
@@ -484,8 +498,13 @@ class MLPModelInternal:
 
     def _fit_a_model(self, train_set, valid_set=None, valid_train_set=None, n_epoch=None):
         print("=" * 60 + "\nFit a net. Train size: %d" % len(train_set))
+
+        for task in train_set.tasks():
+            self.register_new_task(task)
+
         train_loader = SegmentDataLoader(
-            train_set, self.batch_size, self.device, self.use_workload_embedding, shuffle=True
+            train_set, self.batch_size, self.device, self.use_workload_embedding, self.use_target_embedding,
+            self.target_id_dict, shuffle=True
         )
 
         # Normalize features
@@ -495,8 +514,10 @@ class MLPModelInternal:
             train_loader.normalize(self.fea_norm_vec)
 
         if valid_set:
-            valid_loader = SegmentDataLoader(valid_set, self.infer_batch_size, self.device,
-                                             self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec)
+            for task in valid_set.tasks():
+                self.register_new_task(task)
+            valid_loader = SegmentDataLoader(valid_set, self.infer_batch_size, self.device, self.use_workload_embedding,
+                                             self.use_target_embedding, self.target_id_dict,fea_norm_vec=self.fea_norm_vec)
 
         n_epoch = n_epoch or self.n_epoch
         early_stop = n_epoch // 6
@@ -553,6 +574,13 @@ class MLPModelInternal:
                 break
 
         return net
+
+    def register_new_task(self, task):
+        target = str(task.target)
+
+        if target not in self.target_id_dict:
+            self.target_id_dict[target] = len(self.target_id_dict)
+
 
     def _fine_tune_a_model(self, model, train_set, valid_set=None, verbose=1):
         if verbose >= 1:
@@ -735,14 +763,14 @@ class MLPModelInternal:
 
     def load(self, filename):
         if self.device == 'cpu':
-            self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec = \
+            self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec, self.target_id_dict = \
                 CPU_Unpickler(open(filename, 'rb')).load()
         else:
-            self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec = \
+            self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec, self.target_id_dict = \
                 pickle.load(open(filename, 'rb'))
 
     def save(self, filename):
-        pickle.dump((self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec),
+        pickle.dump((self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec, self.target_id_dict),
                     open(filename, 'wb'))
 
 
