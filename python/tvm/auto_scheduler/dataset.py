@@ -233,7 +233,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1, 
             measurement_cnt = 0
             measure_records = {}
             for inp, res in RecordReader(filename):
-                if measurement_cnt >= n_measurement:
+                if n_measurement and measurement_cnt >= n_measurement:
                     break
                 task = input_to_learning_task(inp)
                 if task not in measure_records:
