@@ -169,24 +169,32 @@ def preset_exclude(preset=None):
 
     return network_keys
 
-def get_hold_out_task(target):
+def get_hold_out_task(target, network=None):
     network_keys = []
 
-    # resnet_18 and resnet_50
-    for layer in [18, 50]:
-        network_keys.append((f'resnet_{layer}',[(1, 3, 224, 224)]))
+    if network == "resnet-50":
+        for batch_size in [1, 4, 8]:
+            for image_size in [224, 240, 256]:
+                for layer in [50]:
+                    network_keys.append((f'resnet_{layer}',
+                                         [(batch_size, 3, image_size, image_size)]))
+    else:
+        # resnet_18 and resnet_50
+        for layer in [18, 50]:
+            network_keys.append((f'resnet_{layer}', [(1, 3, 224, 224)]))
 
-    # mobilenet_v2
-    network_keys.append(('mobilenet_v2', [(1, 3, 224, 224)]))
+        # mobilenet_v2
+        network_keys.append(('mobilenet_v2', [(1, 3, 224, 224)]))
 
-    # resnext
-    network_keys.append(('resnext_50', [(1, 3, 224, 224)]))
+        # resnext
+        network_keys.append(('resnext_50', [(1, 3, 224, 224)]))
 
-    # bert
-    for scale in ['tiny', 'base']:
-        network_keys.append((f'bert_{scale}', [(1, 128)]))
+        # bert
+        for scale in ['tiny', 'base']:
+            network_keys.append((f'bert_{scale}', [(1, 128)]))
 
-    exists = set()  # a set to remove redundant tasks
+
+    exists = set()
     print("hold out...")
     for network_key in tqdm(network_keys):
         # Read tasks of the network
@@ -210,7 +218,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out-file", type=str, default='dataset.pkl')
     parser.add_argument("--min-sample-size", type=int, default=48)
-    parser.add_argument("--hold-out", action='store_true')
+    parser.add_argument("--hold-out", type=str)
     parser.add_argument("--n-task", type=int)
     parser.add_argument("--n-measurement", type=int)
 
@@ -220,7 +228,7 @@ if __name__ == "__main__":
 
     if args.hold_out:
         target = tvm.target.Target(args.target)
-        to_be_excluded = get_hold_out_task(target)
+        to_be_excluded = get_hold_out_task(target, args.hold_out)
         print(len(to_be_excluded))
         network_keys = preset_exclude()
 
@@ -255,7 +263,7 @@ if __name__ == "__main__":
             # Read tasks of the network
             task_info_filename = get_task_info_filename(network_key, target)
             tasks, _ = pickle.load(open(task_info_filename, "rb"))
-            random.shuffle(tasks)
+            # random.shuffle(tasks)
             for task in tasks:
                 if task.workload_key not in to_be_excluded and task_cnt < args.n_task and task.workload_key not in exists:
                     exists.add(task.workload_key)
