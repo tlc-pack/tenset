@@ -1,4 +1,16 @@
-"""Measure all programs"""
+"""Measure all programs
+
+Usage:
+python3 measure_programs.py --target "llvm -mcpu=core-avx2 -model=e5-2666"
+python3 measure_programs.py --target "llvm -mcpu=core-avx2 -model=e5-2673"
+python3 measure_programs.py --target "llvm -mcpu=core-avx2 -model=epyc-7452"
+python3 measure_programs.py --target "llvm -mcpu=core-avx2 -model=epyc-7r32"
+python3 measure_programs.py --target "llvm -mcpu=core-avx2 -model=i7-8750h"
+python3 measure_programs.py --target "llvm -mcpu=skylake-avx512 -model=platinum-8124m"
+python3 measure_programs.py --target "llvm -mcpu=skylake-avx512 -model=platinum-8272l"
+python3 measure_programs.py --target "llvm -mtriple=aarch64-linux-gnu -mattr=+neon,+v8.2a,+dotprod -model=graviton2"
+python3 measure_programs.py --target "llvm -mtriple=aarch64-linux-gnu -mattr=+neon -model=a72" --other-args "--rpc-device-key rasp4b-64 --rpc-host kraken --rpc-port 9191 --rpc-n-parallel 4"
+"""
 
 import argparse
 import glob
