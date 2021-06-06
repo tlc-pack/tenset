@@ -37,9 +37,9 @@ class SegmentDataLoader:
             dataset,
             batch_size,
             device,
-            use_workload_embedding,
-            use_target_embedding,
-            target_id_dict,
+            use_workload_embedding=True,
+            use_target_embedding=False,
+            target_id_dict={},
             fea_norm_vec=None,
             shuffle=False,
     ):
@@ -383,6 +383,7 @@ class MLPModelInternal:
         self.few_shot_learning = few_shot_learning
         self.fea_norm_vec = None
         self.use_workload_embedding = use_workload_embedding
+        self.use_target_embedding = use_target_embedding
 
         # Hyperparameters for self.fit_base
         self.batch_size = 512
@@ -434,6 +435,9 @@ class MLPModelInternal:
                 self.local_model[task] = local_model
         elif self.few_shot_learning == "plus_mix_task":
             self.net_params["hidden_dim"] = 128
+            self.loss_type = 'rmse'
+            self.loss_func = torch.nn.MSELoss()
+            self.net_params['add_sigmoid'] = True
             base_preds = self._predict_a_dataset(self.base_model, train_set)
             diff_train_set = Dataset()
             for task in train_set.tasks():
@@ -620,7 +624,7 @@ class MLPModelInternal:
 
                 if self.loss_type == "rmse":
                     loss_msg = "Train RMSE: %.4f\tValid RMSE: %.4f" % (np.sqrt(train_loss), np.sqrt(valid_loss))
-                elif self.loss_type == "pairwise_rank":
+                elif self.loss_type in ["rankNetLoss", "lambdaRankLoss", "listNetLoss"]:
                     loss_msg = "Train Loss: %.4f\tValid Loss: %.4f" % (train_loss, valid_loss)
                 print("Fine-tune step: %d\t%s\tTime: %.1f" % (step, loss_msg, time.time() - tic,))
 
@@ -763,14 +767,14 @@ class MLPModelInternal:
 
     def load(self, filename):
         if self.device == 'cpu':
-            self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec, self.target_id_dict = \
+            self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec = \
                 CPU_Unpickler(open(filename, 'rb')).load()
         else:
-            self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec, self.target_id_dict = \
+            self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec = \
                 pickle.load(open(filename, 'rb'))
 
     def save(self, filename):
-        pickle.dump((self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec, self.target_id_dict),
+        pickle.dump((self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec),
                     open(filename, 'wb'))
 
 
