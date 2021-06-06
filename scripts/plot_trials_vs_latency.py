@@ -255,14 +255,34 @@ def make_beam_plot(network_args, log_file, target):
 
 def make_all_best_plot(network_args, log_file, target):
     mean_inf_time = []
-    for i in range(0, 100):
+    timestamp = []
+    for i in range(0, 100, 2):
         print(f"Each task is measured {i} times")
+        total_time = 0
+        counter_per_task = {}
+        start_time_per_task = {}
+        for inp, res in records:
+            task = input_to_learning_task(inp)
+            if task not in counter_per_task:
+                counter_per_task[task] = 0
+                start_time_per_task[task] = res.timestamp
+            if counter_per_task[task] == i:
+                cur_task_time = res.timestamp - start_time_per_task[task]
+                total_time += cur_task_time
+                continue
+            elif counter_per_task[task] > i:
+                continue
+            else:
+                counter_per_task[task] += 1
+        timestamp.append(total_time)
         cost = measure(log_file, network_args, target, n_line_per_task=i)
         mean_inf_time.append(cost)
 
+    print(mean_inf_time)
+    print(timestamp)
     plt.plot(list(range(1, 100)), mean_inf_time[1:])
     plt.savefig(f"{network_args['network']}_trials_vs_latency_all_best.png")
-    print(mean_inf_time)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
