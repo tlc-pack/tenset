@@ -257,13 +257,13 @@ def make_beam_plot(network_args, log_file, target):
 def make_all_best_plot(network_args, log_file, target):
     mean_inf_time = []
     timestamp = []
-    records = log_file
-    if isinstance(records, pathlib.Path):
-        records = str(records)
-    if isinstance(records, str):
-        records = load_records(records)
     for i in range(1, 100, 2):
         print(f"Each task is measured {i} times")
+        records = log_file
+        if isinstance(records, pathlib.Path):
+            records = str(records)
+        if isinstance(records, str):
+            records = load_records(records)
         total_time = 0
         prev_task_end_time = 0
         total_search_time = 0
@@ -272,12 +272,12 @@ def make_all_best_plot(network_args, log_file, target):
         for inp, res in records:
             task = input_to_learning_task(inp)
             if task not in counter_per_task:
-                total_search_time += res.timestamp - prev_task_end_time
+                if prev_task_end_time != 0:
+                    total_search_time += res.timestamp - prev_task_end_time
                 counter_per_task[task] = 0
                 start_time_per_task[task] = res.timestamp
             if counter_per_task[task] == i:
-                cur_task_time = res.timestamp - start_time_per_task[task]
-                total_time += cur_task_time
+                total_time += res.timestamp - start_time_per_task[task]
             counter_per_task[task] += 1
             if counter_per_task[task] == 100:
                 prev_task_end_time = res.timestamp
@@ -285,8 +285,8 @@ def make_all_best_plot(network_args, log_file, target):
         total_time += total_search_time
         print(f"total search time: {total_search_time}")
         timestamp.append(total_time)
-        # cost = measure(log_file, network_args, target, n_line_per_task=i)
-        # mean_inf_time.append(cost)
+        cost = measure(log_file, network_args, target, n_line_per_task=i)
+        mean_inf_time.append(cost)
 
     print(mean_inf_time)
     print(timestamp)
