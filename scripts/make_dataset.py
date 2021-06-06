@@ -173,6 +173,7 @@ def get_hold_out_task(target, network=None):
     network_keys = []
 
     if network == "resnet-50":
+        print("precluding all tasks in resnet-50")
         for batch_size in [1, 4, 8]:
             for image_size in [224, 240, 256]:
                 for layer in [50]:
@@ -213,7 +214,7 @@ if __name__ == "__main__":
     parser.add_argument("--logs", nargs="+", type=str)
     parser.add_argument("--preset", type=str, choices=['batch-size-1', 'no-resnet_50', 'no-mobilenet_v2',
                                                        'no-resnext_50', 'no-bert_tiny', 'no-bert_base'])
-    parser.add_argument("--target", type=str, default="llvm -model=platinum-8272")
+    parser.add_argument("--target", nargs="+", type=str, default="llvm -model=platinum-8272")
     parser.add_argument("--sample-in-files", type=int)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out-file", type=str, default='dataset.pkl')
@@ -227,28 +228,29 @@ if __name__ == "__main__":
     random.seed(args.seed)
 
     if args.hold_out:
-        target = tvm.target.Target(args.target)
-        to_be_excluded = get_hold_out_task(target, args.hold_out)
-        print(len(to_be_excluded))
-        network_keys = preset_exclude()
-
-        all_tasks = []
-        exists = set()  # a set to remove redundant tasks
-        print("Load tasks...")
-        for network_key in tqdm(network_keys):
-            # Read tasks of the network
-            task_info_filename = get_task_info_filename(network_key, target)
-            tasks, _ = pickle.load(open(task_info_filename, "rb"))
-            for task in tasks:
-                if task.workload_key not in to_be_excluded and task.workload_key not in exists:
-                    exists.add(task.workload_key)
-                    all_tasks.append(task)
-
-        # Convert tasks to filenames
         files = []
-        for task in all_tasks:
-            filename = get_measure_record_filename(task, target)
-            files.append(filename)
+        for target in args.target:
+            target = tvm.target.Target(args.target)
+            to_be_excluded = get_hold_out_task(target, args.hold_out)
+            network_keys = preset_exclude()
+            
+            print("Load tasks...")
+            print(f"target: {target}")
+            all_tasks = []
+            exists = set()  # a set to remove redundant tasks
+            for network_key in tqdm(network_keys):
+                # Read tasks of the network
+                task_info_filename = get_task_info_filename(network_key, target)
+                tasks, _ = pickle.load(open(task_info_filename, "rb"))
+                for task in tasks:
+                    if task.workload_key not in to_be_excluded and task.workload_key not in exists:
+                        exists.add(task.workload_key)
+                        all_tasks.append(task)
+
+            # Convert tasks to filenames
+            for task in all_tasks:
+                filename = get_measure_record_filename(task, target)
+                files.append(filename)
 
     elif args.n_task:
         target = tvm.target.Target(args.target)
@@ -276,9 +278,7 @@ if __name__ == "__main__":
             filename = get_measure_record_filename(task, target)
             files.append(filename)
 
-
     else:
-
         if args.preset is not None:
             # Only use tasks from networks with batch-size = 1
             # Load tasks from networks
