@@ -262,7 +262,7 @@ def make_all_best_plot(network_args, log_file, target):
         records = str(records)
     if isinstance(records, str):
         records = load_records(records)
-    for i in range(0, 100, 2):
+    for i in range(1, 100, 2):
         print(f"Each task is measured {i} times")
         total_time = 0
         prev_task_end_time = 0
@@ -278,13 +278,9 @@ def make_all_best_plot(network_args, log_file, target):
             if counter_per_task[task] == i:
                 cur_task_time = res.timestamp - start_time_per_task[task]
                 total_time += cur_task_time
-                counter_per_task[task] += 1
+            counter_per_task[task] += 1
+            if counter_per_task[task] == 100:
                 prev_task_end_time = res.timestamp
-                continue
-            elif counter_per_task[task] > i:
-                continue
-            else:
-                counter_per_task[task] += 1
 
         total_time += total_search_time
         print(f"total search time: {total_search_time}")
