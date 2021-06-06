@@ -256,8 +256,9 @@ def make_beam_plot(network_args, log_file, target):
 def make_all_best_plot(network_args, log_file, target):
     mean_inf_time = []
     timestamp = []
-    if isinstance(log_file, pathlib.Path):
-        records = str(log_file)
+    records = log_file
+    if isinstance(records, pathlib.Path):
+        records = str(records)
     if isinstance(records, str):
         records = load_records(records)
     for i in range(0, 100, 2):
