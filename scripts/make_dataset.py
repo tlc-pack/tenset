@@ -230,10 +230,10 @@ if __name__ == "__main__":
     if args.hold_out:
         files = []
         for target in args.target:
-            target = tvm.target.Target(args.target)
+            target = tvm.target.Target(target)
             to_be_excluded = get_hold_out_task(target, args.hold_out)
             network_keys = preset_exclude()
-            
+
             print("Load tasks...")
             print(f"target: {target}")
             all_tasks = []
@@ -253,7 +253,7 @@ if __name__ == "__main__":
                 files.append(filename)
 
     elif args.n_task:
-        target = tvm.target.Target(args.target)
+        target = tvm.target.Target(args.target[0])
         to_be_excluded = get_hold_out_task(target)
         network_keys = preset_exclude()
 
@@ -288,7 +288,7 @@ if __name__ == "__main__":
                 print("precluding")
                 network_keys = preset_exclude(args.preset)
 
-            target = tvm.target.Target(args.target)
+            target = tvm.target.Target(args.target[0])
             all_tasks = []
             exists = set()   # a set to remove redundant tasks
             print("Load tasks...")
