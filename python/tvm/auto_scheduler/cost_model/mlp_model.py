@@ -329,7 +329,7 @@ def moving_average(average, update):
 
 
 class MLPModelInternal:
-    def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=True,
+    def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=False,
                  loss_type='lambdaRankLoss'):
         if device is None:
             if torch.cuda.device_count():
@@ -577,6 +577,8 @@ class MLPModelInternal:
                 print("Early stop. Best epoch: %d" % best_epoch)
                 break
 
+            self.save("tmp_mlp.pkl")
+
         return net
 
     def register_new_task(self, task):
@@ -655,7 +657,7 @@ class MLPModelInternal:
         preds = []
         for segment_sizes, features, labels in SegmentDataLoader(
                 tmp_set, self.infer_batch_size, self.device,
-                self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec,
+                self.use_workload_embedding, self.use_target_embedding, self.target_id_dict, fea_norm_vec=self.fea_norm_vec,
         ):
             preds.append(model(segment_sizes, features))
         return torch.cat(preds).detach().cpu().numpy()
