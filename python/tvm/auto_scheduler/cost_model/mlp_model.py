@@ -59,22 +59,24 @@ class SegmentDataLoader:
             self.labels[ct: ct + len(throughputs)] = torch.tensor(throughputs)
             task_embedding = None
             if use_workload_embedding or use_target_embedding:
+                #print(target_id_dict)
+                #print(use_target_embedding)
                 task_embedding = np.zeros(
-                    160 + len(target_id_dict),
+                    9 + len(target_id_dict),
                     dtype=np.float32,
                 )
 
                 if use_workload_embedding:
-                    #task_embedding = get_workload_embedding(task.workload_key)
-                    tmp_task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                    tmp_task_embedding = tmp_task_embeddings[json.loads(task.workload_key)[0]]
-                    task_embedding[:160] = tmp_task_embedding
+                    tmp_task_embedding = get_workload_embedding(task.workload_key)
+                    #tmp_task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
+                    #tmp_task_embedding = tmp_task_embeddings[json.loads(task.workload_key)[0]]
+                    task_embedding[:9] = tmp_task_embedding
 
                 if use_target_embedding:
                     target_id = target_id_dict.get(
                         str(task.target), np.random.randint(0, len(target_id_dict))
                     )
-                    task_embedding[160+target_id] = 1.0
+                    task_embedding[9+target_id] = 1.0
 
 
             for row in dataset.features[task]:
@@ -340,7 +342,7 @@ class MLPModelInternal:
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
-            "in_dim": 164 + (160 if use_workload_embedding else 0),
+            "in_dim": 164 + (9 if use_workload_embedding else 0) + (3 if use_workload_embedding else 0),
             "hidden_dim": 256,
             "out_dim": 1,
         }
@@ -383,6 +385,7 @@ class MLPModelInternal:
         self.few_shot_learning = few_shot_learning
         self.fea_norm_vec = None
         self.use_workload_embedding = use_workload_embedding
+        self.use_target_embedding = use_target_embedding
 
         # Hyperparameters for self.fit_base
         self.batch_size = 512
@@ -651,7 +654,8 @@ class MLPModelInternal:
         preds = []
         for segment_sizes, features, labels in SegmentDataLoader(
                 tmp_set, self.infer_batch_size, self.device,
-                self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec,
+                self.use_workload_embedding, self.use_target_embedding,
+            self.target_id_dict, fea_norm_vec=self.fea_norm_vec,
         ):
             preds.append(model(segment_sizes, features))
         return torch.cat(preds).detach().cpu().numpy()
