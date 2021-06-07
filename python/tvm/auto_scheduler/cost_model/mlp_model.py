@@ -59,7 +59,12 @@ class SegmentDataLoader:
             self.labels[ct: ct + len(throughputs)] = torch.tensor(throughputs)
             task_embedding = None
             if use_workload_embedding or use_target_embedding:
+<<<<<<< HEAD
                 target_id_dict = {}
+=======
+                #print(target_id_dict)
+                #print(use_target_embedding)
+>>>>>>> 7f051e24468b293f73a0e0cf1a33bd93596574b6
                 task_embedding = np.zeros(
                     9 + len(target_id_dict),
                     dtype=np.float32,
@@ -75,7 +80,7 @@ class SegmentDataLoader:
                     target_id = target_id_dict.get(
                         str(task.target), np.random.randint(0, len(target_id_dict))
                     )
-                    task_embedding[160+target_id] = 1.0
+                    task_embedding[9+target_id] = 1.0
 
 
             for row in dataset.features[task]:
@@ -578,6 +583,8 @@ class MLPModelInternal:
                 print("Early stop. Best epoch: %d" % best_epoch)
                 break
 
+            self.save("tmp_mlp.pkl")
+
         return net
 
     def register_new_task(self, task):
@@ -656,7 +663,7 @@ class MLPModelInternal:
         preds = []
         for segment_sizes, features, labels in SegmentDataLoader(
                 tmp_set, self.infer_batch_size, self.device,
-                self.use_workload_embedding, fea_norm_vec=self.fea_norm_vec,
+                self.use_workload_embedding, self.use_target_embedding, self.target_id_dict, fea_norm_vec=self.fea_norm_vec,
         ):
             preds.append(model(segment_sizes, features))
         return torch.cat(preds).detach().cpu().numpy()
