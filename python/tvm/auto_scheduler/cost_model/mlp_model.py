@@ -59,16 +59,17 @@ class SegmentDataLoader:
             self.labels[ct: ct + len(throughputs)] = torch.tensor(throughputs)
             task_embedding = None
             if use_workload_embedding or use_target_embedding:
+                target_id_dict = {}
                 task_embedding = np.zeros(
-                    160 + len(target_id_dict),
+                    9 + len(target_id_dict),
                     dtype=np.float32,
                 )
 
                 if use_workload_embedding:
-                    #task_embedding = get_workload_embedding(task.workload_key)
-                    tmp_task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                    tmp_task_embedding = tmp_task_embeddings[json.loads(task.workload_key)[0]]
-                    task_embedding[:160] = tmp_task_embedding
+                    tmp_task_embedding = get_workload_embedding(task.workload_key)
+                    #tmp_task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
+                    #tmp_task_embedding = tmp_task_embeddings[json.loads(task.workload_key)[0]]
+                    task_embedding[:9] = tmp_task_embedding
 
                 if use_target_embedding:
                     target_id = target_id_dict.get(
@@ -329,7 +330,7 @@ def moving_average(average, update):
 
 
 class MLPModelInternal:
-    def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=True,
+    def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=False,
                  loss_type='lambdaRankLoss'):
         if device is None:
             if torch.cuda.device_count():
@@ -340,7 +341,7 @@ class MLPModelInternal:
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
-            "in_dim": 164 + (160 if use_workload_embedding else 0),
+            "in_dim": 164 + (9 if use_workload_embedding else 0),
             "hidden_dim": 256,
             "out_dim": 1,
         }

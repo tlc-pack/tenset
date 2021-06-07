@@ -136,9 +136,9 @@ def beam_choose(global_search_space, selected_candidates):
                     results.append(best[2])
     return inputs, results
 
-def measure(tmp_file, network_args, target, n_line_per_task=None):
+def measure(tmp_file, network_args, target, n_line_per_task=None, n_lines=None):
     mod, params, inputs = get_network(network_args)
-    with auto_scheduler.ApplyHistoryBest(tmp_file, n_line_per_task=n_line_per_task):
+    with auto_scheduler.ApplyHistoryBest(tmp_file, n_lines=n_lines, n_line_per_task=n_line_per_task):
         with tvm.transform.PassContext(
                 opt_level=3, config={"relay.backend.use_auto_scheduler": True}
         ):
@@ -257,7 +257,7 @@ def make_beam_plot(network_args, log_file, target):
 def make_all_best_plot(network_args, log_file, target):
     mean_inf_time = []
     timestamp = []
-    for i in range(1, 100, 2):
+    for i in range(6000, 10000, 300):
         print(f"Each task is measured {i} times")
         records = log_file
         if isinstance(records, pathlib.Path):
@@ -266,26 +266,34 @@ def make_all_best_plot(network_args, log_file, target):
             records = load_records(records)
         total_time = 0
         prev_task_end_time = 0
-        total_search_time = 0
-        counter_per_task = {}
-        start_time_per_task = {}
+        #total_search_time = 0
+        #counter_per_task = {}
+        #start_time_per_task = {}
+        cnt = 0
         for inp, res in records:
             task = input_to_learning_task(inp)
-            if task not in counter_per_task:
-                if prev_task_end_time != 0:
-                    total_search_time += res.timestamp - prev_task_end_time
-                counter_per_task[task] = 0
-                start_time_per_task[task] = res.timestamp
-            if counter_per_task[task] == i:
-                total_time += res.timestamp - start_time_per_task[task]
-            counter_per_task[task] += 1
-            if counter_per_task[task] == 100:
+            if prev_task_end_time == 0:
                 prev_task_end_time = res.timestamp
+            if cnt == i:
+                timestamp.append(res.timestamp-prev_task_end_time)
+                print(res.timestamp-prev_task_end_time)
+                break
+            cnt += 1
+        #    if task not in counter_per_task:
+        #        if prev_task_end_time != 0:
+        #            total_search_time += res.timestamp - prev_task_end_time
+        #        counter_per_task[task] = 0
+        #        start_time_per_task[task] = res.timestamp
+        #    if counter_per_task[task] == i:
+        #        total_time += res.timestamp - start_time_per_task[task]
+        #    counter_per_task[task] += 1
+        #    if counter_per_task[task] == 100:
+        #        prev_task_end_time = res.timestamp
 
-        total_time += total_search_time
-        print(f"total search time: {total_search_time}")
-        timestamp.append(total_time)
-        cost = measure(log_file, network_args, target, n_line_per_task=i)
+        #total_time += total_search_time
+        #print(f"total search time: {total_search_time}")
+        #timestamp.append(total_time)
+        cost = measure(log_file, network_args, target, n_lines=i)
         mean_inf_time.append(cost)
 
     print(mean_inf_time)
