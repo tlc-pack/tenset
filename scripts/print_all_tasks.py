@@ -12,7 +12,7 @@ from common import load_and_register_tasks
 
 def print_task(index, task):
     print("=" * 60)
-    print(f"idx: {index}")
+    print(f"Index: {index}")
     print(f"flop_ct: {task.compute_dag.flop_ct}")
     print(f"workload_key: {task.workload_key}")
     print("Compute DAG:")

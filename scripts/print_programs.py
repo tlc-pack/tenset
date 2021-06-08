@@ -2,9 +2,9 @@
 
 Usage:
 # Print all programs
-python3 print_programs.py --filename dataset/to_measure_programs/'([fef3771fbad826271268252d597ca5fa,4,64,768,1,768,768,768,4,64,768,4,64,768],cuda).json'
+python3 print_programs.py --filename 'dataset/measure_records/e5-2673/([12b88bedece6984af589a28b43e0f3c4,1,56,56,64,3,3,64,128,1,1,1,128,1,28,28,128],llvm).json'
 # Print a specific program
-python3 print_programs.py --filename dataset/to_measure_programs/'([fef3771fbad826271268252d597ca5fa,4,64,768,1,768,768,768,4,64,768,4,64,768],cuda).json'
+python3 print_programs.py --filename 'dataset/measure_records/e5-2673/([12b88bedece6984af589a28b43e0f3c4,1,56,56,64,3,3,64,128,1,1,1,128,1,28,28,128],llvm).json' --idx 31
 """
 
 import argparse
@@ -17,10 +17,13 @@ from tvm.auto_scheduler.workload_registry import workload_key_to_tensors
 
 from common import load_and_register_tasks
 
-def print_program(index, inp):
+
+def print_program(index, inp, res):
     inp = recover_measure_input(inp, True)
     print("=" * 60)
-    print(f"idx: {index}")
+    print(f"Index: {index}")
+    print(f"Time cost (second): {res.costs}")
+    print("Program:")
     print(inp.state)
 
 
@@ -33,10 +36,10 @@ if __name__ == "__main__":
     print("Load tasks...")
     tasks = load_and_register_tasks()
 
-    inputs, _ = auto_scheduler.RecordReader(args.filename).read_lines()
+    inputs, results = auto_scheduler.RecordReader(args.filename).read_lines()
     if args.idx is None:
-        for i, inp in enumerate(inputs):
-            print_program(i, inp)
+        for i in range(len(inputs)):
+            print_program(i, inputs[i], results[i])
     else:
-        print_program(args.idx, inputs[args.idx])
+        print_program(args.idx, inputs[args.idx], results[args.idx])
 
