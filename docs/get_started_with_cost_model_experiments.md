@@ -27,7 +27,7 @@ You can choose use either the CPU part or the GPU part.
   - Or you can use the command line
     ```
     pip3 install gdown
-    gdown gdown https://drive.google.com/uc?id=1dlszmTBAXq9c_B7HcXRnBsqWOP76L-Jg
+    gdown https://drive.google.com/uc?id=1dlszmTBAXq9c_B7HcXRnBsqWOP76L-Jg
     ```
 2. Unzip  
   Put `dataset_gpu_v3.2.zip` under `tenset/scripts` and run `unzip dataset_gpu_v3.2.zip`.
