@@ -85,9 +85,11 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
             load_model_file=tuning_args['load_model'])
         policy = 'sketch.%s' % tuning_args['cost_model']
         tuner.tune(tuning_opt, search_policy=policy)
+    else:
+        measure_ctx = None
 
     # Build module
-    with auto_scheduler.ApplyHistoryBest(log_file):
+    with auto_scheduler.ApplyHistoryBest(log_file, n_lines=tuning_args["n_lines"]):
         with tvm.transform.PassContext(
             opt_level=3, config={"relay.backend.use_auto_scheduler": True}
         ):
@@ -138,6 +140,8 @@ if __name__ == "__main__":
 
     # Log file related arguments
     parser.add_argument("--log-file", type=str, help="Write measurement records to this log file")
+    parser.add_argument("--n-lines", type=int,
+                        help="Only use the first n lines of the log file")
     parser.add_argument("--result-file", type=str,
                         help="Save end-to-end latency to this file",
                         default="results.tsv")
@@ -178,6 +182,7 @@ if __name__ == "__main__":
         "run_timeout": args.run_timeout,
         "cost_model": args.cost_model,
         "load_model": args.load_model,
+        "n_lines": args.n_lines,
     }
 
     tune_and_evaluate(network_args, tuning_args, target, args.target_host,
