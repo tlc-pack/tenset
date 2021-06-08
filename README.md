@@ -13,7 +13,7 @@ This repo is based on a fork of [TVM](https://github.com/apache/tvm).
 | ----------------- | -------------- | -------------- |
 | Intel Platinum 8272CL @ 2.60GHz (16 cores)  | Azure D32s\_v4 | AVX-512 |
 | Intel E5-2673 v4 @ 2.30GHz (8 cores) | Azure F16s | AVX-2 |
-| AMD EPYC 7452 @ 2.35GHz (4 cores) | Azure D16as\_v4  & AVX-2 |
+| AMD EPYC 7452 @ 2.35GHz (4 cores) | Azure D16as\_v4 | AVX-2 |
 | ARM Graviton2 (16 cores) | AWS c6g.4xlarge |  Neon |
 | NVIDIA Tesla K80 | AWS p2.xlarge   | Kepler Architecture |
 | NVIDIA Tesla T4  | AWS g4dn.xlarge | Turing Architecture |
