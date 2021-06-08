@@ -5,7 +5,17 @@ TenSet contains 52 million program performance records collected from 6 hardware
 
 This repo is based on a fork of [TVM](https://github.com/apache/tvm).
 
-# Dataset Information
+## Dataset Information
+
+- Statics
+
+| Item | Number |
+| ---- | ------ |
+| Networks | 120 |
+| Hardware Platforms | 6 |
+| Tasks | 13,848 |
+| Measurement records | 51,577,248 |
+
 
 - Hardware Platforms
 
@@ -18,20 +28,29 @@ This repo is based on a fork of [TVM](https://github.com/apache/tvm).
 | NVIDIA Tesla K80 | AWS p2.xlarge   | Kepler Architecture |
 | NVIDIA Tesla T4  | AWS g4dn.xlarge | Turing Architecture |
 
-- Statics
 
-| Item | Number |
-| ---- | ------ |
-| Networks | 120 |
-| Hardware Platforms | 6 |
-| Tasks | 13,848 |
-| Measurement records | 51,577,248 |
-
-# Get Started with the Cost Model Experiments
+## Get Started with the Cost Model Experiments
 See this [tutorial](docs/get_started_with_cost_model_experiments.md).
 
-# Inspect Tasks and Programs in the Dataset
-Follow the above tutorial to download the dataset.
+## Organization
+Follow the above tutorial to download the dataset. The dataset is stored under `tenset/scripts/dataset` folder.
+
+- dataset
+  - `dataset/network_info`: The metadata for networks
+     - `*.relay.pkl`: The relay IR of a network. One network per file.
+         - For example, `(resnet_50,[(1,3,224,224)]).relay.pkl` contains the relay IR of resnet_50 with input shape (1, 3, 224, 224).
+     - `*.task.pkl`: The tasks and their weights in a network. One (network, targte) pair per file.
+         - For example, `((resnet_50,[(1,3,224,224)]),llvm).task.pkl` contains all tasks of resnet_50 on llvm backend.
+     - `all_tasks.pkl`: A file containing all tasks. It is used an an index for all tasks.
+  - `dataset/to_measure_programs`: The generated random programs for measurement.
+     - `*.json`: The randomly generated programs (schedules) for measurement. One file per task.
+  - `dataset/measure_records`: Collected measurement records.
+     - `e5-2666/*.json`: measurement records collected on an Intel e5-2673. One file per task.
+     - `platinum-8272/*.json`: measurement records collected on an Intel platinum-8272. One file per task.
+     - ...: 
+
+## Inspect Tasks and Programs in the Dataset
+Follow the above tutorial to download the dataset. You can then inspect the tasks and programs in the dataset
 
 - Print a task
   ```bash
