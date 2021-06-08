@@ -55,7 +55,7 @@ Follow the above tutorial to download the dataset. You can then inspect the task
 
   output:
   ```python
-  idx: 1264
+  Index: 1264
   flop_ct: 115806208.0
   workload_key: ["12b88bedece6984af589a28b43e0f3c4", 1, 56, 56, 64, 3, 3, 64, 128, 1, 1, 1, 128, 1, 28, 28, 128]
   Compute DAG:
@@ -76,7 +76,9 @@ Follow the above tutorial to download the dataset. You can then inspect the task
 
   output:
   ```python
-  idx: 31
+  Index: 31
+  Time cost (second): [0.000990787, 0.000826989, 0.00082599, 0.00083999, 0.000827089, 0.000831189, 0.00083599, 0.000853589]
+  Program:
   Placeholder: placeholder, placeholder, placeholder
   parallel ax0.0@ax1.0@ax2.0@ (0,4)
     for i1 (0,57)

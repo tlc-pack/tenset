@@ -17,7 +17,7 @@ You can choose use either the CPU part or the GPU part.
     gdown https://drive.google.com/uc?id=1JQwGEe8jCpuhZPnUxO0Sb1CJJ06uevy6
     ```
 2. Unzip  
-  Put `dataset_cpu_v3.3.zip` under `tenset/scripts` and run `unzip dataset_cpu_v3.3.zip`
+  Put `dataset_cpu_v3.3.zip` under `tenset/scripts` and run `unzip dataset_cpu_v3.3.zip`.
   A new folder `dataset_cpu` will appear in `tenset/scripts`. Make 'dataset' as a softlink to it
   by `ln -s dataset_cpu dataset`.
 
@@ -30,11 +30,11 @@ You can choose use either the CPU part or the GPU part.
     gdown gdown https://drive.google.com/uc?id=1dlszmTBAXq9c_B7HcXRnBsqWOP76L-Jg
     ```
 2. Unzip  
-  Put `dataset_gpu_v3.2.zip` under `tenset/scripts` and run `unzip dataset_gpu_v3.2.zip`
+  Put `dataset_gpu_v3.2.zip` under `tenset/scripts` and run `unzip dataset_gpu_v3.2.zip`.
   A new folder `dataset_gpu` will appear in `tenset/scripts`. Make 'dataset' as a softlink to it
   by `ln -s dataset_gpu dataset`.
 
-## Example experiment
+## Example experiments
 
 ### Train a cost model and use it for search on CPU
 Use the CPU part of the dataset and go to `tenset/scripts`.

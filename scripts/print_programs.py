@@ -21,7 +21,7 @@ from common import load_and_register_tasks
 def print_program(index, inp, res):
     inp = recover_measure_input(inp, True)
     print("=" * 60)
-    print(f"idx: {index}")
+    print(f"Index: {index}")
     print(f"Time cost (second): {res.costs}")
     print("Program:")
     print(inp.state)
