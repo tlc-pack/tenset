@@ -6,17 +6,17 @@ This tutorial contains a minimal example of training a cost model and using it f
 Build and install this fork of TVM following the [install guide](https://tvm.apache.org/docs/install/index.html) of TVM.
 
 ### Download and unzip
-You can choose use CPU part of GPU part.
+You can choose use either the CPU part or the GPU part.
 
 #### CPU part
 1. Download
   - You can download it from google drive with the link [dataset_cpu_v3.3.zip](https://drive.google.com/file/d/1JQwGEe8jCpuhZPnUxO0Sb1CJJ06uevy6/view?usp=sharing)
   - Or you can use the command line
-  ```
-  pip3 install gdown
-  gdown https://drive.google.com/uc?id=1JQwGEe8jCpuhZPnUxO0Sb1CJJ06uevy6
-  ```
-2. Unzip
+    ```
+    pip3 install gdown
+    gdown https://drive.google.com/uc?id=1JQwGEe8jCpuhZPnUxO0Sb1CJJ06uevy6
+    ```
+2. Unzip  
   Put `dataset_cpu_v3.3.zip` under `tenset/scripts` and run `unzip dataset_cpu_v3.3.zip`
   A new folder `dataset_cpu` will appear in `tenset/scripts`. Make 'dataset' as a softlink to it
   by `ln -s dataset_cpu dataset`.
@@ -25,11 +25,11 @@ You can choose use CPU part of GPU part.
 1. Download
   - You can download it from google drive with the link [dataset_gpu_v3.2.zip](https://drive.google.com/file/d/1dlszmTBAXq9c_B7HcXRnBsqWOP76L-Jg/view?usp=sharing)
   - Or you can use the command line
-  ```
-  pip3 install gdown
-  gdown gdown https://drive.google.com/uc?id=1dlszmTBAXq9c_B7HcXRnBsqWOP76L-Jg
-  ```
-2. Unzip
+    ```
+    pip3 install gdown
+    gdown gdown https://drive.google.com/uc?id=1dlszmTBAXq9c_B7HcXRnBsqWOP76L-Jg
+    ```
+2. Unzip  
   Put `dataset_gpu_v3.2.zip` under `tenset/scripts` and run `unzip dataset_gpu_v3.2.zip`
   A new folder `dataset_gpu` will appear in `tenset/scripts`. Make 'dataset' as a softlink to it
   by `ln -s dataset_gpu dataset`.
