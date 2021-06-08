@@ -47,7 +47,7 @@ Follow the above tutorial to download the dataset. The dataset is stored under `
   - `dataset/measure_records`: Collected measurement records.
      - `e5-2666/*.json`: measurement records collected on an Intel e5-2673. One file per task.
      - `platinum-8272/*.json`: measurement records collected on an Intel platinum-8272. One file per task.
-     - ...: 
+     - `...`: other hardware platforms
 
 ## Inspect Tasks and Programs in the Dataset
 Follow the above tutorial to download the dataset. You can then inspect the tasks and programs in the dataset
