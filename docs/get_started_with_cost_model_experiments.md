@@ -10,13 +10,13 @@ This tutorial contains a minimal example of training a cost model and using it f
     pip3 install gdown
     gdown https://drive.google.com/uc?id=1JQwGEe8jCpuhZPnUxO0Sb1CJJ06uevy6
     ```
-3. Put `dataset_v3.3.zip` under `tenset/scripts` and run `unzip dataset_v3.3.zip`
+3. Put `dataset_cpu_v3.3.zip` under `tenset/scripts` and run `unzip dataset_cpu_v3.3.zip`
 A new folder `dataset` will appear in `tenset/scripts`.
 
 ## Example experiment
 
 ### Train a cost model and use it for search
-Go to `tvm-cost-model/scripts`.
+Go to `tenset/scripts`.
 
 1. Make a dataset
 You can either 
