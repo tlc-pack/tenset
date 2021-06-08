@@ -19,21 +19,21 @@ A new folder `dataset` will appear in `tenset/scripts`.
 Go to `tenset/scripts`.
 
 1. Make a dataset
-You can either 
-  - create a sampled smaller dataset for fast experiments.
-  ```
-  python3 make_dataset.py --logs dataset/measure_records/e5-2673/*.json --sample-in-files 100
-  ```
-- create a complete dataset by using all files. This takes a longer time and requires more memory.
-```
-python3 make_dataset.py --logs dataset/measure_records/e5-2673/*.json
-```
+    You can either 
+      - create a sampled smaller dataset for fast experiments.
+      ```
+      python3 make_dataset.py --logs dataset/measure_records/e5-2673/*.json --sample-in-files 100
+      ```
+    - create a complete dataset by using all files. This takes a longer time and requires more memory.
+    ```
+    python3 make_dataset.py --logs dataset/measure_records/e5-2673/*.json
+    ```
 2. Train a cost model
-```
-python3 train_model.py
-```
+    ```
+    python3 train_model.py
+    ```
 3. Use the model for search
-```
-python3 tune_network.py --network resnet_50 --n-trials 100 --cost-model xgb-no-update --load-model xgb.pkl
-```
+    ```
+    python3 tune_network.py --network resnet_50 --n-trials 100 --cost-model xgb-no-update --load-model xgb.pkl
+    ```
 
