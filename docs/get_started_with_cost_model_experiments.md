@@ -1,25 +1,21 @@
 # Get started 
 This tutorial contains a minimal example of training a cost model and using it for search.
 
-# Dataset
-## Install and Download
+## Install and Download the Dataset
 1. Build and install this repo following the [install guide](https://tvm.apache.org/docs/install/index.html) of TVM.
 2. Download dataset file.
-    - You can download it from [google drive](https://drive.google.com/file/d/1hciRGyXcGY9fK_owgvlJow8P_l8xYIVJ/view?usp=sharing)
+    - You can download it from [google drive](https://drive.google.com/file/d/1JQwGEe8jCpuhZPnUxO0Sb1CJJ06uevy6/view?usp=sharing)
     - Or you can use the command line
     ```
     pip3 install gdown
-    gdown https://drive.google.com/uc?id=1hciRGyXcGY9fK_owgvlJow8P_l8xYIVJ
+    gdown https://drive.google.com/uc?id=1JQwGEe8jCpuhZPnUxO0Sb1CJJ06uevy6
     ```
-3. Put `dataset_v3.3.zip` under `tvm-cost-model/scripts` and run `unzip dataset_v3.1.zip`
-A new folder `dataset` will appear in `tvm-cost-model/scripts`.
+3. Put `dataset_v3.3.zip` under `tenset/scripts` and run `unzip dataset_v3.3.zip`
+A new folder `dataset` will appear in `tenset/scripts`.
 
-## Dataset Content
-see this [readme](https://github.com/merrymercy/tvm-cost-model/tree/main/scripts#dataset-organization)
+## Example experiment
 
-# Example experiment
-
-## Train a cost model and use it for search
+### Train a cost model and use it for search
 Go to `tvm-cost-model/scripts`.
 
 1. Make a dataset
