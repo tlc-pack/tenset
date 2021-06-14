@@ -430,7 +430,7 @@ class XGBModel(PythonBasedModel):
 
 
 def feature_to_pack_sum_xgbmatrix(xs):
-    """Convert an extracted multi-stage feature vector to a xgbmatrx in pack-sum format
+    """Convert an extracted multi-stage feature vector to a xgb matrix in pack-sum format
     Parameters
     ----------
     xs: np.ndarray
