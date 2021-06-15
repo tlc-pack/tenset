@@ -39,7 +39,7 @@ cat = None
 logger = logging.getLogger("auto_scheduler")
 
 
-class CatMatrixContext:
+class CatPoolContext:
     """A global context to hold additional attributes of cat.Pool"""
 
     def __init__(self):
@@ -74,7 +74,7 @@ class CatMatrixContext:
         self.context_dict[key][id(matrix)] = value
 
 
-dmatrix_context = CatMatrixContext()
+dmatrix_context = CatPoolContext()
 
 
 def get_workload_embedding(workload_key):
@@ -221,12 +221,12 @@ class CatModelInternal:
 
         for task in train_set.tasks():
             self.register_new_task(task)
-        dtrain = self.dataset_to_dmatrix(train_set, argumentation=self.use_data_argumentation)
+        dtrain = self.dataset_to_catpool(train_set, argumentation=self.use_data_argumentation)
 
         if valid_set is not None:
             for task in valid_set.tasks():
                 self.register_new_task(task)
-            dtest = self.dataset_to_dmatrix(valid_set)
+            dtest = self.dataset_to_catpool(valid_set)
             eval_sets = [(dtrain, "tr"), (dtest, "te")]
         else:
             eval_sets = [(dtrain, "tr")]
@@ -262,7 +262,7 @@ class CatModelInternal:
 
         # Convert features to dmatrix
         tmp_set = Dataset.create_one_task(task, features, None)
-        dmatrix = self.dataset_to_dmatrix(tmp_set)
+        dmatrix = self.dataset_to_catpool(tmp_set)
 
         # Make predictions
         raw_preds = model.predict(dmatrix)
@@ -286,7 +286,7 @@ class CatModelInternal:
             )
         return diff_set
 
-    def dataset_to_dmatrix(self, dataset, return_task_order=False, argumentation=False):
+    def dataset_to_catpool(self, dataset, return_task_order=False, argumentation=False):
         # Process input data to cat format
         xs, ys, gids = [], [], []
         task_order = []
@@ -330,7 +330,7 @@ class CatModelInternal:
         xs = np.array(xs, dtype=object)
         ys = np.concatenate(ys)
         gids = np.concatenate(gids)
-        dmatrix = pack_sum_catmatrix(
+        dmatrix = pack_sum_catpool(
             xs, ys, gids=gids, weights=np.maximum(ys, 0.1) if self.use_weight else None
         )
 
@@ -429,7 +429,7 @@ class CatModel(PythonBasedModel):
         self.num_warmup_sample = -1
 
 
-def feature_to_pack_sum_catmatrix(xs):
+def feature_to_pack_sum_catpool(xs):
     """Convert an extracted multi-stage feature vector to a matrix in pack-sum format
     Parameters
     ----------
@@ -453,7 +453,7 @@ def feature_to_pack_sum_catmatrix(xs):
     return cat.Pool(data=np.array(x_flatten)), pack_ids
 
 
-def pack_sum_catmatrix(xs, ys, gids=None, weights=None):
+def pack_sum_catpool(xs, ys, gids=None, weights=None):
     """Convert (feature, label) pairs into a xgb matrix with pack-sum format
     Parameters
     ----------
