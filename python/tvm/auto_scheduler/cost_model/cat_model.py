@@ -231,7 +231,12 @@ class CatModelInternal:
         else:
             eval_sets = [(dtrain, "tr")]
 
+        bst = cat.CatBoost(self.cat_params)
+        bst.fit(
+            dtrain
+        )
         # Train a new model
+        """
         bst = cat.train(
             params=self.cat_params,
             dtrain=dtrain,
@@ -248,6 +253,7 @@ class CatModelInternal:
                 )
             ],
         )
+        """
         return bst
 
     def _predict_a_dataset(self, model, dataset):
@@ -553,7 +559,6 @@ def pack_sum_square_error(preds, dtrain):
         return gradient, hessian
 
     return gradient * weight, hessian * weight
-
 
 def pack_sum_rmse(raw_preds, dtrain):
     """Evaluate RMSE (rooted mean square error) in the pack-sum format
