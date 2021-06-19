@@ -254,7 +254,7 @@ class LGBModelInternal:
         dataset = self.dataset_to_lgbm_dataset(tmp_set)
 
         # Make predictions
-        raw_preds = model.predict(dataset.get_data())
+        raw_preds = model.predict(dataset)
         pack_ids = dataset_context.get("pack_ids", dataset)
         predictions = pack_sum_predict_throughput(raw_preds, pack_ids)
         return predictions
