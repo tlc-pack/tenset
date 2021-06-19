@@ -249,13 +249,13 @@ class LGBModelInternal:
         if model is None:
             return np.zeros(len(features), dtype=np.float32)
 
-        # Convert features to dmatrix
+        # Convert features to dataset
         tmp_set = Dataset.create_one_task(task, features, None)
-        dmatrix = self.dataset_to_lgbm_dataset(tmp_set)
+        dataset = self.dataset_to_lgbm_dataset(tmp_set)
 
         # Make predictions
-        raw_preds = model.predict(dmatrix)
-        pack_ids = dataset_context.get("pack_ids", dmatrix)
+        raw_preds = model.predict(dataset.get_data())
+        pack_ids = dataset_context.get("pack_ids", dataset)
         predictions = pack_sum_predict_throughput(raw_preds, pack_ids)
         return predictions
 
@@ -319,14 +319,14 @@ class LGBModelInternal:
         xs = np.array(xs, dtype=object)
         ys = np.concatenate(ys)
         gids = np.concatenate(gids)
-        dmatrix = pack_sum_lgbmdataset(
+        dataset = pack_sum_lgbmdataset(
             xs, ys, gids=gids, weights=np.maximum(ys, 0.1) if self.use_weight else None
         )
 
         if return_task_order:
-            return dmatrix, task_order
+            return dataset, task_order
         else:
-            return dmatrix
+            return dataset
 
     def load(self, filename):
         self.base_model, self.local_model, params = \
@@ -426,8 +426,8 @@ def feature_to_pack_sum_lgbmdataset(xs):
         The feature vector
     Returns
     -------
-    dmatrix: lgbm.Dataset
-        The DMatrix
+    dataset: lgbm.Dataset
+        The dataset
     pack_ids: List[int]
         pack ids information
     """
@@ -456,8 +456,8 @@ def pack_sum_lgbmdataset(xs, ys, gids=None, weights=None):
         The weight of samples
     Returns
     -------
-    dmatrix: lgbm.Dataset
-        The DMatrix with pack-sum information
+    dataset: lgbm.Dataset
+        The dataset with pack-sum information
     """
     if gids is not None:
         # sort by group
