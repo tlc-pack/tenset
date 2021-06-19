@@ -538,7 +538,7 @@ def pack_sum_square_error(preds, train_set):
     gradient = x - y
     hessian = np.ones_like(gradient)
 
-    if weight:
+    if not weight:
         return gradient, hessian
 
     return gradient * weight, hessian * weight
