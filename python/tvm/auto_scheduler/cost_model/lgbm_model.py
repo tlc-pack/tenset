@@ -136,15 +136,13 @@ class LGBModelInternal:
 
         # lgbm params
         self.lgbm_params = {
-            "max_depth": 6,
-            "gamma": 0.003,
-            "min_child_weight": 2,
-            "eta": 0.2,
-            "n_gpus": 0,
-            "nthread": multiprocessing.cpu_count() // 2,
-            "verbosity": 0,
-            "seed": seed or 43,
-            "disable_default_eval_metric": 1,
+            'boosting_type': 'gbdt',
+            'num_leaves': 31,
+            'learning_rate': 0.05,
+            'feature_fraction': 0.9,
+            'bagging_fraction': 0.8,
+            'bagging_freq': 5,
+            'verbose': 0
         }
 
         # gpu support
@@ -225,17 +223,24 @@ class LGBModelInternal:
         if valid_set is not None:
             for task in valid_set.tasks():
                 self.register_new_task(task)
-            dtest = self.dataset_to_lgbm_dataset(valid_set)
-            eval_sets = [(train_set, "tr"), (dtest, "te")]
+            test_set = self.dataset_to_lgbm_dataset(valid_set)
+            eval_sets = [train_set, test_set]
+            eval_names = ['tr','te']
         else:
-            eval_sets = [(train_set, "tr")]
+            eval_sets = [train_set]
+            eval_names = ['tr']
 
         # Train a new model
         bst = lgbm.train(
             params=self.lgbm_params,
             train_set=train_set,
+            valid_sets=eval_sets,
+            valid_names=eval_names,
             num_boost_round=300,
             fobj=pack_sum_square_error,
+            feval=[pack_sum_rmse, pack_sum_average_peak_score(self.plan_size)],
+            early_stopping_rounds=100,
+            verbose_eval=self.verbose_eval  
         )
         return bst
 
@@ -562,7 +567,7 @@ def pack_sum_rmse(raw_preds, train_set):
     preds = pack_sum_predict_throughput(raw_preds, pack_ids)
     labels = (np.bincount(pack_ids, weights=train_set.get_label())
               / np.unique(pack_ids, return_counts=True)[1])
-    return 'rmse', np.sqrt(np.mean(np.square((preds - labels))))
+    return 'rmse', np.sqrt(np.mean(np.square((preds - labels)))), False
 
 
 def pack_sum_average_peak_score(N):
@@ -610,7 +615,7 @@ def pack_sum_average_peak_score(N):
             trial_scores = labels_group[trials]
             curve = max_curve(trial_scores) / np.max(labels_group)
             scores.append(np.mean(curve))
-        return "a-peak@%d" % N, np.mean(scores)
+        return "a-peak@%d" % N, np.mean(scores), True
 
     return feval
 
@@ -618,13 +623,13 @@ def pack_sum_average_peak_score(N):
 def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
                     maximize=False, verbose_eval=True, skip_every=5):
     """Callback function for xgboost to support multiple custom evaluation functions"""
-    from xgboost.core import EarlyStopException
-    from xgboost.callback import _fmt_metric
+    from lightgbm.callback import EarlyStopException
+    from lightgbm.callback import _fmt_metric
 
     try:
-        from xgboost.training import aggcv
+        from lightgbm.training import aggcv
     except ImportError:
-        from xgboost.callback import _aggcv as aggcv
+        from lightgbm.callback import _aggcv as aggcv
 
     state = {}
     metric_shortname = metric.split("-")[1]
