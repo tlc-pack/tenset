@@ -236,7 +236,7 @@ class LGBModelInternal:
             train_set=train_set,
             valid_sets=eval_sets,
             valid_names=eval_names,
-            num_boost_round=300,
+            num_boost_round=2000,
             fobj=pack_sum_square_error,
             feval=[pack_sum_rmse, pack_sum_average_peak_score(self.plan_size)],
             early_stopping_rounds=100,
