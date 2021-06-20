@@ -133,7 +133,7 @@ if __name__ == "__main__":
     parser.add_argument("--continue-tuning", action='store_true')
 
     # Search strategy related arguments
-    parser.add_argument("--cost-model", type=str, choices=['xgb', 'random', 'xgb-no-update'],
+    parser.add_argument("--cost-model", type=str, choices=['xgb', 'random', 'xgb-no-update', 'lgbm-no-update'],
                         default='xgb', help="The type of program cost model")
     parser.add_argument("--seed", type=int, default=0, help='random seed')
     parser.add_argument("--load-model", type=str, help="Load pre trained cost model file")
