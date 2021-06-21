@@ -144,7 +144,8 @@ class LGBModelInternal:
             'bagging_freq': 5,
             'verbose': 0,
             'min_child_weight': 2,
-            'eta': 0.2,
+            'in_sum_in_hessian': 0,
+            'min_data_in_leaf': 0
         }
 
         # gpu support
@@ -231,7 +232,7 @@ class LGBModelInternal:
         else:
             eval_sets = [train_set]
             eval_names = ['tr']
-
+        
         # Train a new model
         bst = lgbm.train(
             params=self.lgbm_params,
