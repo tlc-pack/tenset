@@ -1,7 +1,7 @@
 """Dataset management"""
 from collections import namedtuple, OrderedDict, defaultdict
 import os
-import pickle
+import cPickle as pickle
 import json
 from typing import List, Tuple
 
@@ -217,7 +217,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
         print(cache_file)
         if os.path.exists(cache_file):
             # Load feature from the cached file
-            features, throughputs, min_latency = json.load(open(cache_file, "r"))
+            features, throughputs, min_latency = pickle.load(open(cache_file, "rb"))
         else:
             # Read measure records
             measure_records = {}
@@ -247,7 +247,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
                 features[task] = features_
                 throughputs[task] = normalized_throughputs
                 min_latency[task] = min_latency_[0]
-            json.dump([features, throughputs, min_latency], open(cache_file, "w"))
+            json.dump((features, throughputs, min_latency), open(cache_file, "wb"), protocol=pickle.HIGHEST_PROTOCOL)
 
         for task in features:
             dataset.load_task_data(task, features[task], throughputs[task], min_latency[task])
