@@ -1,7 +1,7 @@
 """Dataset management"""
 from collections import namedtuple, OrderedDict, defaultdict
 import os
-import cPickle as pickle
+import pickle
 import json
 from typing import List, Tuple
 
