@@ -247,7 +247,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
                 features[task] = features_
                 throughputs[task] = normalized_throughputs
                 min_latency[task] = min_latency_[0]
-            json.dump((features, throughputs, min_latency), open(cache_file, "w"))
+            json.dump([features, throughputs, min_latency], open(cache_file, "w"))
 
         for task in features:
             dataset.load_task_data(task, features[task], throughputs[task], min_latency[task])
