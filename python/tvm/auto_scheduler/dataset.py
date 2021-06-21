@@ -217,7 +217,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
         print(cache_file)
         if os.path.exists(cache_file):
             # Load feature from the cached file
-            features, throughputs, min_latency = json.load(open(cache_file, "rb"))
+            features, throughputs, min_latency = json.load(open(cache_file, "r"))
         else:
             # Read measure records
             measure_records = {}
