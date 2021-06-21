@@ -2,6 +2,7 @@
 from collections import namedtuple, OrderedDict, defaultdict
 import os
 import pickle
+import json
 from typing import List, Tuple
 
 import numpy as np
@@ -215,7 +216,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
         cache_file = f"{cache_folder}/{filename.replace('/', '_')}.feature_cache"
         if os.path.exists(cache_file):
             # Load feature from the cached file
-            features, throughputs, min_latency = pickle.load(open(cache_file, "rb"))
+            features, throughputs, min_latency = json.load(open(cache_file, "rb"))
         else:
             # Read measure records
             measure_records = {}
@@ -245,7 +246,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
                 features[task] = features_
                 throughputs[task] = normalized_throughputs
                 min_latency[task] = min_latency_[0]
-            pickle.dump((features, throughputs, min_latency), open(cache_file, "wb"))
+            json.dump((features, throughputs, min_latency), open(cache_file, "wb"))
 
         for task in features:
             dataset.load_task_data(task, features[task], throughputs[task], min_latency[task])
