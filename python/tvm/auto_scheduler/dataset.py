@@ -214,6 +214,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
         assert os.path.exists(filename), f"{filename} does not exist."
 
         cache_file = f"{cache_folder}/{filename.replace('/', '_')}.feature_cache"
+        print(cache_file)
         if os.path.exists(cache_file):
             # Load feature from the cached file
             features, throughputs, min_latency = json.load(open(cache_file, "rb"))
