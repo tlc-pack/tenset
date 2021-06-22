@@ -33,6 +33,7 @@ from tvm.auto_scheduler.feature import (
 from tvm.auto_scheduler.measure_record import RecordReader
 from tvm.auto_scheduler.workload_registry import workload_key_to_tensors
 from .cost_model import PythonBasedModel
+from ..feature import get_per_store_feature_names
 
 xgb = None
 
@@ -248,6 +249,7 @@ class XGBModelInternal:
                 )
             ],
         )
+
         return bst
 
     def _predict_a_dataset(self, model, dataset):
@@ -444,13 +446,14 @@ def feature_to_pack_sum_xgbmatrix(xs):
     """
     x_flatten = []
     pack_ids = []
+    feature_names = get_per_store_feature_names()
 
     for ct, x in enumerate(xs):
         for row in x:
             x_flatten.append(row)
             pack_ids.append(ct)
 
-    return xgb.DMatrix(np.array(x_flatten)), pack_ids
+    return xgb.DMatrix(np.array(x_flatten), feature_names=feature_names), pack_ids
 
 
 def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
@@ -500,7 +503,8 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
                 y_flatten.append(y)
                 pack_ids.append(ct)
 
-    ret = xgb.DMatrix(np.array(x_flatten), y_flatten)
+    feature_names = get_per_store_feature_names()
+    ret = xgb.DMatrix(np.array(x_flatten), y_flatten, feature_names=feature_names)
     if weights is not None:
         ret.set_weight(weights_flatten)
     dmatrix_context.set("pack_ids", ret, np.array(pack_ids))
@@ -736,7 +740,10 @@ def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
         elif env.iteration - best_iteration >= stopping_rounds:
             best_msg = state.get('best_msg', "")
             if verbose_eval and env.rank == 0:
-                logger.debug("XGB stopped. Best iteration: %s ", best_msg)
+                logger.debug("XGB stopped. Best iteration: %s ", best_msg)       
+            feature_importances = bst.get_score(importance_type='gain')
+            logger.debug("Feature importances: ", feature_importances)
+
             raise EarlyStopException(best_iteration)
 
     return callback
