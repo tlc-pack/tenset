@@ -30,6 +30,26 @@ class Dataset:
         self.min_latency = {}              # Dict[LearningTask -> min latency]
         self.measure_records = {}          # Dict[LearningTask -> Tuple[List[MeasureInput], List[MeasureResult]]
 
+    def save_to_file(self, fname: str):
+        from tqdm import tqdm
+
+        features_json = [ [a._asdict() for a in tqdm(self.features.keys())], list(self.features.values())]
+        throughputs_json = [ [a._asdict() for a in tqdm(self.throughputs.keys())], list(self.throughputs.values())]
+        min_latency_json = [ [a._asdict() for a in tqdm(self.min_latency.keys())], list(self.min_latency.values())]
+
+        json.dump(features_json+throughputs_json+min_latency_json, open(f"{fname}.serialized_json", "w"))
+        pickle.save(self.measure_records, open(f"{fname}.measure_records", "wb"))
+
+    def load_from_file(self, fname: str):
+        from tqdm import tqdm 
+
+        self.measure_records = pickle.load(open(f"{fname}.measure_records", "rb"))
+        feature_k, feature_v, throughputs_k, throughputs_v, min_latency_k, min_latency_v = json.load(open(f"{fname}.serialized_json", "r"))
+
+        self.features = { LearningTask(k) : v for k,v in tqdm(zip(feature_k, feature_v)) }
+        self.throughputs = { LearningTask(k) : v for k,v in tqdm(zip(throughputs_k, throughputs_v)) }
+        self.min_latency = { LearningTask(k) : v for k,v in tqdm(zip(min_latency_k, min_latency_v)) }
+
     @staticmethod
     def create_one_task(task, features, throughputs, min_latency=None):
         """Create a new dataset with one task and its feature and throughput data"""
@@ -266,7 +286,8 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
         del dataset.min_latency[task]
 
     # Save to disk
-    pickle.dump(dataset, open(out_file, "wb"))
+    dataset.save_to_file(out_file)
+    #pickle.dump(dataset, open(out_file, "wb"))
 
     if verbose >= 0:
         print("A dataset file is saved to %s" % out_file)
