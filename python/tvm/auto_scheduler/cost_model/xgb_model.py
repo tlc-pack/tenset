@@ -250,6 +250,9 @@ class XGBModelInternal:
             ],
         )
 
+        feature_importances = bst.get_score(importance_type='gain')
+        logger.debug("Feature importances: ", feature_importances)
+
         return bst
 
     def _predict_a_dataset(self, model, dataset):
@@ -504,7 +507,7 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
                 pack_ids.append(ct)
 
     feature_names = get_per_store_feature_names()
-    print('feature names ', feature_names)
+    #print('feature names ', feature_names)
     ret = xgb.DMatrix(np.array(x_flatten), y_flatten)
     if weights is not None:
         ret.set_weight(weights_flatten)
@@ -742,8 +745,6 @@ def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
             best_msg = state.get('best_msg', "")
             if verbose_eval and env.rank == 0:
                 logger.debug("XGB stopped. Best iteration: %s ", best_msg)       
-            feature_importances = bst.get_score(importance_type='gain')
-            logger.debug("Feature importances: ", feature_importances)
 
             raise EarlyStopException(best_iteration)
 
