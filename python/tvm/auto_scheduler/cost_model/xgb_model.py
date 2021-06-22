@@ -449,7 +449,7 @@ def feature_to_pack_sum_xgbmatrix(xs):
     """
     x_flatten = []
     pack_ids = []
-    feature_names = get_per_store_feature_names() + ['max', 'min', 'add', 
+    feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
             'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
             'dense', 'softmax', 'compute(b, i, j)']
 
@@ -508,7 +508,7 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
                 y_flatten.append(y)
                 pack_ids.append(ct)
 
-    feature_names = get_per_store_feature_names() + ['max', 'min', 'add', 
+    feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
             'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
             'dense', 'softmax', 'compute(b, i, j)']
 
