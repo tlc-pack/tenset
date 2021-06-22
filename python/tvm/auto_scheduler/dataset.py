@@ -34,17 +34,24 @@ class Dataset:
         from tqdm import tqdm
         import gc
 
-        class NumpyEncoder(json.Encoder):
-            def default(self, obj):
-                if isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                return json.Encoder.default(self, obj)
+        def numpy_json_default(obj):
+            """Convert Numpy objects.
+            See https://stackoverflow.com/q/27050108/850781
+            https://docs.python.org/3/library/json.html"""
+            if isinstance(obj, np.integer):
+                return int(obj)
+            if isinstance(obj, np.floating):
+                return float(obj)
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            raise TypeError("Cannot JSON-serialize %s (%s)" % (obj,type(obj)),
+                            obj,type(obj))
 
         json_list = [ [a._asdict() for a in tqdm(self.features.keys())], list(self.features.values())]
         json_list.extend( [ [a._asdict() for a in tqdm(self.throughputs.keys())], list(self.throughputs.values())])
         json_list.extend( [ [a._asdict() for a in tqdm(self.min_latency.keys())], list(self.min_latency.values())] )
 
-        json.dump(json_list, open(f"{fname}.serialized_json", "w"), default=NumpyEncoder)
+        json.dump(json_list, open(f"{fname}.serialized_json", "w"), default=numpy_json_default)
         del json_list
         gc.collect()
         pickle.dump(self.measure_records, open(f"{fname}.measure_records", "wb"))
