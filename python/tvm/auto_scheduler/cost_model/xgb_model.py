@@ -224,7 +224,8 @@ class XGBModelInternal:
             self.register_new_task(task)
         dtrain = self.dataset_to_dmatrix(train_set, argumentation=self.use_data_argumentation)
 
-        print(dtrain.data.shape)
+        print(dtrain.num_col())
+        print(len(get_per_store_feature_names()))
         if valid_set is not None:
             for task in valid_set.tasks():
                 self.register_new_task(task)
