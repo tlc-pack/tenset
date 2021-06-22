@@ -38,7 +38,7 @@ class Dataset:
         min_latency_json = [ [a._asdict() for a in tqdm(self.min_latency.keys())], list(self.min_latency.values())]
 
         x = features_json[0][0]
-        print(x.workload_key, x.target, type(x.workload_key), type(x.target))
+        print(x['workload_key'], x['target'], type(x['workload_key']), type(x['target']))
         print(min_latency_json[1][0], type((min_latency_json[1][0])))
 
         json.dump(features_json+throughputs_json+min_latency_json, open(f"{fname}.serialized_json", "w"))
