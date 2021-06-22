@@ -32,17 +32,20 @@ class Dataset:
 
     def save_to_file(self, fname: str):
         from tqdm import tqdm
+        import gc
         class NumpyEncoder(json.JSONEncoder):
             def default(self, obj):
                 if isinstance(obj, np.ndarray):
                     return obj.tolist()
                 return json.JSONEncoder.default(self, obj)
 
-        features_json = [ [a._asdict() for a in tqdm(self.features.keys())], [x.tolist() for x in self.features.values()]]
-        throughputs_json = [ [a._asdict() for a in tqdm(self.throughputs.keys())], [x.tolist() for x in self.throughputs.values()]]
-        min_latency_json = [ [a._asdict() for a in tqdm(self.min_latency.keys())], [float(x) for x in self.min_latency.values()]]
+        json_list = [ [a._asdict() for a in tqdm(self.features.keys())], list(self.features.values())]
+        json_list.extend( [ [a._asdict() for a in tqdm(self.throughputs.keys())], list(self.throughputs.values())])
+        json_list.extend( [ [a._asdict() for a in tqdm(self.min_latency.keys())], list(self.min_latency.values())] )
 
-        json.dump(features_json+throughputs_json+min_latency_json, open(f"{fname}.serialized_json", "w"), cls=NumpyEncoder)
+        json.dump(json_list, open(f"{fname}.serialized_json", "w"), cls=NumpyEncoder)
+        del json_list
+        gc.collect()
         pickle.dump(self.measure_records, open(f"{fname}.measure_records", "wb"))
 
     def load_from_file(self, fname: str):
