@@ -159,5 +159,10 @@ if __name__ == "__main__":
     print("Load dataset...")
     dataset = pickle.load(open(args.dataset, "rb"))
 
+    print(dataset.features)
+    print(dataset.throughputs)
+    print(dataset.min_latency)
+    print(dataset.measure_records)
+    
     train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu)
 
