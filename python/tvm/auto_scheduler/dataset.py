@@ -51,9 +51,9 @@ class Dataset:
         self.measure_records = pickle.load(open(f"{fname}.measure_records", "rb"))
         feature_k, feature_v, throughputs_k, throughputs_v, min_latency_k, min_latency_v = json.load(open(f"{fname}.serialized_json", "r"))
 
-        self.features = { LearningTask(k) : np.array(v) for k,v in tqdm(zip(feature_k, feature_v)) }
-        self.throughputs = { LearningTask(k) : np.array(v) for k,v in tqdm(zip(throughputs_k, throughputs_v)) }
-        self.min_latency = { LearningTask(k) : v for k,v in tqdm(zip(min_latency_k, min_latency_v)) }
+        self.features = { LearningTask(**k) : np.array(v) for k,v in tqdm(zip(feature_k, feature_v)) }
+        self.throughputs = { LearningTask(**k) : np.array(v) for k,v in tqdm(zip(throughputs_k, throughputs_v)) }
+        self.min_latency = { LearningTask(**k) : v for k,v in tqdm(zip(min_latency_k, min_latency_v)) }
 
     @staticmethod
     def create_one_task(task, features, throughputs, min_latency=None):
