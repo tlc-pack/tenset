@@ -37,8 +37,10 @@ class Dataset:
         throughputs_json = [ [a._asdict() for a in tqdm(self.throughputs.keys())], [x.tolist() for x in self.throughputs.values()]]
         min_latency_json = [ [a._asdict() for a in tqdm(self.min_latency.keys())], list(self.min_latency.values())]
 
-        print(features_json[0][0])
-        
+        x = features_json[0][0]
+        print(x.workload_key, x.target, type(x.workload_key), type(x.target))
+        print(min_latency_json[1][0], type((min_latency_json[1][0])))
+
         json.dump(features_json+throughputs_json+min_latency_json, open(f"{fname}.serialized_json", "w"))
         pickle.save(self.measure_records, open(f"{fname}.measure_records", "wb"))
 
