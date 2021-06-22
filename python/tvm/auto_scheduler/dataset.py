@@ -34,17 +34,17 @@ class Dataset:
         from tqdm import tqdm
         import gc
 
-        class NumpyEncoder(json.JSONEncoder):
+        class NumpyEncoder(json.Encoder):
             def default(self, obj):
                 if isinstance(obj, np.ndarray):
                     return obj.tolist()
-                return json.JSONEncoder.default(self, obj)
+                return json.Encoder.default(self, obj)
 
         json_list = [ [a._asdict() for a in tqdm(self.features.keys())], list(self.features.values())]
         json_list.extend( [ [a._asdict() for a in tqdm(self.throughputs.keys())], list(self.throughputs.values())])
         json_list.extend( [ [a._asdict() for a in tqdm(self.min_latency.keys())], list(self.min_latency.values())] )
 
-        json.dump(json_list, open(f"{fname}.serialized_json", "w"), cls=NumpyEncoder)
+        json.dump(json_list, open(f"{fname}.serialized_json", "w"), default=NumpyEncoder)
         del json_list
         gc.collect()
         pickle.dump(self.measure_records, open(f"{fname}.measure_records", "wb"))
