@@ -453,7 +453,7 @@ def feature_to_pack_sum_xgbmatrix(xs):
             x_flatten.append(row)
             pack_ids.append(ct)
 
-    return xgb.DMatrix(np.array(x_flatten), feature_names=feature_names), pack_ids
+    return xgb.DMatrix(np.array(x_flatten)), pack_ids
 
 
 def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
@@ -504,7 +504,8 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
                 pack_ids.append(ct)
 
     feature_names = get_per_store_feature_names()
-    ret = xgb.DMatrix(np.array(x_flatten), y_flatten, feature_names=feature_names)
+    print('feature names ', feature_names)
+    ret = xgb.DMatrix(np.array(x_flatten), y_flatten)
     if weights is not None:
         ret.set_weight(weights_flatten)
     dmatrix_context.set("pack_ids", ret, np.array(pack_ids))
