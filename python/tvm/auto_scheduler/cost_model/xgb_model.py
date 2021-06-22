@@ -224,6 +224,7 @@ class XGBModelInternal:
             self.register_new_task(task)
         dtrain = self.dataset_to_dmatrix(train_set, argumentation=self.use_data_argumentation)
 
+        print(dtrain.data.shape)
         if valid_set is not None:
             for task in valid_set.tasks():
                 self.register_new_task(task)
@@ -251,7 +252,7 @@ class XGBModelInternal:
         )
 
         feature_importances = bst.get_score(importance_type='gain')
-        logger.debug("Feature importances: ", feature_importances)
+        print("Feature importances: ", feature_importances)
 
         return bst
 
