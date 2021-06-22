@@ -2,7 +2,7 @@
 from collections import namedtuple, OrderedDict, defaultdict
 import os
 import pickle
-import ujson as json
+import rapidjson as json
 from typing import List, Tuple
 
 import numpy as np
