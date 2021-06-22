@@ -33,6 +33,10 @@ class Dataset:
     def save_to_file(self, fname: str):
         from tqdm import tqdm
 
+        print(self.features.values()[0])
+        print(self.throughputs.values()[0])
+        print(self.min_latency.values()[0])
+
         features_json = [ [a._asdict() for a in tqdm(self.features.keys())], list(self.features.values())]
         throughputs_json = [ [a._asdict() for a in tqdm(self.throughputs.keys())], list(self.throughputs.values())]
         min_latency_json = [ [a._asdict() for a in tqdm(self.min_latency.keys())], list(self.min_latency.values())]
