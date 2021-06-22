@@ -43,7 +43,7 @@ class Dataset:
         min_latency_json = [ [a._asdict() for a in tqdm(self.min_latency.keys())], [float(x) for x in self.min_latency.values()]]
 
         json.dump(features_json+throughputs_json+min_latency_json, open(f"{fname}.serialized_json", "w"), cls=NumpyEncoder)
-        pickle.save(self.measure_records, open(f"{fname}.measure_records", "wb"))
+        pickle.dump(self.measure_records, open(f"{fname}.measure_records", "wb"))
 
     def load_from_file(self, fname: str):
         from tqdm import tqdm 
