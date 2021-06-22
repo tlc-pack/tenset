@@ -2,7 +2,7 @@
 from collections import namedtuple, OrderedDict, defaultdict
 import os
 import pickle
-import json
+import ujson as json
 from typing import List, Tuple
 
 import numpy as np
@@ -33,6 +33,7 @@ class Dataset:
     def save_to_file(self, fname: str):
         from tqdm import tqdm
         import gc
+
         class NumpyEncoder(json.JSONEncoder):
             def default(self, obj):
                 if isinstance(obj, np.ndarray):
