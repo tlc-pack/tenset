@@ -33,12 +33,8 @@ class Dataset:
     def save_to_file(self, fname: str):
         from tqdm import tqdm
 
-        print(list(self.features.values())[0])
-        print(list(self.throughputs.values())[0])
-        print(list(self.min_latency.values())[0])
-
-        features_json = [ [a._asdict() for a in tqdm(self.features.keys())], list(self.features.values())]
-        throughputs_json = [ [a._asdict() for a in tqdm(self.throughputs.keys())], list(self.throughputs.values())]
+        features_json = [ [a._asdict() for a in tqdm(self.features.keys())], [x.tolist() for x in self.features.values()]]
+        throughputs_json = [ [a._asdict() for a in tqdm(self.throughputs.keys())], [x.tolist() for x in self.throughputs.values()]]
         min_latency_json = [ [a._asdict() for a in tqdm(self.min_latency.keys())], list(self.min_latency.values())]
 
         json.dump(features_json+throughputs_json+min_latency_json, open(f"{fname}.serialized_json", "w"))
@@ -50,8 +46,8 @@ class Dataset:
         self.measure_records = pickle.load(open(f"{fname}.measure_records", "rb"))
         feature_k, feature_v, throughputs_k, throughputs_v, min_latency_k, min_latency_v = json.load(open(f"{fname}.serialized_json", "r"))
 
-        self.features = { LearningTask(k) : v for k,v in tqdm(zip(feature_k, feature_v)) }
-        self.throughputs = { LearningTask(k) : v for k,v in tqdm(zip(throughputs_k, throughputs_v)) }
+        self.features = { LearningTask(k) : np.array(v) for k,v in tqdm(zip(feature_k, feature_v)) }
+        self.throughputs = { LearningTask(k) : np.array(v) for k,v in tqdm(zip(throughputs_k, throughputs_v)) }
         self.min_latency = { LearningTask(k) : v for k,v in tqdm(zip(min_latency_k, min_latency_v)) }
 
     @staticmethod
