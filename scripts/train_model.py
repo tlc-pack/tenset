@@ -18,6 +18,7 @@ from tvm.auto_scheduler.dataset import Dataset, LearningTask
 from tvm.auto_scheduler.cost_model.xgb_model import XGBModelInternal
 from tvm.auto_scheduler.cost_model.cat_model import CatModelInternal
 from tvm.auto_scheduler.cost_model.lgbm_model import LGBModelInternal
+from tvm.auto_scheduler.cost_model.tabnet_model import TabNetModelInternal
 from tvm.auto_scheduler.cost_model.metric import (
     metric_rmse,
     metric_r_squared,
@@ -79,6 +80,8 @@ def make_model(name, use_gpu=False):
         return CatModelInternal(use_gpu=use_gpu)
     elif name == 'lgbm':
         return LGBModelInternal(use_gpu=use_gpu)
+    elif name == 'tab':
+        return TabNetModelInternal(use_gpu=use_gpu)
     elif name == "random":
         return RandomModelInternal()
     else:
