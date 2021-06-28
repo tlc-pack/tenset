@@ -33,7 +33,7 @@ from .cost_model import PythonBasedModel
 import torch
 from torch.nn import Linear, BatchNorm1d, ReLU
 import numpy as np
-from sparsemax import sparsemax
+from .sparsemax import sparsemax
 
 
 def initialize_non_glu(module, input_dim, output_dim):
