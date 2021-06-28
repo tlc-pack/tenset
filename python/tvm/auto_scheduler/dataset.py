@@ -302,8 +302,8 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
         del dataset.min_latency[task]
 
     # Save to disk
-    dataset.save_to_file(out_file)
-    #pickle.dump(dataset, open(out_file, "wb"))
+    #dataset.save_to_file(out_file)
+    pickle.dump(dataset, open(out_file, "wb"))
 
     if verbose >= 0:
         print("A dataset file is saved to %s" % out_file)

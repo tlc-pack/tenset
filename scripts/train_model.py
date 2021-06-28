@@ -157,8 +157,9 @@ if __name__ == "__main__":
     load_and_register_tasks()
 
     print("Load dataset...")
-    dataset = Dataset() #pickle.load(open(args.dataset, "rb"))
-    dataset.load_from_file(args.dataset)
+    #dataset = Dataset() 
+    #dataset.load_from_file(args.dataset)
+    dataset = pickle.load(open(args.dataset, "rb"))
     
     train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu)
 
