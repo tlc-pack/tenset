@@ -604,7 +604,7 @@ def moving_average(average, update):
         return average * 0.95 + update * 0.05
 
 
-class TabnetModelInternal:
+class TabNetModelInternal:
     def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=False,
                  loss_type='lambdaRankLoss'):
         if device is None:
@@ -1064,14 +1064,14 @@ class CPU_Unpickler(pickle.Unpickler):
             return super().find_class(module, name)
 
 
-class TabnetModel(PythonBasedModel):
-    """The wrapper of TabnetModelInternal. So we can use it in end-to-end search."""
+class TabNetModel(PythonBasedModel):
+    """The wrapper of TabNetModelInternal. So we can use it in end-to-end search."""
 
     def __init__(self, few_shot_learning="base_only", disable_update=False):
         super().__init__()
 
         self.disable_update = disable_update
-        self.model = TabnetModelInternal(few_shot_learning=few_shot_learning)
+        self.model = TabNetModelInternal(few_shot_learning=few_shot_learning)
         self.dataset = Dataset()
 
     def update(self, inputs, results):
@@ -1080,7 +1080,7 @@ class TabnetModel(PythonBasedModel):
         tic = time.time()
         self.dataset.update_from_measure_pairs(inputs, results)
         self.model.fit_base(self.dataset)
-        logger.info("TabnetModel Training time: %.2f s", time.time() - tic)
+        logger.info("TabNetModel Training time: %.2f s", time.time() - tic)
 
     def predict(self, task, states):
         features = get_per_store_features_from_states(states, task)
@@ -1100,7 +1100,7 @@ class TabnetModel(PythonBasedModel):
 
     def update_from_file(self, file_name, n_lines=None):
         inputs, results = RecordReader(file_name).read_lines(n_lines)
-        logger.info("TabnetModel: Loaded %s measurement records from %s", len(inputs), file_name)
+        logger.info("TabNetModel: Loaded %s measurement records from %s", len(inputs), file_name)
         self.update(inputs, results)
 
     def save(self, file_name: str):
@@ -1108,7 +1108,7 @@ class TabnetModel(PythonBasedModel):
 
     def load(self, file_name: str):
         if self.model is None:
-            self.model = TabnetModelInternal()
+            self.model = TabNetModelInternal()
         self.model.load(file_name)
         self.num_warmup_sample = -1
 
