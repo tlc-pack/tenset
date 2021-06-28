@@ -245,6 +245,10 @@ class LGBModelInternal:
             early_stopping_rounds=100,
             verbose_eval=self.verbose_eval  
         )
+
+        feature_importances = bst.feature_importance()
+        print("Feature importances: ", feature_importances)
+
         return bst
 
     def _predict_a_dataset(self, model, dataset):
