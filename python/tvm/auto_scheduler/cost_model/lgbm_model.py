@@ -33,6 +33,7 @@ from tvm.auto_scheduler.feature import (
 from tvm.auto_scheduler.measure_record import RecordReader
 from tvm.auto_scheduler.workload_registry import workload_key_to_tensors
 from .cost_model import PythonBasedModel
+from ..feature import get_per_store_feature_names
 
 lgbm = None
 
@@ -246,8 +247,12 @@ class LGBModelInternal:
             verbose_eval=self.verbose_eval  
         )
 
+        feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
+            'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
+            'dense', 'softmax', 'compute(b, i, j)']
         feature_importances = bst.feature_importance()
-        print("Feature importances: ", feature_importances)
+        imp = sorted(list(zip(feature_importances, feature_names)))
+        print("Feature importances: ", imp)
 
         return bst
 
