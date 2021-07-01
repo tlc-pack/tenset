@@ -10,14 +10,6 @@ import io
 import json
 import numpy as np
 import torch
-# from torchmeta.modules import (
-#    MetaModule,
-#    MetaSequential,
-#    MetaConv2d,
-#    MetaBatchNorm2d,
-#    MetaLinear,
-# )  # pip3 intall torchmeta
-# from torchmeta.utils import gradient_update_parameters
 import torch.nn.functional as F
 import logging
 
@@ -59,17 +51,13 @@ class SegmentDataLoader:
             self.labels[ct: ct + len(throughputs)] = torch.tensor(throughputs)
             task_embedding = None
             if use_workload_embedding or use_target_embedding:
-                #print(target_id_dict)
-                #print(use_target_embedding)
                 task_embedding = np.zeros(
-                    9 + len(target_id_dict),
+                    (9 if use_workload_embedding else 0) + (3 if use_workload_embedding else 0),
                     dtype=np.float32,
                 )
 
                 if use_workload_embedding:
                     tmp_task_embedding = get_workload_embedding(task.workload_key)
-                    #tmp_task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                    #tmp_task_embedding = tmp_task_embeddings[json.loads(task.workload_key)[0]]
                     task_embedding[:9] = tmp_task_embedding
 
                 if use_target_embedding:
