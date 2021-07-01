@@ -15,7 +15,7 @@ from tvm.auto_scheduler.utils import to_str_round
 from dump_network_info import get_network_with_key
 from common import str2bool, log_line, BenchmarkRecord
 
-from plot_trials_vs_latency import random_search, local_search
+from search import random_search, local_search, default_search
 
 
 def get_network(network_args):
@@ -83,44 +83,19 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
         else:
             tuner.transfer_tune(tuning_opt, search_policy=policy)
 
-    # start_eval = time.time()
-    #
-    # # Build module
-    # with auto_scheduler.ApplyHistoryBest(log_file):
-    #     with tvm.transform.PassContext(
-    #         opt_level=3, config={"relay.backend.use_auto_scheduler": True}
-    #     ):
-    #         lib = relay.build(mod, target=target, params=params)
-    # ctx = tvm.context(str(target), 0)
-    # module = runtime.GraphModule(lib["default"](ctx))
-    #
-    # # Feed input data
-    # for name, shape, dtype in inputs:
-    #     data_np = np.random.uniform(size=shape).astype(dtype)
-    #     module.set_input(name, data_np)
-    #
-    # # Evaluate
-    # ftimer = module.module.time_evaluator("run", ctx, min_repeat_ms=500, repeat=3)
-    # prof_res = np.array(ftimer().results)
-    # print("Mean inference time (std dev): %.2f ms (%.2f ms)" %
-    #       (np.mean(prof_res) * 1000, np.std(prof_res) * 1000))
-    #
-    #
-    # print(f"eval takes {time.time()-start_eval}.")
-
     best_by_targetkey, _ = local_search(log_file)
     if search_type == "random":
-        cost, all_best_cost = random_search(best_by_targetkey, network_args, target)
-
+        prof_res = random_search(best_by_targetkey, network_args, target)
+    else:
+        prof_res = default_search(best_by_targetkey, network_args, target)
 
 
     # Dump results
-    #log_line(BenchmarkRecord(str(target.kind), 'gpu' if 'gpu' in target.keys else 'cpu',
-    #                         'network',
-    #                         "%s.B%d" % (network_args['network'], network_args['batch_size']),
-    #			     'ours', 'default',
-    #                         {"costs": prof_res}, time.time()),
-    #                         args.result_file)
+    log_line(BenchmarkRecord(str(target.kind), 'gpu' if 'gpu' in target.keys else 'cpu',
+                            'network',
+                            "%s.B%d" % (network_args['network'], network_args['batch_size']),
+                            'ours', 'default',
+                            {"costs": prof_res}, time.time()), result_file)
 
 
 if __name__ == "__main__":
