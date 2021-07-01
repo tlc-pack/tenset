@@ -10,14 +10,6 @@ import io
 import json
 import numpy as np
 import torch
-# from torchmeta.modules import (
-#    MetaModule,
-#    MetaSequential,
-#    MetaConv2d,
-#    MetaBatchNorm2d,
-#    MetaLinear,
-# )  # pip3 intall torchmeta
-# from torchmeta.utils import gradient_update_parameters
 import torch.nn.functional as F
 import logging
 
@@ -59,21 +51,13 @@ class SegmentDataLoader:
             self.labels[ct: ct + len(throughputs)] = torch.tensor(throughputs)
             task_embedding = None
             if use_workload_embedding or use_target_embedding:
-<<<<<<< HEAD
-                target_id_dict = {}
-=======
-                #print(target_id_dict)
-                #print(use_target_embedding)
->>>>>>> 7f051e24468b293f73a0e0cf1a33bd93596574b6
                 task_embedding = np.zeros(
-                    9 + len(target_id_dict),
+                    (9 if use_workload_embedding else 0) + (3 if use_workload_embedding else 0),
                     dtype=np.float32,
                 )
 
                 if use_workload_embedding:
                     tmp_task_embedding = get_workload_embedding(task.workload_key)
-                    #tmp_task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                    #tmp_task_embedding = tmp_task_embeddings[json.loads(task.workload_key)[0]]
                     task_embedding[:9] = tmp_task_embedding
 
                 if use_target_embedding:
@@ -346,7 +330,7 @@ class MLPModelInternal:
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
-            "in_dim": 164 + (9 if use_workload_embedding else 0),
+            "in_dim": 164 + (9 if use_workload_embedding else 0) + (3 if use_workload_embedding else 0),  
             "hidden_dim": 256,
             "out_dim": 1,
         }
@@ -559,7 +543,6 @@ class MLPModelInternal:
             train_time = time.time() - tic
 
             if epoch % self.print_per_epoches == 0 or epoch == n_epoch - 1:
-
 
                 if valid_set and valid_loader:
                     valid_loss = self._validate(net, valid_loader)
