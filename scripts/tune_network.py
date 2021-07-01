@@ -130,7 +130,7 @@ if __name__ == "__main__":
     parser.add_argument("--run-timeout", type=int, default=25)
     parser.add_argument("--early-stopping", type=int, default=-1)
     parser.add_argument("--verbose", type=int, default=1)
-    parser.add_argument("--search-type", type=str, default='random', choices=['random', 'all_best', 'beam'])
+    parser.add_argument("--search-type", type=str, default='default', choices=['random', 'default'])
     args = parser.parse_args()
 
     np.random.seed(args.seed)
