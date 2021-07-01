@@ -130,7 +130,7 @@ def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", nargs="+", type=str, default="dataset.pkl")
+    parser.add_argument("--dataset", nargs="+", type=str, default=["dataset.pkl"])
     parser.add_argument("--models", type=str, default="xgb")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
