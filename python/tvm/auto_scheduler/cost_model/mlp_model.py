@@ -556,7 +556,6 @@ class MLPModelInternal:
 
             if epoch % self.print_per_epoches == 0 or epoch == n_epoch - 1:
 
-
                 if valid_set and valid_loader:
                     valid_loss = self._validate(net, valid_loader)
 
