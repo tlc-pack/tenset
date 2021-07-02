@@ -59,5 +59,34 @@ Use the CPU part of the dataset and go to `tenset/scripts`.
     ```
 
 ### More experiments
-More experiments will be added later.
+1. Dataset
+    - Make a dataset with a certain number of tasks and a certain number of measurements per task. E.g.
+        ```
+        python3 make_dataset.py --logs dataset/measure_records/e5-2673/*.json --n-task 200 --n-measurement 200
+        ```
+    - Make a hold-out dataset. E.g. hold out all tasks appeared in resnet-50
+        ```
+        python3 make_dataset.py --logs dataset/measure_records/e5-2673/*.json --hold-out resnet-50
+        ```
+2. Model training
+    - Specify the type of model. E.g.
+      ```
+      python3 train_model.py --models mlp
+      ```
+3. Search
+    *Note that we might need to specify the target argument depending on the machine type.
+    - No pre-trained model, and train a model online. E.g.
+      ```
+      python3 tune_network.py --network resnet_50 --n-trials 100 --cost-model xgb --target "llvm -mcpu=skylake-avx512"
+      ```
+    - Use a pre-trained model. E.g.
+      ```
+      python3 tune_network.py --network resnet_50 --n-trials 100 --cost-model mlp-no-update --load-model mlp.pkl
+      ```
+    - Use transfer-learning. E.g.
+      ```
+      python3 tune_network.py --network resnet_50 --n-trials 100 --cost-model mlp-no-update --load-model mlp.pkl --transfer-tune
+      ```  
+    
+
 
