@@ -22,7 +22,6 @@ import logging
 import multiprocessing
 import pickle
 import time
-import json
 import numpy as np
 
 from tvm.autotvm.tuner.metric import max_curve
@@ -178,7 +177,6 @@ class XGBModelInternal:
                 local_model = self._fit_a_model(task_train_set, valid_set)
                 self.local_model[task] = local_model
         elif self.few_shot_learning == "plus_mix_task":
-            print("fit local ", self.few_shot_learning)
             diff_train_set = self.make_diff_set(self.base_model, train_set)
             diff_valid_set = self.make_diff_set(self.base_model, valid_set) if valid_set else None
             diff_model = self._fit_a_model(diff_train_set, diff_valid_set)
@@ -208,7 +206,6 @@ class XGBModelInternal:
                 ret[task] = local_preds
             return ret
         elif self.few_shot_learning in ["plus_mix_task", "plus_per_task"]:
-            print("predicting", self.few_shot_learning)
             base_preds = self._predict_a_dataset(self.base_model, dataset)
             ret = {}
             for task in dataset.tasks():
@@ -375,11 +372,9 @@ class XGBModel(PythonBasedModel):
         if self.disable_update or len(inputs) <= 0:
             return
         tic = time.time()
-
         self.dataset.update_from_measure_pairs(inputs, results)
         self.model.fit_base(self.dataset)
         logger.info("XGBModel Training time: %.2f s", time.time() - tic)
-        self.save("ansor_xgb.pkl")
 
     def predict(self, task, states):
         features = get_per_store_features_from_states(states, task)
