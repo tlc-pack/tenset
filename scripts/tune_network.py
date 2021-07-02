@@ -86,7 +86,7 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
         tuner = auto_scheduler.TaskScheduler(tasks, task_weights,
             load_model_file=tuning_args['load_model'], load_log_file=tuning_args['log_file'])
         policy = 'sketch.%s' % tuning_args['cost_model']
-        
+
         if not transfer_tune:
             tuner.tune(tuning_opt, search_policy=policy)
         else:
