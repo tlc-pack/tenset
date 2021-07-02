@@ -362,7 +362,6 @@ class TaskScheduler:
         self.num_measures_per_round = min(
             tune_option.num_measures_per_round, num_measure_trials // len(self.tasks)
         )
-        #self.num_measures_per_round = 1
         if self.num_measures_per_round <= 0:
             raise ValueError("num_measure_trials is too small. Please set it to a higher value.")
 
@@ -383,11 +382,11 @@ class TaskScheduler:
             disable_cost_model_update,
         )
 
+        # do a round robin first to warm up
         for idx in range(len(self.tasks)):
             # skip warming up this task if it has been tuned before (restored from the log file)
             if not self.task_cts[idx]:
                 self._tune_task(idx)
-
         self.best_ct = self.ct
         self.best_score = self.cur_score
 
