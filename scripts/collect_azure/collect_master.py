@@ -35,9 +35,6 @@ if __name__ == "__main__":
         host_name = f"azure-amd-avx2-{i:02d}"
         #host_name = f"azure-intel-avx2-{i:02d}"
 
-        start_idx = i * tasks_per_machine
-        end_idx = (i + 1) * tasks_per_machine
-
         ssh_run(host_name, "hostname")
 
         # fetch code

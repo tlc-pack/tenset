@@ -1,3 +1,5 @@
+"""Train a cost model with a dataset."""
+
 import argparse
 import logging
 import pickle

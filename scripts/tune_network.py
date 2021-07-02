@@ -40,16 +40,24 @@ def get_tuning_option(tuning_args, target):
         tuning_args['n_trials'], tuning_args['run_timeout'], tuning_args['log_file'])
 
     if "cpu" in target.keys:
+        measure_ctx = None
         tuning_opt = auto_scheduler.TuningOptions(
             num_measure_trials=n_trials,
             runner=auto_scheduler.LocalRunner(
-                timeout=run_timeout, repeat=10, number=1, enable_cpu_cache_flush=True),
+                repeat=10, number=1, enable_cpu_cache_flush=True, timeout=run_timeout),
+            measure_callbacks=[auto_scheduler.RecordToFile(log_file)],
+        )
+    elif "cuda" in target.keys:
+        measure_ctx = auto_scheduler.LocalRPCMeasureContext(repeat=1, min_repeat_ms=300, timeout=run_timeout)
+        tuning_opt = auto_scheduler.TuningOptions(
+            num_measure_trials=n_trials,
+            runner=measure_ctx.runner,
             measure_callbacks=[auto_scheduler.RecordToFile(log_file)],
         )
     else:
         raise NotImplementedError
 
-    return tuning_opt
+    return tuning_opt, measure_ctx
 
 
 def tune_and_evaluate(network_args, tuning_args, target, target_host, result_file, transfer_tune, search_type):
@@ -72,12 +80,13 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
             )
             print(task.compute_dag)
 
-        tuning_opt = get_tuning_option(tuning_args, target)
+        tuning_opt, measure_ctx = get_tuning_option(tuning_args, target)
 
         # Run search
         tuner = auto_scheduler.TaskScheduler(tasks, task_weights,
             load_model_file=tuning_args['load_model'], load_log_file=tuning_args['log_file'])
         policy = 'sketch.%s' % tuning_args['cost_model']
+        
         if not transfer_tune:
             tuner.tune(tuning_opt, search_policy=policy)
         else:
@@ -89,13 +98,15 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
     else:
         prof_res = default_search(best_by_targetkey, network_args, target)
 
-
     # Dump results
     log_line(BenchmarkRecord(str(target.kind), 'gpu' if 'gpu' in target.keys else 'cpu',
                             'network',
                             "%s.B%d" % (network_args['network'], network_args['batch_size']),
                             'ours', 'default',
                             {"costs": prof_res}, time.time()), result_file)
+
+    if measure_ctx is not None:
+        del measure_ctx
 
 
 if __name__ == "__main__":
@@ -119,6 +130,8 @@ if __name__ == "__main__":
 
     # Log file related arguments
     parser.add_argument("--log-file", type=str, help="Write measurement records to this log file")
+    parser.add_argument("--n-lines", type=int,
+                        help="Only use the first n lines of the log file")
     parser.add_argument("--result-file", type=str,
                         help="Save end-to-end latency to this file",
                         default="results.tsv")
@@ -160,6 +173,7 @@ if __name__ == "__main__":
         "run_timeout": args.run_timeout,
         "cost_model": args.cost_model,
         "load_model": args.load_model,
+        "n_lines": args.n_lines,
     }
 
     tune_and_evaluate(network_args, tuning_args, target, args.target_host,

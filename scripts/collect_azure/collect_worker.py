@@ -1,4 +1,4 @@
-"""Collect measure records from workers"""
+"""The worker script to collect measure records"""
 
 import argparse
 import time
