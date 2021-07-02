@@ -276,3 +276,4 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
 
     if verbose >= 0:
         print("A dataset file is saved to %s" % out_file)
+
