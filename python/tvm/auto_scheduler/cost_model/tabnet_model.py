@@ -745,6 +745,8 @@ class SegmentSumMLPModule(torch.nn.Module):
 
         segment_sizes = segment_sizes.long()
 
+        print(features)
+        print(self.segment_encoder)
         features = self.segment_encoder(
             features
         )
