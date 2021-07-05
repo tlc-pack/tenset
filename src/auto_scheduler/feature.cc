@@ -1359,7 +1359,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
     auto runtime = codegen::Build(mod, Target("cpu"));
-    runtime->SaveToFile("model", "o");
+    runtime->SaveToFile("tenset_assembly_model", "o");
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
