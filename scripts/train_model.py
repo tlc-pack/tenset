@@ -81,6 +81,7 @@ def make_model(name, use_gpu=False):
     elif name == 'lgbm':
         return LGBModelInternal(use_gpu=use_gpu)
     elif name == 'tab':
+        print('tabnet')
         return TabNetModelInternal(use_gpu=use_gpu)
     elif name == "random":
         return RandomModelInternal()
