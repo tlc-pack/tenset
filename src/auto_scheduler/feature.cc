@@ -34,6 +34,8 @@
 #include <tvm/tir/op_attr_types.h>
 #include <tvm/tir/stmt_functor.h>
 #include <tvm/tir/transform.h>
+#include <tvm/target/codegen.h>
+#include <tvm/target/target.h>
 
 #include <algorithm>
 #include <cmath>
@@ -1356,6 +1358,8 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     const auto& optimize =
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
+    auto runtime = codegen::Build(mod, Target("cpu"));
+    runtime->SaveToFile("model", "o");
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
