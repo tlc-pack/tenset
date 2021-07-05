@@ -33,7 +33,7 @@ from .cost_model import PythonBasedModel
 import torch
 from torch.nn import Linear, BatchNorm1d, ReLU
 import numpy as np
-from .sparsemax import sparsemax
+from .sparsemax import Sparsemax, Entmax15
 
 class AttentiveTransformer(torch.nn.Module):
     def __init__(
@@ -68,10 +68,10 @@ class AttentiveTransformer(torch.nn.Module):
 
         if mask_type == "sparsemax":
             # Sparsemax
-            self.selector = sparsemax.Sparsemax(dim=-1)
+            self.selector = Sparsemax(dim=-1)
         elif mask_type == "entmax":
             # Entmax
-            self.selector = sparsemax.Entmax15(dim=-1)
+            self.selector = Entmax15(dim=-1)
         else:
             raise NotImplementedError(
                 "Please choose either sparsemax" + "or entmax as masktype"
