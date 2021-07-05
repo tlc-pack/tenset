@@ -789,6 +789,7 @@ def moving_average(average, update):
 class TabNetModelInternal:
     def __init__(self, use_gpu=True, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=False,
                  loss_type='lambdaRankLoss'):
+        print('tabnet')
         if device is None:
             if torch.cuda.device_count() and use_gpu:
                 device = 'cuda:0'
