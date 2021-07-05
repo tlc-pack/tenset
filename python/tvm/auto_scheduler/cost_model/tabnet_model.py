@@ -745,11 +745,11 @@ class SegmentSumMLPModule(torch.nn.Module):
 
         segment_sizes = segment_sizes.long()
 
-        print(features.size())
-        print(self.segment_encoder)
+        #print(features.size())
+        #print(self.segment_encoder)
         features = self.segment_encoder(
             features
-        )
+        )[0]
         segment_indices = torch.repeat_interleave(
             torch.arange(n_seg, device=device), segment_sizes
         )
