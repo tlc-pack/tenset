@@ -1358,6 +1358,29 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     const auto& optimize =
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
+    
+    auto pass_list = Array<tvm::transform::Pass>();
+    // Phase 1
+    pass_list.push_back(tir::transform::BF16Legalize());
+    pass_list.push_back(tir::transform::NarrowDataType(32));
+    pass_list.push_back(tir::transform::Simplify());
+    pass_list.push_back(tir::transform::LoopPartition());
+    pass_list.push_back(tir::transform::VectorizeLoop(!disable_vectorize));
+    pass_list.push_back(tir::transform::InjectVirtualThread());
+    pass_list.push_back(tir::transform::InjectDoubleBuffer());
+    pass_list.push_back(tir::transform::StorageRewrite());
+    pass_list.push_back(tir::transform::UnrollLoop());
+    // Phase 2
+    pass_list.push_back(tir::transform::Simplify());
+    pass_list.push_back(tir::transform::RemoveNoOp());
+    pass_list.push_back(tir::transform::RewriteUnsafeSelect());
+    if (instrument_bound_checkers) {
+      pass_list.push_back(tir::transform::InstrumentBoundCheckers());
+    }
+    // run
+    auto optimize = tir::transform::Sequential(pass_list);
+    mod = optimize(mod);
+    
     auto rt = codegen::Build(mod, Target("llvm"));
     std::cout << "\nCodegen\n";
     static const PackedFunc* func = runtime::Registry::Get("my_func_call_module_export_library");
