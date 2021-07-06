@@ -446,5 +446,5 @@ def build(inputs, args=None, target=None, target_host=None, name="default_functi
     return rt_mod_host
 
 @tvm.register_func("my_func_call_build")
-def call_build(mod, target):
-    return build(mod, target=target)
+def call_build(sch, args, target):
+    return build(sch, args=args, target=target)

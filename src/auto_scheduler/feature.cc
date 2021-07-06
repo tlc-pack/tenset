@@ -1362,7 +1362,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     //static const PackedFunc* fexport = runtime::Registry::Get("my_func_call_module_export_library");
     static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_build");
 
-    auto rt = (*fbuild)(mod, "llvm");
+    auto rt = (*fbuild)(sch, tensors, "llvm");
     std::cout << "\nCodegen\n";
     //(*fexport)(rt, "tenset_exported_model.so");
     std::cout << "\nCodegen done\n";
