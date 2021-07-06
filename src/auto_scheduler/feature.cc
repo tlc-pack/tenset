@@ -1358,7 +1358,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     const auto& optimize =
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
-    auto rt = codegen::Build(mod, Target("cpu"));
+    auto rt = codegen::Build(mod, Target("llvm"));
     std::cout << "\nCodegen\n";
     static const PackedFunc* func = runtime::Registry::Get("my_func_call_module_export_library");
     (*func)(rt, "tenset_exported_model.so");
