@@ -1359,8 +1359,8 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
     
-    static const PackedFunc* fexport = runtime::Registry::Get("my_func_call_module_export_library");
-    static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_module_export_library");
+    //static const PackedFunc* fexport = runtime::Registry::Get("my_func_call_module_export_library");
+    static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_build");
 
     auto rt = (*fbuild)(mod, "llvm");
     std::cout << "\nCodegen\n";
