@@ -1364,7 +1364,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
 
     auto rt = (*fbuild)(mod, "llvm");
     std::cout << "\nCodegen\n";
-    (*fexport)(rt, "tenset_exported_model.so");
+    //(*fexport)(rt, "tenset_exported_model.so");
     std::cout << "\nCodegen done\n";
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
