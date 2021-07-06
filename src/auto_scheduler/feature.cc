@@ -1360,7 +1360,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     mod = optimize(std::move(mod));
     auto rt = codegen::Build(mod, Target("cpu"));
     auto llvm_rt = codegen::PackImportsToLLVM(rt, true, "x86_64-linux-gnu");
-    llvm_rt->SaveToFile("tenset_assembly_model", "o");
+    llvm_rt->SaveToFile("~/octoml/tenset/scripts/tenset_assembly_model.o", "o");
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
