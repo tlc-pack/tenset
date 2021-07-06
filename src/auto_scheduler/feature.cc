@@ -1378,10 +1378,10 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
       pass_list.push_back(tir::transform::InstrumentBoundCheckers());
     }
     // run
-    auto optimize = tir::transform::Sequential(pass_list);
-    mod = optimize(mod);
+    auto wrap_up_opt = tir::transform::Sequential(pass_list);
+    auto mod_assem = wrap_up_opt(mod);
     
-    auto rt = codegen::Build(mod, Target("llvm"));
+    auto rt = codegen::Build(mod_assem, Target("llvm"));
     std::cout << "\nCodegen\n";
     static const PackedFunc* func = runtime::Registry::Get("my_func_call_module_export_library");
     (*func)(rt, "tenset_exported_model.so");
