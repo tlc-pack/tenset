@@ -484,6 +484,6 @@ def enabled(target):
 
 @tvm.register_func("my_func_call_module_export_library")
 def call_export_library(mod, path):
-    return mod.export_library(path)
+    return mod.export_library(f"assem_models/{path}.so")
 
 _set_class_module(Module)

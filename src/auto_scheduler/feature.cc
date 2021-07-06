@@ -1363,9 +1363,9 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_build");
 
     auto rt = (*fbuild)(sch, tensors, "llvm");
-    std::cout << "\nCodegen\n";
-    (*fexport)(rt, "tenset_exported_model.so");
-    std::cout << "\nCodegen done\n";
+    //std::cout << "\nCodegen\n";
+    (*fexport)(rt, (std::string)task->workload_key);
+    //std::cout << "\nCodegen done\n";
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
