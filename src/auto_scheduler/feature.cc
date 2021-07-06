@@ -1361,7 +1361,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     
     auto pass_list = Array<tvm::transform::Pass>();
     // Phase 2
-    pass_list.push_back(tir::transform::Simplify());
+    pass_list.push_back(tir::transform::StorageFlatten(64, instrument_bound_checkers));
     pass_list.push_back(tir::transform::RemoveNoOp());
     pass_list.push_back(tir::transform::RewriteUnsafeSelect());
     if (instrument_bound_checkers) {
