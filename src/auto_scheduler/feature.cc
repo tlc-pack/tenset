@@ -1359,8 +1359,8 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
     auto rt = codegen::Build(mod, Target("cpu"));
-    std::cout << codegen::PackImportsToC(rt, true);
-    rt->SaveToFile("tenset_assembly_model", "o");
+    auto llvm_rt = codegen::PackImportsToLLVM(rt, true, "x86_64-linux-gnu");
+    llvm_rt->SaveToFile("tenset_assembly_model", "o");
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
