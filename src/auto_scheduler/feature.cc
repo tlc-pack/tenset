@@ -1306,7 +1306,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
-  try {
+  //try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
     Map<te::Tensor, te::Buffer> out_binds;
     Array<ObjectRef> out_arg_list;
@@ -1359,18 +1359,18 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
     auto rt = codegen::Build(mod, Target("cpu"));
-    auto llvm_rt = codegen::PackImportsToLLVM(rt, true, "x86_64-linux-gnu");
     std::cout << "\nCodegen\n";
-    llvm_rt->SaveToFile("~/octoml/tenset/scripts/tenset_assembly_model.o", "o");
+    static const PackedFunc* func = runtime::Registry::Get("my_func_call_module_export_library");
+    (*func)(rt, "tenset_exported_model.so");
     std::cout << "\nCodegen done\n";
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
                        feature);
-  } catch (Error& e) {
-    (*error_ct)++;
-  }
+  //} catch (Error& e) {
+  //  (*error_ct)++;
+  //}
 }
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask& task,
