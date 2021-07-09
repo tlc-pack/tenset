@@ -15,11 +15,13 @@ from tvm.auto_scheduler.utils import to_str_round
 from dump_network_info import get_network_with_key
 from common import str2bool, log_line, BenchmarkRecord
 
+from search import random_search, local_search, default_search
+
 
 def get_network(network_args):
     name, batch_size = network_args['network'], network_args['batch_size']
     if name in ['resnet_18', 'resnet_50', 'mobilenet_v2', 'mobilenet_v3',
-                'wide_resnet_50', 'resnext_50', 'densenet_121']:
+                'wide_resnet_50', 'resnext_50', 'densenet_121', 'vgg_16']:
         network_key = (name, [(batch_size, 3, 224, 224)])
     elif name in ['inception_v3']:
         network_key = (name, [(batch_size, 3, 299, 299)])
@@ -58,7 +60,7 @@ def get_tuning_option(tuning_args, target):
     return tuning_opt, measure_ctx
 
 
-def tune_and_evaluate(network_args, tuning_args, target, target_host, result_file):
+def tune_and_evaluate(network_args, tuning_args, target, target_host, result_file, transfer_tune, search_type):
     mod, params, inputs = get_network(network_args)
 
     # Do auto-tuning
@@ -82,39 +84,26 @@ def tune_and_evaluate(network_args, tuning_args, target, target_host, result_fil
 
         # Run search
         tuner = auto_scheduler.TaskScheduler(tasks, task_weights,
-            load_model_file=tuning_args['load_model'])
+            load_model_file=tuning_args['load_model'], load_log_file=tuning_args['log_file'])
         policy = 'sketch.%s' % tuning_args['cost_model']
-        tuner.tune(tuning_opt, search_policy=policy)
+
+        if not transfer_tune:
+            tuner.tune(tuning_opt, search_policy=policy)
+        else:
+            tuner.transfer_tune(tuning_opt, search_policy=policy)
+
+    best_by_targetkey, _ = local_search(log_file)
+    if search_type == "random":
+        prof_res = random_search(best_by_targetkey, network_args, target)
     else:
-        measure_ctx = None
-
-    # Build module
-    with auto_scheduler.ApplyHistoryBest(log_file, n_lines=tuning_args["n_lines"]):
-        with tvm.transform.PassContext(
-            opt_level=3, config={"relay.backend.use_auto_scheduler": True}
-        ):
-            lib = relay.build(mod, target=target, params=params)
-    ctx = tvm.context(str(target), 0)
-    module = runtime.GraphModule(lib["default"](ctx))
-
-    # Feed input data
-    for name, shape, dtype in inputs:
-        data_np = np.random.uniform(size=shape).astype(dtype)
-        module.set_input(name, data_np)
-
-    # Evaluate
-    ftimer = module.module.time_evaluator("run", ctx, min_repeat_ms=500, repeat=3)
-    prof_res = np.array(ftimer().results)
-    print("Mean inference time (std dev): %.2f ms (%.2f ms)" %
-          (np.mean(prof_res) * 1000, np.std(prof_res) * 1000))
+        prof_res = default_search(best_by_targetkey, network_args, target)
 
     # Dump results
     log_line(BenchmarkRecord(str(target.kind), 'gpu' if 'gpu' in target.keys else 'cpu',
-                             'network',
-                             "%s.B%d" % (network_args['network'], network_args['batch_size']),
-			     'ours', 'default',
-                             {"costs": prof_res}, time.time()),
-                             args.result_file)
+                            'network',
+                            "%s.B%d" % (network_args['network'], network_args['batch_size']),
+                            'ours', 'default',
+                            {"costs": prof_res}, time.time()), result_file)
 
     if measure_ctx is not None:
         del measure_ctx
@@ -131,9 +120,10 @@ if __name__ == "__main__":
     parser.add_argument("--n-trials", type=int, default=1000)
     parser.add_argument("--eval-only", action='store_true')
     parser.add_argument("--continue-tuning", action='store_true')
+    parser.add_argument("--transfer-tune", action="store_true")
 
     # Search strategy related arguments
-    parser.add_argument("--cost-model", type=str, choices=['xgb', 'random', 'xgb-no-update'],
+    parser.add_argument("--cost-model", type=str, choices=['xgb', 'random', 'xgb-no-update', 'mlp', 'mlp-no-update'],
                         default='xgb', help="The type of program cost model")
     parser.add_argument("--seed", type=int, default=0, help='random seed')
     parser.add_argument("--load-model", type=str, help="Load pre trained cost model file")
@@ -153,6 +143,7 @@ if __name__ == "__main__":
     parser.add_argument("--run-timeout", type=int, default=25)
     parser.add_argument("--early-stopping", type=int, default=-1)
     parser.add_argument("--verbose", type=int, default=1)
+    parser.add_argument("--search-type", type=str, default='default', choices=['random', 'default'])
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -186,5 +177,5 @@ if __name__ == "__main__":
     }
 
     tune_and_evaluate(network_args, tuning_args, target, args.target_host,
-                      args.result_file)
+                      args.result_file, args.transfer_tune, args.search_type)
 

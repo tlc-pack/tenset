@@ -16,12 +16,15 @@ from common import load_and_register_tasks, str2bool
 
 from tvm.auto_scheduler.dataset import Dataset, LearningTask
 from tvm.auto_scheduler.cost_model.xgb_model import XGBModelInternal
+from tvm.auto_scheduler.cost_model.mlp_model import MLPModelInternal
+
 from tvm.auto_scheduler.cost_model.metric import (
     metric_rmse,
     metric_r_squared,
     metric_pairwise_comp_accuracy,
     metric_top_k_recall,
     metric_peak_score,
+    metric_mape,
     random_mix,
 )
 
@@ -38,8 +41,10 @@ def evaluate_model(model, test_set):
     rmse_list = []
     r_sqaured_list = []
     pair_acc_list = []
+    mape_list = []
     peak_score1_list = []
     peak_score5_list = []
+
 
     for task in tasks:
         preds = prediction[task]
@@ -48,12 +53,14 @@ def evaluate_model(model, test_set):
         rmse_list.append(np.square(metric_rmse(preds, labels)))
         r_sqaured_list.append(metric_r_squared(preds, labels))
         pair_acc_list.append(metric_pairwise_comp_accuracy(preds, labels))
+        mape_list.append(metric_mape(preds, labels))
         peak_score1_list.append(metric_peak_score(preds, labels, 1))
         peak_score5_list.append(metric_peak_score(preds, labels, 5))
 
     rmse = np.sqrt(np.average(rmse_list, weights=weights))
     r_sqaured = np.average(r_sqaured_list, weights=weights)
     pair_acc = np.average(pair_acc_list, weights=weights)
+    mape = np.average(mape_list, weights=weights)
     peak_score1 = np.average(peak_score1_list, weights=weights)
     peak_score5 = np.average(peak_score5_list, weights=weights)
 
@@ -61,6 +68,7 @@ def evaluate_model(model, test_set):
         "RMSE": rmse,
         "R^2": r_sqaured,
         "pairwise comparision accuracy": pair_acc,
+        "mape": mape,
         "average peak score@1": peak_score1,
         "average peak score@5": peak_score5,
     }
@@ -124,7 +132,7 @@ def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="dataset.pkl")
+    parser.add_argument("--dataset", nargs="+", type=str, default=["dataset.pkl"])
     parser.add_argument("--models", type=str, default="xgb")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
@@ -151,7 +159,10 @@ if __name__ == "__main__":
     load_and_register_tasks()
 
     print("Load dataset...")
-    dataset = pickle.load(open(args.dataset, "rb"))
+    dataset = pickle.load(open(args.dataset[0], "rb"))
+    for i in range(1, len(args.dataset)):
+        tmp_dataset = pickle.load(open(args.dataset[i], "rb"))
+        dataset.update_from_dataset(tmp_dataset)
 
     train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu)
 

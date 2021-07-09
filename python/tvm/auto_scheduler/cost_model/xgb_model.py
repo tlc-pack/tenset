@@ -22,7 +22,6 @@ import logging
 import multiprocessing
 import pickle
 import time
-
 import numpy as np
 
 from tvm.autotvm.tuner.metric import max_curve
@@ -210,6 +209,8 @@ class XGBModelInternal:
             base_preds = self._predict_a_dataset(self.base_model, dataset)
             ret = {}
             for task in dataset.tasks():
+                if task not in self.local_model and self.few_shot_learning == "plus_mix_task":
+                    self.local_model[task] = list(self.local_model.values())[0]
                 local_preds = self._predict_a_task(self.local_model[task], task, dataset.features[task])
                 ret[task] = base_preds[task] + local_preds
             return ret
