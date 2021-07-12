@@ -93,6 +93,13 @@ class Dataset:
 
             self.load_task_data(task, features, normalized_throughputs, min_latency[0])
 
+    def update_from_dataset(self, dataset):
+        for task in dataset.features:
+            if task not in self.features:
+                self.features[task] = dataset.features[task]
+                self.throughputs[task] = dataset.throughputs[task]
+                self.min_latency[task] = dataset.min_latency[task]
+
     def load_task_data(self, task: LearningTask, features, throughputs, min_latency=None):
         """Load feature and throughputs for one task"""
         if task not in self.features:
