@@ -22,6 +22,7 @@ import logging
 import multiprocessing
 import pickle
 import time
+
 import numpy as np
 
 from tvm.autotvm.tuner.metric import max_curve
@@ -34,47 +35,47 @@ from tvm.auto_scheduler.workload_registry import workload_key_to_tensors
 from .cost_model import PythonBasedModel
 from ..feature import get_per_store_feature_names
 
-xgb = None
+lgbm = None
 
 logger = logging.getLogger("auto_scheduler")
 
 
-class XGBDMatrixContext:
-    """A global context to hold additional attributes of xgb.DMatrix"""
+class LGBMDatasetContext:
+    """A global context to hold additional attributes of lgbm.Dataset"""
 
     def __init__(self):
         self.context_dict = defaultdict(dict)
 
     def get(self, key, matrix, default=None):
         """
-        Get an attribute of a xgb.DMatrix
+        Get an attribute of a lgbm.Dataset
         Parameters
         ----------
         key: str
             The name of the attribute
-        matrix: xgb.DMatrix
+        matrix: lgbm.Dataset
             The matrix
         default: Optional[Any]
             The default value if the item does not exist
         """
-        return self.context_dict[key].get(matrix.handle.value, default)
+        return self.context_dict[key].get(id(matrix), default)
 
     def set(self, key, matrix, value):
         """
-        Set an attribute for a xgb.DMatrix
+        Set an attribute for a lgbm.Dataset
         Parameters
         ----------
         key: str
             The name of the attribute
-        matrix: xgb.DMatrix
+        matrix: lgbm.Dataset
             The matrix
         value: Optional[Any]
             The new value
         """
-        self.context_dict[key][matrix.handle.value] = value
+        self.context_dict[key][id(matrix)] = value
 
 
-dmatrix_context = XGBDMatrixContext()
+dataset_context = LGBMDatasetContext()
 
 
 def get_workload_embedding(workload_key):
@@ -88,7 +89,7 @@ def get_workload_embedding(workload_key):
     return vec
 
 
-class XGBModelInternal:
+class LGBModelInternal:
     """Train a XGBoost model to predict the normalized throughputs of programs.
     Let the normalized throughput be the score of a program (higher is better). We predict
     the (approximate) score of a program = the sum of the scores of all stages in this program.
@@ -113,17 +114,16 @@ class XGBModelInternal:
         verbose_eval=25,
         seed=None):
 
-        global xgb
+        global lgbm
         try:
-            if xgb is None:
-                xgb = __import__("xgboost")
+            if lgbm is None:
+                lgbm = __import__("lightgbm")
         except ImportError:
             # add "from Node" to silence
             # "During handling of the above exception, another exception occurred"
             raise ImportError(
-                "XGBoost is required for XGBModel. "
+                "LightGBM is required for LGBModel. "
                 "Please install its python package first. "
-                "Help: (https://xgboost.readthedocs.io/en/latest/) "
             ) from None
 
         self.plan_size = 1
@@ -135,22 +135,23 @@ class XGBModelInternal:
         self.verbose_eval = verbose_eval
         self.workload_embed_dict = dict()
 
-        # xgb params
-        self.xgb_params = {
-            "max_depth": 6,
-            "gamma": 0.003,
-            "min_child_weight": 2,
-            "eta": 0.2,
-            "n_gpus": 0,
-            "nthread": multiprocessing.cpu_count() // 2,
-            "verbosity": 0,
-            "seed": seed or 43,
-            "disable_default_eval_metric": 1,
+        # lgbm params
+        self.lgbm_params = {
+            'boosting_type': 'gbdt',
+            'num_leaves': 31,
+            'learning_rate': 0.05,
+            'feature_fraction': 0.9,
+            'bagging_fraction': 0.8,
+            'bagging_freq': 5,
+            'verbose': 0,
+            'min_child_weight': 2,
+            'in_sum_in_hessian': 0,
+            'min_data_in_leaf': 0
         }
 
         # gpu support
         if use_gpu:
-            self.xgb_params['tree_method'] = 'gpu_hist'
+            self.lgbm_params['tree_method'] = 'gpu_hist'
 
         # models
         self.base_model = None
@@ -210,8 +211,6 @@ class XGBModelInternal:
             base_preds = self._predict_a_dataset(self.base_model, dataset)
             ret = {}
             for task in dataset.tasks():
-                if task not in self.local_model and self.few_shot_learning == "plus_mix_task":
-                    self.local_model[task] = list(self.local_model.values())[0]
                 local_preds = self._predict_a_task(self.local_model[task], task, dataset.features[task])
                 ret[task] = base_preds[task] + local_preds
             return ret
@@ -219,40 +218,41 @@ class XGBModelInternal:
             raise ValueError("Invalid few show learing: " + self.few_shot_learning)
 
     def _fit_a_model(self, train_set, valid_set=None, valid_train_set=None):
-        print("Fit a xgb booster. Train size: %d" % len(train_set))
+        print("Fit a lgbm booster. Train size: %d" % len(train_set))
 
         for task in train_set.tasks():
             self.register_new_task(task)
-        dtrain = self.dataset_to_dmatrix(train_set, argumentation=self.use_data_argumentation)
+        train_set = self.dataset_to_lgbm_dataset(train_set, argumentation=self.use_data_argumentation)
 
         if valid_set is not None:
             for task in valid_set.tasks():
                 self.register_new_task(task)
-            dtest = self.dataset_to_dmatrix(valid_set)
-            eval_sets = [(dtrain, "tr"), (dtest, "te")]
+            test_set = self.dataset_to_lgbm_dataset(valid_set)
+            eval_sets = [train_set, test_set]
+            eval_names = ['tr','te']
         else:
-            eval_sets = [(dtrain, "tr")]
-
+            eval_sets = [train_set]
+            eval_names = ['tr']
+        
         # Train a new model
-        bst = xgb.train(
-            params=self.xgb_params,
-            dtrain=dtrain,
-            num_boost_round=300,
-            obj=pack_sum_square_error,
-            callbacks=[
-                custom_callback(
-                    stopping_rounds=100,
-                    metric="tr-rmse",
-                    fevals=[pack_sum_rmse, pack_sum_average_peak_score(self.plan_size)],
-                    evals=eval_sets,
-                    maximize=False,
-                    verbose_eval=self.verbose_eval,
-                )
-            ],
+        bst = lgbm.train(
+            params=self.lgbm_params,
+            train_set=train_set,
+            valid_sets=eval_sets,
+            valid_names=eval_names,
+            num_boost_round=2000,
+            fobj=pack_sum_square_error,
+            feval=[pack_sum_rmse, pack_sum_average_peak_score(self.plan_size)],
+            early_stopping_rounds=100,
+            verbose_eval=self.verbose_eval  
         )
 
-        feature_importances = bst.get_score(importance_type='gain')
-        print("Feature importances: ", feature_importances)
+        feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
+            'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
+            'dense', 'softmax', 'compute(b, i, j)']
+        feature_importances = bst.feature_importance()
+        imp = sorted(list(zip(feature_importances, feature_names)))
+        print("Feature importances: ", imp)
 
         return bst
 
@@ -266,13 +266,13 @@ class XGBModelInternal:
         if model is None:
             return np.zeros(len(features), dtype=np.float32)
 
-        # Convert features to dmatrix
+        # Convert features to dataset
         tmp_set = Dataset.create_one_task(task, features, None)
-        dmatrix = self.dataset_to_dmatrix(tmp_set)
+        dataset = self.dataset_to_lgbm_dataset(tmp_set)
 
         # Make predictions
-        raw_preds = model.predict(dmatrix)
-        pack_ids = dmatrix_context.get("pack_ids", dmatrix)
+        raw_preds = model.predict(dataset.data)
+        pack_ids = dataset_context.get("pack_ids", dataset)
         predictions = pack_sum_predict_throughput(raw_preds, pack_ids)
         return predictions
 
@@ -292,8 +292,8 @@ class XGBModelInternal:
             )
         return diff_set
 
-    def dataset_to_dmatrix(self, dataset, return_task_order=False, argumentation=False):
-        # Process input data to xgb format
+    def dataset_to_lgbm_dataset(self, dataset, return_task_order=False, argumentation=False):
+        # Process input data to lgbm format
         xs, ys, gids = [], [], []
         task_order = []
 
@@ -336,14 +336,14 @@ class XGBModelInternal:
         xs = np.array(xs, dtype=object)
         ys = np.concatenate(ys)
         gids = np.concatenate(gids)
-        dmatrix = pack_sum_xgbmatrix(
+        dataset = pack_sum_lgbmdataset(
             xs, ys, gids=gids, weights=np.maximum(ys, 0.1) if self.use_weight else None
         )
 
         if return_task_order:
-            return dmatrix, task_order
+            return dataset, task_order
         else:
-            return dmatrix
+            return dataset
 
     def load(self, filename):
         self.base_model, self.local_model, params = \
@@ -360,15 +360,15 @@ class XGBModelInternal:
             open(filename, 'wb'))
 
 
-class XGBModel(PythonBasedModel):
-    """The wrapper of XGBModelInternal. So we can use it in end-to-end search."""
+class LGBModel(PythonBasedModel):
+    """The wrapper of LGBModelInternal. So we can use it in end-to-end search."""
     def __init__(self, few_shot_learning="base_only", verbose_eval=25,
                  num_warmup_sample=100, seed=None, disable_update=False):
         super().__init__()
 
         self.num_warmup_sample = num_warmup_sample
         self.disable_update = disable_update
-        self.model = XGBModelInternal(few_shot_learning=few_shot_learning,
+        self.model = LGBModelInternal(few_shot_learning=few_shot_learning,
                                       verbose_eval=verbose_eval,
                                       seed=seed)
         self.dataset = Dataset()
@@ -379,7 +379,7 @@ class XGBModel(PythonBasedModel):
         tic = time.time()
         self.dataset.update_from_measure_pairs(inputs, results)
         self.model.fit_base(self.dataset)
-        logger.info("XGBModel Training time: %.2f s", time.time() - tic)
+        logger.info("LGBModel Training time: %.2f s", time.time() - tic)
 
     def predict(self, task, states):
         features = get_per_store_features_from_states(states, task)
@@ -408,7 +408,7 @@ class XGBModel(PythonBasedModel):
             Only load first n lines of the log file
         """
         inputs, results = RecordReader(file_name).read_lines(n_lines)
-        logger.info("XGBModel: Loaded %s measurement records from %s", len(inputs), file_name)
+        logger.info("LGBModel: Loaded %s measurement records from %s", len(inputs), file_name)
         self.update(inputs, results)
 
     def save(self, file_name: str):
@@ -430,40 +430,37 @@ class XGBModel(PythonBasedModel):
             The filename
         """
         if self.model is None:
-            self.model = XGBModelInternal()
+            self.model = LGBModelInternal()
         self.model.load(file_name)
         self.num_warmup_sample = -1
 
 
-def feature_to_pack_sum_xgbmatrix(xs):
-    """Convert an extracted multi-stage feature vector to a xgb matrix in pack-sum format
+def feature_to_pack_sum_lgbmdataset(xs):
+    """Convert an extracted multi-stage feature vector to a xgbmatrx in pack-sum format
     Parameters
     ----------
     xs: np.ndarray
         The feature vector
     Returns
     -------
-    dmatrix: xgb.DMatrix
-        The DMatrix
+    dataset: lgbm.Dataset
+        The dataset
     pack_ids: List[int]
         pack ids information
     """
     x_flatten = []
     pack_ids = []
-    feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
-            'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
-            'dense', 'softmax', 'compute(b, i, j)']
 
     for ct, x in enumerate(xs):
         for row in x:
             x_flatten.append(row)
             pack_ids.append(ct)
 
-    return xgb.DMatrix(np.array(x_flatten), feature_names=feature_names), pack_ids
+    return lgbm.Dataset(np.array(x_flatten)), pack_ids
 
 
-def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
-    """Convert (feature, label) pairs into a xgb matrix with pack-sum format
+def pack_sum_lgbmdataset(xs, ys, gids=None, weights=None):
+    """Convert (feature, label) pairs into a lgbm dataset with pack-sum format
     Parameters
     ----------
     xs: np.ndarray
@@ -476,8 +473,8 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
         The weight of samples
     Returns
     -------
-    dmatrix: xgb.DMatrix
-        The DMatrix with pack-sum information
+    dataset: lgbm.Dataset
+        The dataset with pack-sum information
     """
     if gids is not None:
         # sort by group
@@ -509,15 +506,11 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
                 y_flatten.append(y)
                 pack_ids.append(ct)
 
-    feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
-            'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
-            'dense', 'softmax', 'compute(b, i, j)']
-
-    ret = xgb.DMatrix(np.array(x_flatten), y_flatten, feature_names=feature_names)
+    ret = lgbm.Dataset(np.array(x_flatten), y_flatten)
     if weights is not None:
         ret.set_weight(weights_flatten)
-    dmatrix_context.set("pack_ids", ret, np.array(pack_ids))
-    dmatrix_context.set("group_sizes", ret, group_sizes)
+    dataset_context.set("pack_ids", ret, np.array(pack_ids))
+    dataset_context.set("group_sizes", ret, group_sizes)
     return ret
 
 
@@ -538,14 +531,14 @@ def pack_sum_predict_throughput(raw_preds, pack_ids):
     return sum_pred
 
 
-def pack_sum_square_error(preds, dtrain):
+def pack_sum_square_error(preds, train_set):
     """Implement square error loss on pack-sum format as
      a custom objective function for xgboost.
     Parameters
     ----------
     preds: np.ndarray
         The predicitons
-    dtrain: xgb.DMatrix
+    train_set: lgbm.Dataset
         The training set
     Returns
     -------
@@ -553,28 +546,28 @@ def pack_sum_square_error(preds, dtrain):
     hessian: np.ndarray
         gradient and hessian according to the xgboost format
     """
-    pack_ids = dmatrix_context.get("pack_ids", dtrain)
-    weight = dtrain.get_weight()
+    pack_ids = dataset_context.get("pack_ids", train_set)
+    weight = train_set.get_weight()
 
     sum_pred = np.bincount(pack_ids, weights=preds)
     x = sum_pred[pack_ids]
-    y = dtrain.get_label()
+    y = train_set.get_label()
     gradient = x - y
     hessian = np.ones_like(gradient)
 
-    if len(weight) == 0:
+    if not weight:
         return gradient, hessian
 
     return gradient * weight, hessian * weight
 
 
-def pack_sum_rmse(raw_preds, dtrain):
+def pack_sum_rmse(raw_preds, train_set):
     """Evaluate RMSE (rooted mean square error) in the pack-sum format
     Parameters
     ----------
     raw_preds: np.ndarray
         The raw prediction
-    dtrain: xgb.DMatrix
+    train_set: lgbm.Dataset
         The groud-truth label matrix
     Returns
     -------
@@ -582,11 +575,11 @@ def pack_sum_rmse(raw_preds, dtrain):
     score: float
         The name and score of this metric
     """
-    pack_ids = dmatrix_context.get("pack_ids", dtrain)
+    pack_ids = dataset_context.get("pack_ids", train_set)
     preds = pack_sum_predict_throughput(raw_preds, pack_ids)
-    labels = (np.bincount(pack_ids, weights=dtrain.get_label())
+    labels = (np.bincount(pack_ids, weights=train_set.get_label())
               / np.unique(pack_ids, return_counts=True)[1])
-    return 'rmse', np.sqrt(np.mean(np.square((preds - labels))))
+    return 'rmse', np.sqrt(np.mean(np.square((preds - labels)))), False
 
 
 def pack_sum_average_peak_score(N):
@@ -606,7 +599,7 @@ def pack_sum_average_peak_score(N):
         ----------
         raw_preds: np.ndarray
             The raw prediction
-        labels: xgb.DMatrix
+        labels: lgbm.Dataset
             The groud-truth label matrix
         Returns
         -------
@@ -614,8 +607,8 @@ def pack_sum_average_peak_score(N):
         score: float
         The name and score of this metric
         """
-        group_sizes = dmatrix_context.get("group_sizes", labels, [len(preds)])
-        pack_ids = dmatrix_context.get("pack_ids", labels)
+        group_sizes = dataset_context.get("group_sizes", labels, [len(preds)])
+        pack_ids = dataset_context.get("pack_ids", labels)
 
         preds = pack_sum_predict_throughput(preds, pack_ids)
         labels = (
@@ -634,7 +627,7 @@ def pack_sum_average_peak_score(N):
             trial_scores = labels_group[trials]
             curve = max_curve(trial_scores) / np.max(labels_group)
             scores.append(np.mean(curve))
-        return "a-peak@%d" % N, np.mean(scores)
+        return "a-peak@%d" % N, np.mean(scores), True
 
     return feval
 
@@ -642,13 +635,13 @@ def pack_sum_average_peak_score(N):
 def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
                     maximize=False, verbose_eval=True, skip_every=5):
     """Callback function for xgboost to support multiple custom evaluation functions"""
-    from xgboost.core import EarlyStopException
-    from xgboost.callback import _fmt_metric
+    from lightgbm.callback import EarlyStopException
+    from lightgbm.callback import _fmt_metric
 
     try:
-        from xgboost.training import aggcv
+        from lightgbm.training import aggcv
     except ImportError:
-        from xgboost.callback import _aggcv as aggcv
+        from lightgbm.callback import _aggcv as aggcv
 
     state = {}
     metric_shortname = metric.split("-")[1]
@@ -749,8 +742,7 @@ def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
         elif env.iteration - best_iteration >= stopping_rounds:
             best_msg = state.get('best_msg', "")
             if verbose_eval and env.rank == 0:
-                logger.debug("XGB stopped. Best iteration: %s ", best_msg)       
-
+                logger.debug("XGB stopped. Best iteration: %s ", best_msg)
             raise EarlyStopException(best_iteration)
 
     return callback

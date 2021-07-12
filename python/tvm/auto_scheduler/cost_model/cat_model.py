@@ -22,6 +22,7 @@ import logging
 import multiprocessing
 import pickle
 import time
+
 import numpy as np
 
 from tvm.autotvm.tuner.metric import max_curve
@@ -32,49 +33,48 @@ from tvm.auto_scheduler.feature import (
 from tvm.auto_scheduler.measure_record import RecordReader
 from tvm.auto_scheduler.workload_registry import workload_key_to_tensors
 from .cost_model import PythonBasedModel
-from ..feature import get_per_store_feature_names
 
-xgb = None
+cat = None
 
 logger = logging.getLogger("auto_scheduler")
 
 
-class XGBDMatrixContext:
-    """A global context to hold additional attributes of xgb.DMatrix"""
+class CatPoolContext:
+    """A global context to hold additional attributes of cat.Pool"""
 
     def __init__(self):
         self.context_dict = defaultdict(dict)
 
     def get(self, key, matrix, default=None):
         """
-        Get an attribute of a xgb.DMatrix
+        Get an attribute of a cat.Pool
         Parameters
         ----------
         key: str
             The name of the attribute
-        matrix: xgb.DMatrix
+        matrix: cat.Pool
             The matrix
         default: Optional[Any]
             The default value if the item does not exist
         """
-        return self.context_dict[key].get(matrix.handle.value, default)
+        return self.context_dict[key].get(id(matrix), default)
 
     def set(self, key, matrix, value):
         """
-        Set an attribute for a xgb.DMatrix
+        Set an attribute for a cat.Pool
         Parameters
         ----------
         key: str
             The name of the attribute
-        matrix: xgb.DMatrix
+        matrix: cat.Pool
             The matrix
         value: Optional[Any]
             The new value
         """
-        self.context_dict[key][matrix.handle.value] = value
+        self.context_dict[key][id(matrix)] = value
 
 
-dmatrix_context = XGBDMatrixContext()
+dmatrix_context = CatPoolContext()
 
 
 def get_workload_embedding(workload_key):
@@ -88,18 +88,18 @@ def get_workload_embedding(workload_key):
     return vec
 
 
-class XGBModelInternal:
-    """Train a XGBoost model to predict the normalized throughputs of programs.
+class CatModelInternal:
+    """Train a Catoost model to predict the normalized throughputs of programs.
     Let the normalized throughput be the score of a program (higher is better). We predict
     the (approximate) score of a program = the sum of the scores of all stages in this program.
     i.e. score(P) = score_s0 + score_s1 + ... + score_sn,
     where score_si is the score of Stage i in Program P.
-    We extract feature for each stage and let the xgboost predict the score for each stage.
+    We extract feature for each stage and let the catboost predict the score for each stage.
     We then sum up the predictions as the score of the whole program.
     We use RMSE as the loss function.  i.e. loss(P, y) = 1/2 * (score(P) - y)^2,
     where P is the program and y is the normalized throughput according to
     the ground truth (measurement).
-    XGBoost does not support this loss function because `score(P)` is a sum of the prediction
+    Catoost does not support this loss function because `score(P)` is a sum of the prediction
     of several samples, so we implemented a custom loss function and call it pack-sum-rmse.
     It is called "pack-sum" because we combine several samples into a "pack" and sum up
     their predictions.
@@ -113,17 +113,17 @@ class XGBModelInternal:
         verbose_eval=25,
         seed=None):
 
-        global xgb
+        global cat
         try:
-            if xgb is None:
-                xgb = __import__("xgboost")
+            if cat is None:
+                cat = __import__("catboost")
         except ImportError:
             # add "from Node" to silence
             # "During handling of the above exception, another exception occurred"
             raise ImportError(
-                "XGBoost is required for XGBModel. "
+                "CatBoost is required for CatModel. "
                 "Please install its python package first. "
-                "Help: (https://xgboost.readthedocs.io/en/latest/) "
+                "Help: (https://catboost.ai/) "
             ) from None
 
         self.plan_size = 1
@@ -135,8 +135,8 @@ class XGBModelInternal:
         self.verbose_eval = verbose_eval
         self.workload_embed_dict = dict()
 
-        # xgb params
-        self.xgb_params = {
+        # cat params
+        self.cat_params = {
             "max_depth": 6,
             "gamma": 0.003,
             "min_child_weight": 2,
@@ -150,7 +150,7 @@ class XGBModelInternal:
 
         # gpu support
         if use_gpu:
-            self.xgb_params['tree_method'] = 'gpu_hist'
+            self.cat_params['task_type'] = 'GPU'
 
         # models
         self.base_model = None
@@ -210,8 +210,6 @@ class XGBModelInternal:
             base_preds = self._predict_a_dataset(self.base_model, dataset)
             ret = {}
             for task in dataset.tasks():
-                if task not in self.local_model and self.few_shot_learning == "plus_mix_task":
-                    self.local_model[task] = list(self.local_model.values())[0]
                 local_preds = self._predict_a_task(self.local_model[task], task, dataset.features[task])
                 ret[task] = base_preds[task] + local_preds
             return ret
@@ -219,23 +217,28 @@ class XGBModelInternal:
             raise ValueError("Invalid few show learing: " + self.few_shot_learning)
 
     def _fit_a_model(self, train_set, valid_set=None, valid_train_set=None):
-        print("Fit a xgb booster. Train size: %d" % len(train_set))
+        print("Fit a cat booster. Train size: %d" % len(train_set))
 
         for task in train_set.tasks():
             self.register_new_task(task)
-        dtrain = self.dataset_to_dmatrix(train_set, argumentation=self.use_data_argumentation)
+        dtrain = self.dataset_to_catpool(train_set, argumentation=self.use_data_argumentation)
 
         if valid_set is not None:
             for task in valid_set.tasks():
                 self.register_new_task(task)
-            dtest = self.dataset_to_dmatrix(valid_set)
+            dtest = self.dataset_to_catpool(valid_set)
             eval_sets = [(dtrain, "tr"), (dtest, "te")]
         else:
             eval_sets = [(dtrain, "tr")]
 
+        bst = cat.CatBoost(self.cat_params)
+        bst.fit(
+            dtrain
+        )
         # Train a new model
-        bst = xgb.train(
-            params=self.xgb_params,
+        """
+        bst = cat.train(
+            params=self.cat_params,
             dtrain=dtrain,
             num_boost_round=300,
             obj=pack_sum_square_error,
@@ -250,10 +253,7 @@ class XGBModelInternal:
                 )
             ],
         )
-
-        feature_importances = bst.get_score(importance_type='gain')
-        print("Feature importances: ", feature_importances)
-
+        """
         return bst
 
     def _predict_a_dataset(self, model, dataset):
@@ -268,7 +268,7 @@ class XGBModelInternal:
 
         # Convert features to dmatrix
         tmp_set = Dataset.create_one_task(task, features, None)
-        dmatrix = self.dataset_to_dmatrix(tmp_set)
+        dmatrix = self.dataset_to_catpool(tmp_set)
 
         # Make predictions
         raw_preds = model.predict(dmatrix)
@@ -292,8 +292,8 @@ class XGBModelInternal:
             )
         return diff_set
 
-    def dataset_to_dmatrix(self, dataset, return_task_order=False, argumentation=False):
-        # Process input data to xgb format
+    def dataset_to_catpool(self, dataset, return_task_order=False, argumentation=False):
+        # Process input data to cat format
         xs, ys, gids = [], [], []
         task_order = []
 
@@ -336,7 +336,7 @@ class XGBModelInternal:
         xs = np.array(xs, dtype=object)
         ys = np.concatenate(ys)
         gids = np.concatenate(gids)
-        dmatrix = pack_sum_xgbmatrix(
+        dmatrix = pack_sum_catpool(
             xs, ys, gids=gids, weights=np.maximum(ys, 0.1) if self.use_weight else None
         )
 
@@ -360,15 +360,15 @@ class XGBModelInternal:
             open(filename, 'wb'))
 
 
-class XGBModel(PythonBasedModel):
-    """The wrapper of XGBModelInternal. So we can use it in end-to-end search."""
+class CatModel(PythonBasedModel):
+    """The wrapper of CatModelInternal. So we can use it in end-to-end search."""
     def __init__(self, few_shot_learning="base_only", verbose_eval=25,
                  num_warmup_sample=100, seed=None, disable_update=False):
         super().__init__()
 
         self.num_warmup_sample = num_warmup_sample
         self.disable_update = disable_update
-        self.model = XGBModelInternal(few_shot_learning=few_shot_learning,
+        self.model = CatModelInternal(few_shot_learning=few_shot_learning,
                                       verbose_eval=verbose_eval,
                                       seed=seed)
         self.dataset = Dataset()
@@ -379,7 +379,7 @@ class XGBModel(PythonBasedModel):
         tic = time.time()
         self.dataset.update_from_measure_pairs(inputs, results)
         self.model.fit_base(self.dataset)
-        logger.info("XGBModel Training time: %.2f s", time.time() - tic)
+        logger.info("CatModel Training time: %.2f s", time.time() - tic)
 
     def predict(self, task, states):
         features = get_per_store_features_from_states(states, task)
@@ -408,7 +408,7 @@ class XGBModel(PythonBasedModel):
             Only load first n lines of the log file
         """
         inputs, results = RecordReader(file_name).read_lines(n_lines)
-        logger.info("XGBModel: Loaded %s measurement records from %s", len(inputs), file_name)
+        logger.info("CatModel: Loaded %s measurement records from %s", len(inputs), file_name)
         self.update(inputs, results)
 
     def save(self, file_name: str):
@@ -430,39 +430,36 @@ class XGBModel(PythonBasedModel):
             The filename
         """
         if self.model is None:
-            self.model = XGBModelInternal()
+            self.model = CatModelInternal()
         self.model.load(file_name)
         self.num_warmup_sample = -1
 
 
-def feature_to_pack_sum_xgbmatrix(xs):
-    """Convert an extracted multi-stage feature vector to a xgb matrix in pack-sum format
+def feature_to_pack_sum_catpool(xs):
+    """Convert an extracted multi-stage feature vector to a matrix in pack-sum format
     Parameters
     ----------
     xs: np.ndarray
         The feature vector
     Returns
     -------
-    dmatrix: xgb.DMatrix
+    dmatrix: cat.Pool
         The DMatrix
     pack_ids: List[int]
         pack ids information
     """
     x_flatten = []
     pack_ids = []
-    feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
-            'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
-            'dense', 'softmax', 'compute(b, i, j)']
 
     for ct, x in enumerate(xs):
         for row in x:
             x_flatten.append(row)
             pack_ids.append(ct)
 
-    return xgb.DMatrix(np.array(x_flatten), feature_names=feature_names), pack_ids
+    return cat.Pool(data=np.array(x_flatten)), pack_ids
 
 
-def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
+def pack_sum_catpool(xs, ys, gids=None, weights=None):
     """Convert (feature, label) pairs into a xgb matrix with pack-sum format
     Parameters
     ----------
@@ -476,7 +473,7 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
         The weight of samples
     Returns
     -------
-    dmatrix: xgb.DMatrix
+    dmatrix: cat.Pool
         The DMatrix with pack-sum information
     """
     if gids is not None:
@@ -509,11 +506,7 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
                 y_flatten.append(y)
                 pack_ids.append(ct)
 
-    feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
-            'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
-            'dense', 'softmax', 'compute(b, i, j)']
-
-    ret = xgb.DMatrix(np.array(x_flatten), y_flatten, feature_names=feature_names)
+    ret = cat.Pool(data=np.array(x_flatten), label=y_flatten)
     if weights is not None:
         ret.set_weight(weights_flatten)
     dmatrix_context.set("pack_ids", ret, np.array(pack_ids))
@@ -545,7 +538,7 @@ def pack_sum_square_error(preds, dtrain):
     ----------
     preds: np.ndarray
         The predicitons
-    dtrain: xgb.DMatrix
+    dtrain: cat.Pool
         The training set
     Returns
     -------
@@ -567,14 +560,13 @@ def pack_sum_square_error(preds, dtrain):
 
     return gradient * weight, hessian * weight
 
-
 def pack_sum_rmse(raw_preds, dtrain):
     """Evaluate RMSE (rooted mean square error) in the pack-sum format
     Parameters
     ----------
     raw_preds: np.ndarray
         The raw prediction
-    dtrain: xgb.DMatrix
+    dtrain: cat.Pool
         The groud-truth label matrix
     Returns
     -------
@@ -606,7 +598,7 @@ def pack_sum_average_peak_score(N):
         ----------
         raw_preds: np.ndarray
             The raw prediction
-        labels: xgb.DMatrix
+        labels: cat.Pool
             The groud-truth label matrix
         Returns
         -------
@@ -711,7 +703,7 @@ def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
 
         ##### print eval result #####
         if not isinstance(verbose_eval, bool) and verbose_eval and i % verbose_eval == 0:
-            infos = ["XGB iter: %3d" % i]
+            infos = ["Cat iter: %3d" % i]
             for item in eval_res:
                 if 'null' in item[0]:
                     continue
@@ -749,8 +741,7 @@ def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
         elif env.iteration - best_iteration >= stopping_rounds:
             best_msg = state.get('best_msg', "")
             if verbose_eval and env.rank == 0:
-                logger.debug("XGB stopped. Best iteration: %s ", best_msg)       
-
+                logger.debug("Cat stopped. Best iteration: %s ", best_msg)
             raise EarlyStopException(best_iteration)
 
     return callback
