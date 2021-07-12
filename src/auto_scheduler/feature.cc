@@ -1306,7 +1306,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
-  //try {
+  try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
     Map<te::Tensor, te::Buffer> out_binds;
     Array<ObjectRef> out_arg_list;
@@ -1371,9 +1371,10 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
                        feature);
-  //} catch (Error& e) {
-  //  (*error_ct)++;
-  //}
+  } catch (Error& e) {
+    (*error_ct)++;
+    std::cout << "error" << std::endl;
+  }
 }
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask& task,
