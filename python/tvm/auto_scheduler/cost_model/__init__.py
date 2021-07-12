@@ -22,3 +22,4 @@ from .xgb_model import XGBModel
 from .mlp_model import MLPModel
 from .lgbm_model import LGBModel
 from .tabnet_model import TabNetModel
+from .autogluon_model import AGModel

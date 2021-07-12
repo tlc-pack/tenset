@@ -19,6 +19,7 @@ from tvm.auto_scheduler.cost_model.xgb_model import XGBModelInternal
 from tvm.auto_scheduler.cost_model.mlp_model import MLPModelInternal
 from tvm.auto_scheduler.cost_model.lgbm_model import LGBModelInternal
 from tvm.auto_scheduler.cost_model.tabnet_model import TabNetModelInternal
+from tvm.auto_scheduler.cost_model.autogluon_model import AGModelInternal
 from tvm.auto_scheduler.cost_model.metric import (
     metric_rmse,
     metric_r_squared,
@@ -82,6 +83,10 @@ def make_model(name, use_gpu=False):
         return XGBModelInternal(use_gpu=use_gpu)
     elif name == "mlp":
         return MLPModelInternal()
+    elif name == 'lgbm':
+        return LGBModelInternal(use_gpu=use_gpu)
+    elif name == 'tab':
+        return TabNetModelInternal(use_gpu=use_gpu)
     elif name == "random":
         return RandomModelInternal()
     else:
