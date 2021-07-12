@@ -2,7 +2,6 @@
 from collections import namedtuple, OrderedDict, defaultdict
 import os
 import pickle
-import rapidjson as json
 from typing import List, Tuple
 
 import numpy as np
@@ -29,42 +28,6 @@ class Dataset:
         self.throughputs = OrderedDict()   # Dict[LearningTask -> normalized_throughputs]
         self.min_latency = {}              # Dict[LearningTask -> min latency]
         self.measure_records = {}          # Dict[LearningTask -> Tuple[List[MeasureInput], List[MeasureResult]]
-
-    def save_to_file(self, fname: str):
-        from tqdm import tqdm
-        import gc
-
-        def numpy_json_default(obj):
-            """Convert Numpy objects.
-            See https://stackoverflow.com/q/27050108/850781
-            https://docs.python.org/3/library/json.html"""
-            if isinstance(obj, np.integer):
-                return int(obj)
-            if isinstance(obj, np.floating):
-                return float(obj)
-            if isinstance(obj, np.ndarray):
-                return obj.tolist()
-            raise TypeError("Cannot JSON-serialize %s (%s)" % (obj,type(obj)),
-                            obj,type(obj))
-
-        json_list = [ [a._asdict() for a in tqdm(self.features.keys())], list(self.features.values())]
-        json_list.extend( [ [a._asdict() for a in tqdm(self.throughputs.keys())], list(self.throughputs.values())])
-        json_list.extend( [ [a._asdict() for a in tqdm(self.min_latency.keys())], list(self.min_latency.values())] )
-
-        json.dump(json_list, open(f"{fname}.serialized_json", "w"), default=numpy_json_default)
-        del json_list
-        gc.collect()
-        pickle.dump(self.measure_records, open(f"{fname}.measure_records", "wb"))
-
-    def load_from_file(self, fname: str):
-        from tqdm import tqdm 
-
-        self.measure_records = pickle.load(open(f"{fname}.measure_records", "rb"))
-        feature_k, feature_v, throughputs_k, throughputs_v, min_latency_k, min_latency_v = json.load(open(f"{fname}.serialized_json", "r"))
-
-        self.features = { LearningTask(**k) : np.array(v) for k,v in tqdm(zip(feature_k, feature_v)) }
-        self.throughputs = { LearningTask(**k) : np.array(v) for k,v in tqdm(zip(throughputs_k, throughputs_v)) }
-        self.min_latency = { LearningTask(**k) : v for k,v in tqdm(zip(min_latency_k, min_latency_v)) }
 
     @staticmethod
     def create_one_task(task, features, throughputs, min_latency=None):
@@ -289,7 +252,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
                 features[task] = features_
                 throughputs[task] = normalized_throughputs
                 min_latency[task] = min_latency_[0]
-            pickle.dump((features, throughputs, min_latency), open(cache_file, "wb"), protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump((features, throughputs, min_latency), open(cache_file, "wb"))
 
         for task in features:
             dataset.load_task_data(task, features[task], throughputs[task], min_latency[task])
@@ -309,7 +272,6 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
         del dataset.min_latency[task]
 
     # Save to disk
-    #dataset.save_to_file(out_file)
     pickle.dump(dataset, open(out_file, "wb"))
 
     if verbose >= 0:
