@@ -622,8 +622,6 @@ class SegmentDataLoader:
             self.labels[ct: ct + len(throughputs)] = torch.tensor(throughputs)
             task_embedding = None
             if use_workload_embedding or use_target_embedding:
-                #print(target_id_dict)
-                #print(use_target_embedding)
                 task_embedding = np.zeros(
                     9 + len(target_id_dict),
                     dtype=np.float32,
@@ -631,8 +629,6 @@ class SegmentDataLoader:
 
                 if use_workload_embedding:
                     tmp_task_embedding = get_workload_embedding(task.workload_key)
-                    #tmp_task_embeddings = pickle.load(open("task_embeddings.pkl", 'rb'))
-                    #tmp_task_embedding = tmp_task_embeddings[json.loads(task.workload_key)[0]]
                     task_embedding[:9] = tmp_task_embedding
 
                 if use_target_embedding:
@@ -745,8 +741,6 @@ class SegmentSumMLPModule(torch.nn.Module):
 
         segment_sizes = segment_sizes.long()
 
-        #print(features.size())
-        #print(self.segment_encoder)
         features = self.segment_encoder(
             features
         )[0]
@@ -772,8 +766,6 @@ class SegmentSumMLPModule(torch.nn.Module):
             output = torch.sigmoid(output)
 
         return output
-
-
 
 def make_net(params):
     return SegmentSumMLPModule(
