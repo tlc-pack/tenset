@@ -444,7 +444,3 @@ def build(inputs, args=None, target=None, target_host=None, name="default_functi
             return create_llvm_crt_metadata_module([rt_mod_host], target_host)
 
     return rt_mod_host
-
-@tvm.register_func("my_func_call_build")
-def call_build(sch, args, target):
-    return build(sch, args=args, target=target)

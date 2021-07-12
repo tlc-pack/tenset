@@ -34,8 +34,6 @@
 #include <tvm/tir/op_attr_types.h>
 #include <tvm/tir/stmt_functor.h>
 #include <tvm/tir/transform.h>
-#include <tvm/target/codegen.h>
-#include <tvm/target/target.h>
 
 #include <algorithm>
 #include <cmath>
@@ -1306,7 +1304,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
-  //try {
+  try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
     Map<te::Tensor, te::Buffer> out_binds;
     Array<ObjectRef> out_arg_list;
@@ -1358,22 +1356,14 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     const auto& optimize =
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
-    
-    static const PackedFunc* fexport = runtime::Registry::Get("my_func_call_module_export_library");
-    static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_build");
-
-    auto rt = (*fbuild)(sch, tensors, "llvm");
-    //std::cout << "\nCodegen\n";
-    (*fexport)(rt, (std::string)task->workload_key);
-    //std::cout << "\nCodegen done\n";
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
                        feature);
-  //} catch (Error& e) {
-  //  (*error_ct)++;
-  //}
+  } catch (Error& e) {
+    (*error_ct)++;
+  }
 }
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask& task,
