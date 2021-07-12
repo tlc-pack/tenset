@@ -582,7 +582,7 @@ def pack_sum_square_error(preds, dtrain):
         gradient and hessian according to the xgboost format
     """
     pack_ids = dmatrix_context.get("pack_ids", dtrain)
-    weight = dtrain.get_weight()
+    weight = [] #dtrain.get_weight()
 
     sum_pred = np.bincount(pack_ids, weights=preds)
     x = sum_pred[pack_ids]
