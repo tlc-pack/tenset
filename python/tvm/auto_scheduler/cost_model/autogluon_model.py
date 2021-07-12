@@ -149,6 +149,7 @@ class AGModelInternal:
             "verbosity": 0,
             "seed": seed or 43,
             "disable_default_eval_metric": 1,
+            "objective": pack_sum_square_error
         }
 
         # gpu support
