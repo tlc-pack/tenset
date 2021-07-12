@@ -1373,7 +1373,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
                        feature);
   } catch (Error& e) {
     (*error_ct)++;
-    std::cout << "error" << std::endl;
+    // std::cout << "error" << std::endl;
   }
 }
 
