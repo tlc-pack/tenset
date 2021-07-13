@@ -455,7 +455,7 @@ class Module(object):
                     object_format = fcompile.object_format
             else:
                 if module.type_key == "llvm":
-                    object_format = "s"
+                    object_format = "asm"
                 else:
                     assert module.type_key == "c"
                     object_format = "c"
@@ -466,7 +466,7 @@ class Module(object):
             print(object_format)
             path_obj = os.path.join(workspace_dir, f"lib{index}.{object_format}")
             print(path_obj)
-            module.save(path_obj)
+            module.save(path_obj, fmt=object_format)
             
 
 
@@ -569,6 +569,6 @@ encountered_mod = defaultdict(int)
 def call_export_library(mod, path):
     global encountered_mod
     encountered_mod[path] += 1
-    return mod.export_assem(f"assem_models/{path}_{encountered_mod[path]}.so", workspace_dir='temp')
+    return mod.export_assem(f"assem_models/{path}_{encountered_mod[path]}.so", workspace_dir='/home/peiyuanl/octoml/tenset/scripts/temp')
 
 _set_class_module(Module)
