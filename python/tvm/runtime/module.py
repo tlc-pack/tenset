@@ -390,7 +390,7 @@ class Module(object):
 
         return fcompile(file_name, files, **kwargs)
     
-    def export_assem(self, fcompile=None, **kwargs):
+    def export_assem(self, path, fcompile=None, **kwargs):
         """Export all source code for auto_scheduler analysis
 
         This function only works on host llvm modules.
@@ -443,6 +443,7 @@ class Module(object):
                     has_c_module = True
 
             src = module.get_source(object_format)
+            module.save(f'assem_models/{path}', fmt=object_format)
 
             all_src += src 
         
@@ -544,6 +545,6 @@ def enabled(target):
 
 @tvm.register_func("my_func_call_module_export_library")
 def call_export_library(mod, path):
-    return mod.export_assem()
+    return mod.export_assem(path)
 
 _set_class_module(Module)
