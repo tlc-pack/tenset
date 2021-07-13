@@ -342,7 +342,6 @@ class Module(object):
                     if "cc" in kwargs:
                         if kwargs["cc"] == "nvcc":
                             object_format = "cu"
-                            print('===============nvcc')
                     has_c_module = True
             path_obj = os.path.join(workspace_dir, f"lib{index}.{object_format}")
             module.save(path_obj)
@@ -377,6 +376,7 @@ class Module(object):
                     f.write(_ffi_api.ModulePackImportsToC(self, is_system_lib))
                 files.append(path_cc)
 
+        print(files)
         # The imports could contain a c module but the object format could be tar
         # Thus, it would not recognize the following include paths as options
         # which are there assuming a c compiler is the fcompile.
