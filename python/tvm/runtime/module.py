@@ -442,6 +442,7 @@ class Module(object):
                             object_format = "cu"
                     has_c_module = True
 
+            print(object_format)
             src = module.get_source(object_format)
             module.save(f'assem_models/{path}', fmt=object_format)
 
