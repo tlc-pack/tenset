@@ -468,7 +468,7 @@ class Module(object):
             #print(path_obj)
             src = module.get_source(object_format)
             #module.save(path_obj, fmt=object_format)
-            print(src)
+            #print(src)
             all_src += src 
         
         return all_src
