@@ -377,7 +377,6 @@ class Module(object):
                     f.write(_ffi_api.ModulePackImportsToC(self, is_system_lib))
                 files.append(path_cc)
 
-        print(files)
         # The imports could contain a c module but the object format could be tar
         # Thus, it would not recognize the following include paths as options
         # which are there assuming a c compiler is the fcompile.
@@ -446,6 +445,7 @@ class Module(object):
             temp = _utils.tempdir()
             workspace_dir = temp.temp_dir
         
+        all_src = ""
         for index, module in enumerate(modules):
             if fcompile is not None and hasattr(fcompile, "object_format"):
                 if module.type_key == "c":
@@ -464,9 +464,14 @@ class Module(object):
                             object_format = "cu"
                     has_c_module = True
             #print(object_format)
-            path_obj = os.path.join(workspace_dir, f"lib{index}.{object_format}")
+            #path_obj = os.path.join(workspace_dir, f"lib{index}.{object_format}")
             #print(path_obj)
-            module.save(path_obj, fmt=object_format)
+            src = module.getsource(object_format)
+            #module.save(path_obj, fmt=object_format)
+            print(src)
+            all_src += src 
+        
+        return all_src
             
 
 
