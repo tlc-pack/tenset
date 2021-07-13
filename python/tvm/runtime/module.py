@@ -466,7 +466,7 @@ class Module(object):
             #print(object_format)
             #path_obj = os.path.join(workspace_dir, f"lib{index}.{object_format}")
             #print(path_obj)
-            src = module.getsource(object_format)
+            src = module.get_source(object_format)
             #module.save(path_obj, fmt=object_format)
             print(src)
             all_src += src 
