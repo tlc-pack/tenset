@@ -1365,8 +1365,14 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     //std::cout << task->target->str();
     auto rt = (*fbuild)(sch, tensors, task->target, task->target_host);
     //std::cout << "\nCodegen\n";
-    auto src = (*fexport)(rt, (std::string)task->workload_key);
-    //std::cout << "\nCodegen done\n";
+    auto src = (std::string)(*fexport)(rt, (std::string)task->workload_key);
+
+    // Assembly-Level Feature Extraction
+    size_t n_vfmadd231ss = std::count(src.begin(), src.end(), "vfmadd231ss");
+    size_t n_vmovups = std::count(src.begin(), src.end(), "vmovups");
+
+    std::cout << "vfmadd: " << n_vfmadd231ss <<  "vmov: " << n_vmovups << std::endl;
+    
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
