@@ -1378,7 +1378,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     String tsrc = (*fexport)(rt, (std::string)task->workload_key);
     std::string src = (std::string)tsrc;
 
-    std::cout << src ;
+    // std::cout << src ;
     // Assembly-Level Feature Extraction
     size_t n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
     size_t n_vmovups = count_frequency(src, "vmovups");
