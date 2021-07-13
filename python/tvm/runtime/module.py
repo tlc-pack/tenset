@@ -586,6 +586,6 @@ def call_export_library(mod, path):
     encountered_mod[path] += 1
     #mod.export_library(f"assem_models/{path}_{encountered_mod[path]}.so")
 
-    return mod.export_assem(path)
+    return mod.export_assem(f"{path}|{encountered_mod[path]}")
 
 _set_class_module(Module)
