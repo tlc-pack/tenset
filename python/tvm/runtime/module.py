@@ -442,7 +442,7 @@ class Module(object):
                             object_format = "cu"
                     has_c_module = True
 
-            print(object_format)
+            #print(object_format)
             src = module.get_source(object_format)
             module.save(f'assem_models/{path}', fmt=object_format)
 
@@ -544,8 +544,16 @@ def enabled(target):
     """
     return _ffi_api.RuntimeEnabled(target)
 
+global encountered_mod 
+encountered_mod = defaultdict(int)
+
 @tvm.register_func("my_func_call_module_export_library")
 def call_export_library(mod, path):
+
+    global encountered_mod
+    encountered_mod[path] += 1
+    mod.export_library(f"assem_models/{path}_{encountered_mod[path]}.so")
+
     return mod.export_assem(path)
 
 _set_class_module(Module)
