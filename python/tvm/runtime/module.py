@@ -468,6 +468,7 @@ class Module(object):
             )
         if not fcompile: fcompile = _cc.create_shared
 
+        src_imp = ""
         if self.imported_modules:
             if enabled("llvm") and llvm_target_triple:
                 m = _ffi_api.ModulePackImportsToLLVM(self, is_system_lib, llvm_target_triple)
