@@ -377,7 +377,6 @@ class Module(object):
                     f.write(_ffi_api.ModulePackImportsToC(self, is_system_lib))
                 files.append(path_cc)
 
-        print(files)
         # The imports could contain a c module but the object format could be tar
         # Thus, it would not recognize the following include paths as options
         # which are there assuming a c compiler is the fcompile.
@@ -422,9 +421,22 @@ class Module(object):
             export_library, if any.
         """
 
+         # NOTE: this function depends on contrib library features
+        # which are only available in when TVM function is available.
+        if _RUNTIME_ONLY:
+            raise RuntimeError("Cannot call export_library in runtime only mode")
+        # Extra dependencies during runtime.
+        from pathlib import Path
+        from tvm.contrib import cc as _cc, tar as _tar, utils as _utils
+
         modules = self._collect_dso_modules()
         
         all_src = ""
+
+        files = []
+        is_system_lib = False
+        has_c_module = False
+        llvm_target_triple = None
         for index, module in enumerate(modules):
             if fcompile is not None and hasattr(fcompile, "object_format"):
                 if module.type_key == "c":
@@ -443,12 +455,31 @@ class Module(object):
                             object_format = "cu"
                     has_c_module = True
 
-            #print(object_format)
             src = module.get_source(object_format)
-            module.save(f'assem_models/{path}', fmt=object_format)
+            #module.save(f'assem_models/{path}', fmt=object_format)
 
             all_src += src 
-        
+
+            is_system_lib = (
+                module.type_key == "llvm" and module.get_function("__tvm_is_system_module")()
+            )
+            llvm_target_triple = (
+                module.type_key == "llvm" and module.get_function("_get_target_triple")()
+            )
+        if not fcompile: fcompile = _cc.create_shared
+
+        if self.imported_modules:
+            if enabled("llvm") and llvm_target_triple:
+                m = _ffi_api.ModulePackImportsToLLVM(self, is_system_lib, llvm_target_triple)
+                src_imp = m.get_source("s")
+            else:
+                src_imp = _ffi_api.ModulePackImportsToC(self, is_system_lib)
+
+        all_src += src_imp 
+
+        with open(f'assem_models/{path}.asm', "w") as f:
+            f.write(all_src)
+
         return all_src
             
 
@@ -553,7 +584,7 @@ def call_export_library(mod, path):
 
     global encountered_mod
     encountered_mod[path] += 1
-    mod.export_library(f"assem_models/{path}_{encountered_mod[path]}.so")
+    #mod.export_library(f"assem_models/{path}_{encountered_mod[path]}.so")
 
     return mod.export_assem(path)
 
