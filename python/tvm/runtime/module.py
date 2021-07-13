@@ -390,8 +390,8 @@ class Module(object):
 
         return fcompile(file_name, files, **kwargs)
     
-    def export_assem(self, file_name, fcompile=None, addons=None, workspace_dir=None, **kwargs):
-        """Export the module and its imported device code one library.
+    def export_assem(self, fcompile=None, **kwargs):
+        """Export all source code for auto_scheduler analysis
 
         This function only works on host llvm modules.
         It will pack all the imported modules
@@ -420,30 +420,8 @@ class Module(object):
             If the compilation function returns an artifact it would be returned via
             export_library, if any.
         """
-        # NOTE: this function depends on contrib library features
-        # which are only available in when TVM function is available.
-        if _RUNTIME_ONLY:
-            raise RuntimeError("Cannot call export_library in runtime only mode")
-        # Extra dependencies during runtime.
-        from pathlib import Path
-        from tvm.contrib import cc as _cc, tar as _tar, utils as _utils
-
-        if isinstance(file_name, Path):
-            file_name = str(file_name)
-
-        if self.type_key == "stackvm":
-            if not file_name.endswith(".stackvm"):
-                raise ValueError(
-                    "Module[%s]: can only be saved as stackvm format."
-                    "did you build with LLVM enabled?" % self.type_key
-                )
-            self.save(file_name)
-            return
 
         modules = self._collect_dso_modules()
-        if workspace_dir is None:
-            temp = _utils.tempdir()
-            workspace_dir = temp.temp_dir
         
         all_src = ""
         for index, module in enumerate(modules):
@@ -463,12 +441,9 @@ class Module(object):
                         if kwargs["cc"] == "nvcc":
                             object_format = "cu"
                     has_c_module = True
-            #print(object_format)
-            #path_obj = os.path.join(workspace_dir, f"lib{index}.{object_format}")
-            #print(path_obj)
+
             src = module.get_source(object_format)
-            #module.save(path_obj, fmt=object_format)
-            #print(src)
+
             all_src += src 
         
         return all_src
@@ -567,13 +542,8 @@ def enabled(target):
     """
     return _ffi_api.RuntimeEnabled(target)
 
-global encountered_mod 
-encountered_mod = defaultdict(int)
-
 @tvm.register_func("my_func_call_module_export_library")
 def call_export_library(mod, path):
-    global encountered_mod
-    encountered_mod[path] += 1
-    return mod.export_assem(f"assem_models/{path}_{encountered_mod[path]}.so", workspace_dir='/home/peiyuanl/octoml/tenset/scripts/temp')
+    return mod.export_assem()
 
 _set_class_module(Module)
