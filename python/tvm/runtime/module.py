@@ -342,6 +342,7 @@ class Module(object):
                     if "cc" in kwargs:
                         if kwargs["cc"] == "nvcc":
                             object_format = "cu"
+                            print('===============nvcc')
                     has_c_module = True
             path_obj = os.path.join(workspace_dir, f"lib{index}.{object_format}")
             module.save(path_obj)
