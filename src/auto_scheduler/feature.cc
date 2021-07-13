@@ -1294,6 +1294,16 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret) {
   // section total : 3
 }
 
+int count_frequency(std::string src, std::string pat) {
+  int occurrences = 0;
+  std::string::size_type pos = 0;
+  while ((pos = src.find(pat, pos )) != std::string::npos) {
+      ++ occurrences;
+      pos += pat.length();
+  }
+  return occurrences;
+}
+
 void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, int max_n_bufs,
                                    std::vector<float>* feature, std::atomic<int>* error_ct) {
   te::Schedule sch;
@@ -1370,10 +1380,10 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
 
     std::cout << src ;
     // Assembly-Level Feature Extraction
-    // size_t n_vfmadd231ss = std::count(src.begin(), src.end(), "vfmadd231ss");
-    // size_t n_vmovups = std::count(src.begin(), src.end(), "vmovups");
+    size_t n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
+    size_t n_vmovups = count_frequency(src, "vmovups");
 
-    // std::cout << "vfmadd: " << n_vfmadd231ss <<  "vmov: " << n_vmovups << std::endl;
+    std::cout << "vfmadd: " << n_vfmadd231ss <<  "vmov: " << n_vmovups << std::endl;
 
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
