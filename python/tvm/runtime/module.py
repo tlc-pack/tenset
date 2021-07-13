@@ -390,6 +390,83 @@ class Module(object):
             kwargs.update({"options": opts})
 
         return fcompile(file_name, files, **kwargs)
+    
+    def export_assem(self, file_name, fcompile=None, addons=None, workspace_dir=None, **kwargs):
+        """Export the module and its imported device code one library.
+
+        This function only works on host llvm modules.
+        It will pack all the imported modules
+
+        Parameters
+        ----------
+        file_name : str
+            The name of the shared library.
+
+        fcompile : function(target, file_list, kwargs), optional
+            Compilation function to use create dynamic library.
+            If fcompile has attribute object_format, will compile host library
+            to that format. Otherwise, will use default format "o".
+
+        workspace_dir : str, optional
+            the path to a directory used to create intermediary
+            artifacts for the process exporting of the library.
+            If this is not provided a temporary dir will be created.
+
+        kwargs : dict, optional
+            Additional arguments passed to fcompile
+
+        Returns
+        -------
+        result of fcompile()  : unknown, optional
+            If the compilation function returns an artifact it would be returned via
+            export_library, if any.
+        """
+        # NOTE: this function depends on contrib library features
+        # which are only available in when TVM function is available.
+        if _RUNTIME_ONLY:
+            raise RuntimeError("Cannot call export_library in runtime only mode")
+        # Extra dependencies during runtime.
+        from pathlib import Path
+        from tvm.contrib import cc as _cc, tar as _tar, utils as _utils
+
+        if isinstance(file_name, Path):
+            file_name = str(file_name)
+
+        if self.type_key == "stackvm":
+            if not file_name.endswith(".stackvm"):
+                raise ValueError(
+                    "Module[%s]: can only be saved as stackvm format."
+                    "did you build with LLVM enabled?" % self.type_key
+                )
+            self.save(file_name)
+            return
+
+        modules = self._collect_dso_modules()
+        if workspace_dir is None:
+            temp = _utils.tempdir()
+            workspace_dir = temp.temp_dir
+        
+        for index, module in enumerate(modules):
+            if fcompile is not None and hasattr(fcompile, "object_format"):
+                if module.type_key == "c":
+                    object_format = "c"
+                    has_c_module = True
+                else:
+                    object_format = fcompile.object_format
+            else:
+                if module.type_key == "llvm":
+                    object_format = "s"
+                else:
+                    assert module.type_key == "c"
+                    object_format = "c"
+                    if "cc" in kwargs:
+                        if kwargs["cc"] == "nvcc":
+                            object_format = "cu"
+                    has_c_module = True
+            print(object_format, path_obj)
+            path_obj = os.path.join(workspace_dir, f"lib{index}.{object_format}")
+            module.save(path_obj)
+            
 
 
 def system_lib():
@@ -491,6 +568,6 @@ encountered_mod = defaultdict(int)
 def call_export_library(mod, path):
     global encountered_mod
     encountered_mod[path] += 1
-    return mod.export_library(f"assem_models/{path}_{encountered_mod[path]}.so")
+    return mod.export_assem(f"assem_models/{path}_{encountered_mod[path]}.so")
 
 _set_class_module(Module)
