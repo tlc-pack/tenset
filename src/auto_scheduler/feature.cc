@@ -1365,12 +1365,13 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     //std::cout << "\nCodegen\n";
     String tsrc = (*fexport)(rt, (std::string)task->workload_key);
     std::string src = (std::string)tsrc;
-    
-    // Assembly-Level Feature Extraction
-    size_t n_vfmadd231ss = std::count(src.begin(), src.end(), "vfmadd231ss");
-    size_t n_vmovups = std::count(src.begin(), src.end(), "vmovups");
 
-    std::cout << "vfmadd: " << n_vfmadd231ss <<  "vmov: " << n_vmovups << std::endl;
+    std::cout << src ;
+    // Assembly-Level Feature Extraction
+    // size_t n_vfmadd231ss = std::count(src.begin(), src.end(), "vfmadd231ss");
+    // size_t n_vmovups = std::count(src.begin(), src.end(), "vmovups");
+
+    // std::cout << "vfmadd: " << n_vfmadd231ss <<  "vmov: " << n_vmovups << std::endl;
 
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
