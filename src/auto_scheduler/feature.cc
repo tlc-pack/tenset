@@ -1383,7 +1383,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     size_t n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
     size_t n_vmovups = count_frequency(src, "vmovups");
 
-    std::cout << "vfmadd: " << n_vfmadd231ss <<  "vmov: " << n_vmovups << std::endl;
+    std::cout << "vfmadd: " << n_vfmadd231ss <<  " vmov: " << n_vmovups << std::endl;
 
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
