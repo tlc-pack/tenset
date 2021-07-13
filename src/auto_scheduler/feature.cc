@@ -1362,7 +1362,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     static const PackedFunc* fexport = runtime::Registry::Get("my_func_call_module_export_library");
     static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_build");
 
-    std::cout << task->target->str();
+    //std::cout << task->target->str();
     auto rt = (*fbuild)(sch, tensors, task->target, task->target_host);
     //std::cout << "\nCodegen\n";
     auto src = (*fexport)(rt, (std::string)task->workload_key);
