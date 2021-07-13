@@ -569,6 +569,6 @@ encountered_mod = defaultdict(int)
 def call_export_library(mod, path):
     global encountered_mod
     encountered_mod[path] += 1
-    return mod.export_assem(f"assem_models/{path}_{encountered_mod[path]}.so")
+    return mod.export_assem(f"assem_models/{path}_{encountered_mod[path]}.so", workspace_dir='temp')
 
 _set_class_module(Module)
