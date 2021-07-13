@@ -343,7 +343,6 @@ class Module(object):
                         if kwargs["cc"] == "nvcc":
                             object_format = "cu"
                     has_c_module = True
-            print(object_format)
             path_obj = os.path.join(workspace_dir, f"lib{index}.{object_format}")
             module.save(path_obj)
             files.append(path_obj)
