@@ -376,6 +376,7 @@ class Module(object):
                     f.write(_ffi_api.ModulePackImportsToC(self, is_system_lib))
                 files.append(path_cc)
 
+        print(files)
         # The imports could contain a c module but the object format could be tar
         # Thus, it would not recognize the following include paths as options
         # which are there assuming a c compiler is the fcompile.
@@ -489,6 +490,6 @@ encountered_mod = defaultdict(int)
 def call_export_library(mod, path):
     global encountered_mod
     encountered_mod[path] += 1
-    return mod.export_library(f"assem_models/{path}_{encountered_mod[path]}.s")
+    return mod.export_library(f"assem_models/{path}_{encountered_mod[path]}.so")
 
 _set_class_module(Module)
