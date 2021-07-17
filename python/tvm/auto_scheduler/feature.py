@@ -134,7 +134,7 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
                 row.append(x)
 
             print(n_stmts)
-            print(row)
+            #print(row)
             features.append(np.array(row))
 
     # unpack normalized_throughputs
@@ -152,6 +152,8 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
     min_costs = struct.unpack_from("%df" % m, byte_arr, offset=offset)
     offset += m * SIZE_OF_FLOAT32
 
+    print(features)
+    print(normalized_throughputs)
     assert offset == len(byte_arr), "%d vs %d" % (offset, len(byte_arr))
     return (
         np.array(features, dtype=object),
