@@ -1406,7 +1406,7 @@ void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask&
 
   std::atomic<int> error_ct(0);
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 500; i++) {
     GetPerStoreFeaturesWorkerFunc(task, states[i], max_n_bufs,
                                                         &(*features)[i], &error_ct);
   }
@@ -1426,7 +1426,7 @@ void GetPerStoreFeaturesFromStates(const Array<State>& states, const std::vector
 
   std::atomic<int> error_ct(0);
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 500; i++) {
     GetPerStoreFeaturesWorkerFunc(tasks[i], states[i], max_n_bufs,
                                                         &(*features)[i], &error_ct);
   }
