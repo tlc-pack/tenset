@@ -274,7 +274,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             features = {}
             throughputs = {}
             min_latency = {}
-            for task, (inputs, results) in measure_records.items():
+            for task, (inputs, results) in tqdm(measure_records.items()):
                 features_, normalized_throughputs, task_ids, min_latency_ =\
                     get_per_store_features_from_measure_pairs(inputs, results)
 
