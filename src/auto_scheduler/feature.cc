@@ -1398,8 +1398,8 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
                        feature);
 
-    feature->push_back(slog((float)n_vfmadd231ss));
-    feature->push_back(slog((float)n_vmovups));
+    //feature->push_back(slog((float)n_vfmadd231ss));
+    //feature->push_back(slog((float)n_vmovups));
 
     std::cout << feature->size() << std::endl;
     
