@@ -1059,6 +1059,7 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
 
   ret->push_back(extractor.buffer_features.size());
 
+  std::cout << "buffer feature size " << extractor.buffer_features.size() << std::endl;
   for (const auto& x : extractor.buffer_features) {
     const FeatureSet& fea_set = x.second;
 
@@ -1294,8 +1295,8 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret) {
   // section total : 3
 
   /***** Group 6: Assembly-level features *****/
-  ret->push_back(("n_vfmadd231ss"));
-  ret->push_back(("n_vmovups"));
+  //ret->push_back(("n_vfmadd231ss"));
+  //ret->push_back(("n_vmovups"));
   // section total : 2
 }
 
@@ -1401,7 +1402,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     //feature->push_back(slog((float)n_vfmadd231ss));
     //feature->push_back(slog((float)n_vmovups));
 
-    std::cout << feature->size() << std::endl;
+    //std::cout << feature->size() << std::endl;
     
   //} catch (Error& e) {
   //  (*error_ct)++;

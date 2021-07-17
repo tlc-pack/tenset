@@ -437,6 +437,7 @@ class Module(object):
         is_system_lib = False
         has_c_module = False
         llvm_target_triple = None
+        print('length of modules: ', len(modules))
         for index, module in enumerate(modules):
             if fcompile is not None and hasattr(fcompile, "object_format"):
                 if module.type_key == "c":
