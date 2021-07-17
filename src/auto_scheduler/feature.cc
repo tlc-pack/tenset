@@ -1292,6 +1292,11 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret) {
   ret->push_back(("num_loops"));
   ret->push_back(("auto_unroll_max_step"));
   // section total : 3
+
+  /***** Group 6: Assembly-level features *****/
+  ret->push_back(("n_vfmadd231ss"));
+  ret->push_back(("n_vmovups"));
+  // section total : 2
 }
 
 int count_frequency(std::string src, std::string pat) {
@@ -1385,13 +1390,17 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     size_t n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
     size_t n_vmovups = count_frequency(src, "vmovups");
 
-    std::cout << "vfmadd: " << n_vfmadd231ss <<  " vmov: " << n_vmovups << std::endl;
+    //std::cout << "vfmadd: " << n_vfmadd231ss <<  " vmov: " << n_vmovups << std::endl;
 
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
                        feature);
+
+    feature->push_back(slog((float)n_vfmadd231ss));
+    feature->push_back(slog((float)n_vmovups));
+    
   //} catch (Error& e) {
   //  (*error_ct)++;
     // std::cout << "error" << std::endl;
