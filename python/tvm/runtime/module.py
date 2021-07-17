@@ -478,8 +478,8 @@ class Module(object):
 
         all_src += src_imp 
 
-        with open(f'assem_models/{path}.asm', "w") as f:
-            f.write(all_src)
+        # with open(f'assem_models/{path}.asm', "w") as f:
+        #    f.write(all_src)
 
         return all_src
             
@@ -583,8 +583,8 @@ encountered_mod = defaultdict(int)
 @tvm.register_func("my_func_call_module_export_library")
 def call_export_library(mod, path):
 
-    global encountered_mod
-    encountered_mod[path] += 1
+    #global encountered_mod
+    #encountered_mod[path] += 1
     #mod.export_library(f"assem_models/{path}_{encountered_mod[path]}.so")
 
     return mod.export_assem(f"{path}|{encountered_mod[path]}")
