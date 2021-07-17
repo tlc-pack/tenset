@@ -100,6 +100,7 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
 
     # unpack features
     features = []
+    print(sizes)
     for size in sizes[:-3]:
         row = []
 

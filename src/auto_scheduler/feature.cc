@@ -1058,7 +1058,7 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
   ret->push_back(extractor.buffer_features.size());
 
   for (const auto& x : extractor.buffer_features) {
-    const FeatureSet& fea_set = x.second;
+    const FeatureSet& fea_set = x.second;    
 
     /***** Group 1: Computation related features *****/
     ret->push_back(slog(fea_set.float_mad));
