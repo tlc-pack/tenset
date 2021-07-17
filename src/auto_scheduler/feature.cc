@@ -1400,6 +1400,8 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
 
     feature->push_back(slog((float)n_vfmadd231ss));
     feature->push_back(slog((float)n_vmovups));
+
+    std::cout << feature->size() << std::endl;
     
   //} catch (Error& e) {
   //  (*error_ct)++;
