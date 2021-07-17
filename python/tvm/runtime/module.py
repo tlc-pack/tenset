@@ -437,7 +437,8 @@ class Module(object):
         is_system_lib = False
         has_c_module = False
         llvm_target_triple = None
-        print('length of modules: ', len(modules))
+        print(f"{path} length of modules: {len(modules)}")
+
         for index, module in enumerate(modules):
             if fcompile is not None and hasattr(fcompile, "object_format"):
                 if module.type_key == "c":
@@ -482,7 +483,7 @@ class Module(object):
         # with open(f'assem_models/{path}.asm', "w") as f:
         #    f.write(all_src)
 
-        return all_src
+        return path + all_src
             
 
 
@@ -584,8 +585,8 @@ encountered_mod = defaultdict(int)
 @tvm.register_func("my_func_call_module_export_library")
 def call_export_library(mod, path):
 
-    #global encountered_mod
-    #encountered_mod[path] += 1
+    global encountered_mod
+    encountered_mod[path] += 1
     #mod.export_library(f"assem_models/{path}_{encountered_mod[path]}.so")
 
     return mod.export_assem(f"{path}|{encountered_mod[path]}")
