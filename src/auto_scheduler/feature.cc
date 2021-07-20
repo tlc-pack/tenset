@@ -1329,7 +1329,15 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   auto bounds = te::InferBound(sch);
 
   //std::cout << task->compute_dag.PrintDAG(false) << std::endl;
-  std::cout << "ComputeDAG ops " << task->compute_dag->ops.size() << std::endl;
+  int s = 0;
+
+  for (const auto& op : task->compute_dag->ops) {
+    if (!(op->IsInstance<te::PlaceholderOpNode>())) {
+        s+=1;
+    }
+  }
+
+  std::cout << "ComputeDAG ops " << s << std::endl;
 
   try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
@@ -1420,7 +1428,7 @@ void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask&
 
   std::atomic<int> error_ct(0);
 
-  for (int i = 0; i < 50; i++) { GetPerStoreFeaturesWorkerFunc(task, states[i], max_n_bufs, &(*features)[i], &error_ct);}
+  for (int i = 0; i < 10; i++) { GetPerStoreFeaturesWorkerFunc(task, states[i], max_n_bufs, &(*features)[i], &error_ct);}
 
   //support::parallel_for(skip_first_n_feature_extraction, states.size(),
   //                      [&task, &states, &max_n_bufs, &features, &error_ct](int i) {
@@ -1437,7 +1445,7 @@ void GetPerStoreFeaturesFromStates(const Array<State>& states, const std::vector
 
   std::atomic<int> error_ct(0);
 
-  for (int i = 0; i < 50; i++) {GetPerStoreFeaturesWorkerFunc(tasks[i], states[i], max_n_bufs, &(*features)[i], &error_ct);}
+  for (int i = 0; i < 10; i++) {GetPerStoreFeaturesWorkerFunc(tasks[i], states[i], max_n_bufs, &(*features)[i], &error_ct);}
   
   //support::parallel_for(skip_first_n_feature_extraction, states.size(),
   //                      [&tasks, &states, &max_n_bufs, &features, &error_ct](int i) {
