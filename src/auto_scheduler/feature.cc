@@ -1395,13 +1395,10 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     static const PackedFunc* fexport = runtime::Registry::Get("my_func_call_module_export_library");
     static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_build");
 
-    //std::cout << task->target->str();
     auto rt = (*fbuild)(sch, tensors, task->target, task->target_host);
-    //std::cout << "\nCodegen\n";
     String tsrc = (*fexport)(rt, (std::string)task->workload_key);
     std::string src = (std::string)tsrc;
 
-    // std::cout << src ;
     // Assembly-Level Feature Extraction
     int n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
     int n_vmovups = count_frequency(src, "vmovups");
@@ -1416,7 +1413,6 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     
   } catch (Error& e) {
     (*error_ct)++;
-    // std::cout << "error" << std::endl;
   }
 }
 
