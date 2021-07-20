@@ -171,6 +171,12 @@ struct FeatureSet {
   float auto_unroll_max_step;  // The value of pragma "auto_unroll_max_step"
 };
 
+// Assembly-level feature set
+struct AssemblyFeatureSet {
+  float n_vfmadd231ss;
+  float n_vmovups;
+};
+
 // Return whether a var is in an expr
 bool VarInExpr(const Var& var, const PrimExpr& expr) {
   bool find = false;
@@ -1388,8 +1394,11 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
 
     // std::cout << src ;
     // Assembly-Level Feature Extraction
-    //size_t n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
-    //size_t n_vmovups = count_frequency(src, "vmovups");
+    size_t n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
+    size_t n_vmovups = count_frequency(src, "vmovups");
+
+    AssemblyFeatureSet asm;
+
 
     //std::cout << "vfmadd: " << n_vfmadd231ss <<  " vmov: " << n_vmovups << std::endl;
 
