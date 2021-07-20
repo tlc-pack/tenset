@@ -1058,14 +1058,6 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
 
   ret->push_back(extractor.buffer_features.size());
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-  //std::cout << "buffer feature size " << extractor.buffer_features.size() << std::endl;
->>>>>>> feature collection
-=======
-  std::cout << "buffer feature size " << extractor.buffer_features.size() << std::endl;
->>>>>>> Update feature.cc
   for (const auto& x : extractor.buffer_features) {
     const FeatureSet& fea_set = x.second;    
 
@@ -1389,13 +1381,10 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     static const PackedFunc* fexport = runtime::Registry::Get("my_func_call_module_export_library");
     static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_build");
 
-    //std::cout << task->target->str();
     auto rt = (*fbuild)(sch, tensors, task->target, task->target_host);
-    //std::cout << "\nCodegen\n";
     String tsrc = (*fexport)(rt, (std::string)task->workload_key);
     std::string src = (std::string)tsrc;
 
-    // std::cout << src ;
     // Assembly-Level Feature Extraction
     int n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
     int n_vmovups = count_frequency(src, "vmovups");
@@ -1406,17 +1395,10 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
-<<<<<<< HEAD
-                       feature);
-  } catch (Error& e) {
-    (*error_ct)++;
-=======
                        feature, assem);
     
   } catch (Error& e) {
     (*error_ct)++;
-    // std::cout << "error" << std::endl;
->>>>>>> Update feature.cc
   }
 }
 
