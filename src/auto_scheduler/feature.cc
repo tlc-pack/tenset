@@ -1398,15 +1398,21 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
 
     std::vector<int> assem = {n_vfmadd231ss, n_vmovups};
 
-    //std::cout << "vfmadd: " << n_vfmadd231ss <<  " vmov: " << n_vmovups << std::endl;
-
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
+<<<<<<< HEAD
                        feature);
   } catch (Error& e) {
     (*error_ct)++;
+=======
+                       feature, assem);
+    
+  } catch (Error& e) {
+    (*error_ct)++;
+    // std::cout << "error" << std::endl;
+>>>>>>> Update feature.cc
   }
 }
 
