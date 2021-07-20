@@ -1330,7 +1330,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
 
   //std::cout << task->compute_dag.PrintDAG(false) << std::endl;
 
-  //try {
+  try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
     Map<te::Tensor, te::Buffer> out_binds;
     Array<ObjectRef> out_arg_list;
@@ -1399,23 +1399,16 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
 
     std::vector<int> assem = {n_vfmadd231ss, n_vmovups};
 
-    //std::cout << "vfmadd: " << n_vfmadd231ss <<  " vmov: " << n_vmovups << std::endl;
-
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
                        feature, assem);
-
-    //feature->push_back(slog((float)n_vfmadd231ss));
-    //feature->push_back(slog((float)n_vmovups));
-
-    //std::cout << feature->size() << std::endl;
     
-  //} catch (Error& e) {
-  //  (*error_ct)++;
+  } catch (Error& e) {
+    (*error_ct)++;
     // std::cout << "error" << std::endl;
-  //}
+  }
 }
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask& task,
