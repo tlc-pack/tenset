@@ -133,8 +133,6 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
                 offset += vec_len * SIZE_OF_FLOAT32
                 row.append(x)
 
-            print(n_stmts)
-            #print(row)
             features.append(np.array(row))
 
     # unpack normalized_throughputs
