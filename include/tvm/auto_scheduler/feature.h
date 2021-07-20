@@ -48,7 +48,7 @@ namespace auto_scheduler {
  * \param ret The returned feature vector
  */
 void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
-                        std::vector<float>* ret);
+                        std::vector<float>* ret, std::vector<int> assem);
 
 /*
  * \brief Get the names of elements in the feature vector. Use this for debug and inspection.

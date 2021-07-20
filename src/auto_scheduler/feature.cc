@@ -169,11 +169,6 @@ struct FeatureSet {
   float auto_unroll_max_step;  // The value of pragma "auto_unroll_max_step"
 };
 
-// Assembly-level feature set
-struct AssemblyFeatureSet {
-  float n_vfmadd231ss;
-  float n_vmovups;
-};
 
 // Return whether a var is in an expr
 bool VarInExpr(const Var& var, const PrimExpr& expr) {
@@ -1057,7 +1052,7 @@ class PerStoreFeatureExtractor : public StmtExprVisitor {
 inline float slog(float x) { return x < 0 ? -std::log2(-x + 1) : std::log2(x + 1); }
 
 void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
-                        std::vector<float>* ret) {
+                        std::vector<float>* ret, std::vector<int> assem) {
   PerStoreFeatureExtractor extractor(cache_line_size);
   extractor(stmt);
 
@@ -1190,6 +1185,11 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
     ret->push_back(slog(fea_set.outer_prod));
     ret->push_back(slog(fea_set.num_loops));
     ret->push_back(slog(fea_set.auto_unroll_max_step));
+
+    /***** Group 6: Assembly-level features *****/
+    for (int fea: assem) {
+      ret->push_back(slog((float)fea));
+    }
   }
 }
 
@@ -1389,11 +1389,10 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
 
     // std::cout << src ;
     // Assembly-Level Feature Extraction
-    size_t n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
-    size_t n_vmovups = count_frequency(src, "vmovups");
+    int n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
+    int n_vmovups = count_frequency(src, "vmovups");
 
-    AssemblyFeatureSet asm;
-
+    std::vector<int> assem = {n_vfmadd231ss, n_vmovups};
 
     //std::cout << "vfmadd: " << n_vfmadd231ss <<  " vmov: " << n_vmovups << std::endl;
 
