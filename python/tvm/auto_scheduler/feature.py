@@ -39,7 +39,7 @@ from . import _ffi_api
 DEFAULT_MAX_N_BUFS = 5
 
 # The length of the feature vector
-DEFAULT_FEATURE_VEC_LEN = 164
+DEFAULT_FEATURE_VEC_LEN = 166
 
 # The size of int and float in bytes
 SIZE_OF_INT32 = 4
@@ -133,8 +133,6 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
                 offset += vec_len * SIZE_OF_FLOAT32
                 row.append(x)
 
-            print(n_stmts)
-            #print(row)
             features.append(np.array(row))
 
     # unpack normalized_throughputs
