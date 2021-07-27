@@ -1371,21 +1371,21 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
     
-    static const PackedFunc* fexport = runtime::Registry::Get("my_func_call_module_export_library");
-    static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_build");
+    //static const PackedFunc* fexport = runtime::Registry::Get("my_func_call_module_export_library");
+    //static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_build");
 
     //std::cout << task->target->str();
-    auto rt = (*fbuild)(sch, tensors, task->target, task->target_host);
+    //auto rt = (*fbuild)(sch, tensors, task->target, task->target_host);
     //std::cout << "\nCodegen\n";
-    String tsrc = (*fexport)(rt, (std::string)task->workload_key);
-    std::string src = (std::string)tsrc;
+    //String tsrc = (*fexport)(rt, (std::string)task->workload_key);
+    //std::string src = (std::string)tsrc;
 
     // std::cout << src ;
     // Assembly-Level Feature Extraction
-    size_t n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
-    size_t n_vmovups = count_frequency(src, "vmovups");
+    //size_t n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
+    //size_t n_vmovups = count_frequency(src, "vmovups");
 
-    std::cout << "vfmadd: " << n_vfmadd231ss <<  " vmov: " << n_vmovups << std::endl;
+    //std::cout << "vfmadd: " << n_vfmadd231ss <<  " vmov: " << n_vmovups << std::endl;
 
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
