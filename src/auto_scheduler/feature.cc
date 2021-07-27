@@ -1060,7 +1060,7 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
 
   ret->push_back(extractor.buffer_features.size());
 
-  std::cout << "buffer feature size " << extractor.buffer_features.size() << std::endl;
+  //std::cout << "buffer feature size " << extractor.buffer_features.size() << std::endl;
   for (const auto& x : extractor.buffer_features) {
     const FeatureSet& fea_set = x.second;    
 
@@ -1338,7 +1338,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     }
   }
 
-  std::cout << "ComputeDAG ops " << s << std::endl;
+  //std::cout << "ComputeDAG ops " << s << std::endl;
 
   try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
