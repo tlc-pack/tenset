@@ -1300,7 +1300,8 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret) {
   /***** Group 6: Assembly-level features *****/
   ret->push_back(("n_vfmadd231ss"));
   ret->push_back(("n_vmovups"));
-  // section total : 2
+  ret->push_back(("n_fma_rn_f32"));
+  // section total : 3
 }
 
 int count_frequency(std::string src, std::string pat) {
@@ -1388,8 +1389,9 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     // Assembly-Level Feature Extraction
     int n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
     int n_vmovups = count_frequency(src, "vmovups");
+    int n_fma_rn_f32 = count_frequency(src, "fma.rn.f32");
 
-    std::vector<int> assem = {n_vfmadd231ss, n_vmovups};
+    std::vector<int> assem = {n_vfmadd231ss, n_vmovups, n_fma_rn_f32};
 
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
