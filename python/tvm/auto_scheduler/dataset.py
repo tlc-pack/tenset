@@ -293,7 +293,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             pickle.dump((features, throughputs, min_latency), open(cache_file, "wb"), protocol=pickle.HIGHEST_PROTOCOL)
 
         for task in features:
-            print(task)
+            #print(task)
             dataset.load_task_data(task, features[task], throughputs[task], min_latency[task])
 
     # Delete task with too few samples
