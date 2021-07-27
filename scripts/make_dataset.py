@@ -92,7 +92,6 @@ if __name__ == "__main__":
                 task_info_filename = get_task_info_filename(network_key, target)
                 tasks, _ = pickle.load(open(task_info_filename, "rb"))
                 for task in tasks:
-                    print(task)
                     if task.workload_key not in to_be_excluded and task.workload_key not in exists:
                         if not args.n_task or task_cnt < args.n_task:
                             exists.add(task.workload_key)
