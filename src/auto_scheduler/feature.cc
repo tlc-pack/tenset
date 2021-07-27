@@ -1340,7 +1340,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
 
   //std::cout << "ComputeDAG ops " << s << std::endl;
 
-  //try {
+  try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
     Map<te::Tensor, te::Buffer> out_binds;
     Array<ObjectRef> out_arg_list;
@@ -1413,9 +1413,9 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
                        feature, assem);
     
-  //} catch (Error& e) {
-  //  (*error_ct)++;
-  //}
+  } catch (Error& e) {
+    (*error_ct)++;
+  }
 }
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask& task,
