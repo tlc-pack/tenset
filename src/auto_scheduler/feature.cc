@@ -1326,22 +1326,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
-<<<<<<< HEAD
   try {
-=======
-  //std::cout << task->compute_dag.PrintDAG(false) << std::endl;
-  //int s = 0;
-
-  //for (const auto& op : task->compute_dag->ops) {
-  //  if (!(op->IsInstance<te::PlaceholderOpNode>())) {
-  //      s+=1;
-  //  }
-  //}
-
-  //std::cout << "ComputeDAG ops " << s << std::endl;
-
-  //try {
->>>>>>> Update feature.cc
     auto stmt = te::ScheduleOps(sch, bounds, false);
     Map<te::Tensor, te::Buffer> out_binds;
     Array<ObjectRef> out_arg_list;
@@ -1414,9 +1399,9 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
                        feature, assem);
     
-  //} catch (Error& e) {
-  //  (*error_ct)++;
-  //}
+  } catch (Error& e) {
+    (*error_ct)++;
+  }
 }
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask& task,
