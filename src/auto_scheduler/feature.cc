@@ -1326,6 +1326,20 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
+<<<<<<< HEAD
+=======
+  //std::cout << task->compute_dag.PrintDAG(false) << std::endl;
+  int s = 0;
+
+  for (const auto& op : task->compute_dag->ops) {
+    if (!(op->IsInstance<te::PlaceholderOpNode>())) {
+        s+=1;
+    }
+  }
+
+  //std::cout << "ComputeDAG ops " << s << std::endl;
+
+>>>>>>> Update feature.cc
   try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
     Map<te::Tensor, te::Buffer> out_binds;
