@@ -238,6 +238,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             throughputs = {}
             min_latency = {}
             for task, (inputs, results) in measure_records.items():
+                print(task)
                 features_, normalized_throughputs, task_ids, min_latency_ =\
                     get_per_store_features_from_measure_pairs(inputs, results)
 
