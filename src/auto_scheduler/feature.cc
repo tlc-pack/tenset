@@ -1316,9 +1316,9 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
-  std::cout << task->compute_dag.PrintDAG(false) << std::endl;
+  // std::cout << task->compute_dag.PrintDAG(false) << std::endl;
 
-  //try {
+  try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
     Map<te::Tensor, te::Buffer> out_binds;
     Array<ObjectRef> out_arg_list;
@@ -1371,31 +1371,27 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
     
-    //static const PackedFunc* fexport = runtime::Registry::Get("my_func_call_module_export_library");
-    //static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_build");
-
-    //std::cout << task->target->str();
-    //auto rt = (*fbuild)(sch, tensors, task->target, task->target_host);
-    //std::cout << "\nCodegen\n";
-    //String tsrc = (*fexport)(rt, (std::string)task->workload_key);
-    //std::string src = (std::string)tsrc;
+    // auto rt = (*fbuild)(sch, tensors, task->target, task->target_host);
+    // std::cout << "\nCodegen\n";
+    // String tsrc = (*fexport)(rt, (std::string)task->workload_key);
+    // std::string src = (std::string)tsrc;
 
     // std::cout << src ;
     // Assembly-Level Feature Extraction
-    //size_t n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
-    //size_t n_vmovups = count_frequency(src, "vmovups");
+    // size_t n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
+    // size_t n_vmovups = count_frequency(src, "vmovups");
 
-    //std::cout << "vfmadd: " << n_vfmadd231ss <<  " vmov: " << n_vmovups << std::endl;
+    // std::cout << "vfmadd: " << n_vfmadd231ss <<  " vmov: " << n_vmovups << std::endl;
 
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
                        feature);
-  //} catch (Error& e) {
-  //  (*error_ct)++;
+  } catch (Error& e) {
+    (*error_ct)++;
     // std::cout << "error" << std::endl;
-  //}
+  }
 }
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask& task,
