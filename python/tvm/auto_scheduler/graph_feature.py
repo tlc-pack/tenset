@@ -30,7 +30,6 @@ from typing import List, Tuple, Union, Optional
 import struct
 import collections
 import numpy as np
-import dgl
 import torch as th
 
 from .loop_state import State, StateObject
@@ -124,7 +123,7 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
     min_costs = struct.unpack_from("%df" % m, byte_arr, offset=offset)
     offset += m * SIZE_OF_FLOAT32
 
-    print('unpack successful')
+    #print('unpack successful')
     if no_label:
         return graphs, normalized_throughputs, np.array(task_ids), min_costs
     else:
@@ -177,10 +176,10 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
     # unpack sizes
     offset = 0
     n = struct.unpack_from("1i", byte_arr, offset=offset)[0]
-    offset += SIZE_OF_INT3232
+    offset += SIZE_OF_INT32
 
     sizes = struct.unpack_from("%di" % (n + 3), byte_arr, offset=offset)
-    offset += SIZE_OF_INT3232 * (n + 3)
+    offset += SIZE_OF_INT32 * (n + 3)
 
     # unpack features
     features = []
@@ -226,7 +225,7 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
     # unpack task_ids
     m = sizes[-2]
     task_ids = struct.unpack_from("%di" % m, byte_arr, offset=offset)
-    offset += m * SIZE_OF_INT3232
+    offset += m * SIZE_OF_INT32
 
     # unpack min_costs
     m = sizes[-1]

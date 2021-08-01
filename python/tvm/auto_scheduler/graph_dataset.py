@@ -238,11 +238,11 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             throughputs = {}
             min_latency = {}
             for task, (inputs, results) in measure_records.items():
-                print('start')
+                #print('start')
                 features_, normalized_throughputs, task_ids, min_latency_ =\
                     get_graph_from_measure_pairs(inputs, results)
 
-                print('advancing')
+                #print('advancing')
                 assert not np.any(task_ids)   # all task ids should be zero
                 if len(min_latency_) == 0:
                     # no valid records
@@ -256,7 +256,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
                 throughputs[task] = normalized_throughputs
                 min_latency[task] = min_latency_[0]
 
-                print('done')
+                #print('done')
             pickle.dump((features, throughputs, min_latency), open(cache_file, "wb"))
 
         for task in features:
