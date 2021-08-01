@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from ..serialization import LogReader
 
 
-logger = logging.getLogger('ansor')
+logger = logging.getLogger('auto_scheduler')
 
 Edge = collections.namedtuple("Edge", ["src", "dst", "feature"])
 Node = collections.namedtuple("Node", ["node_type", "id", "feature"])

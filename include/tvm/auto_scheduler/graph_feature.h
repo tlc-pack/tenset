@@ -18,7 +18,7 @@
  */
 
 /*!
- * \file ansor/feature.h
+ * \file auto_scheduler/feature.h
  * \brief Feature extraction for the graph cost model
  */
 
@@ -31,7 +31,7 @@
 #include "measure.h"
 
 namespace tvm {
-namespace ansor {
+namespace auto_scheduler {
 
 
 void GetGraph(const State& state,
@@ -78,7 +78,7 @@ void GetGraphFromMeasurePairs(const Array<MeasureInput>& inputs,
                               std::vector<int>* task_ids);
 
 
-}   // namespace ansor
+}   // namespace auto_scheduler
 }   // namespace tvm
 
 #endif  // TVM_ANSOR_GRAPH_FEATURE_H_

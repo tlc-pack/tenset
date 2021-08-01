@@ -18,28 +18,31 @@
  */
 
 /*!
- * \file ansor/feature.cc
+ * \file auto_scheduler/feature.cc
  * \brief Feature extraction for the cost model
  */
 
+#include <tvm/arith/analyzer.h>
+#include <tvm/auto_scheduler/feature.h>
+#include <tvm/auto_scheduler/measure.h>
+#include <tvm/auto_scheduler/measure_record.h>
+#include <tvm/runtime/registry.h>
+#include <tvm/support/parallel_for.h>
 #include <tvm/te/operation.h>
 #include <tvm/te/schedule_pass.h>
-#include <tvm/tir/stmt_functor.h>
-#include <tvm/tir/transform.h>
 #include <tvm/tir/analysis.h>
 #include <tvm/tir/op_attr_types.h>
-#include <tvm/runtime/registry.h>
-#include <tvm/arith/analyzer.h>
+#include <tvm/tir/stmt_functor.h>
+#include <tvm/tir/transform.h>
+
 #include <algorithm>
 #include <cmath>
 #include <unordered_map>
 #include <vector>
+#include <chrono>
+
 #include "search_policy/utils.h"
 #include "utils.h"
-#include <chrono>
-#include <tvm/auto_scheduler/feature.h>
-#include <tvm/auto_scheduler/measure.h>
-#include <tvm/auto_scheduler/measure_record.h>
 
 
 namespace tvm {
@@ -57,39 +60,8 @@ using namespace tvm::tir;
 using arith::ConstIntBound;
 using arith::Analyzer;
 
-
 template <class T>
 using BufferMap = std::unordered_map<Buffer, T, ObjectHash, ObjectEqual>;
-
-// The number of samples to extract for arithmetic intensity curves
-static const int ARITH_INTENSITY_CURVE_SAMPLE_N = 10;
-
-// Annotation position encoding
-enum class AnnotationPosType : int {
-  kPosNone = 0,           // Does not have this kind of annotation
-  kPosInnerSpatial = 1,   // The annotated iterator is the innermost spatial iterator
-  kPosMiddleSpatial = 2,  // The annotated iterator is a middle spatial iterator
-  kPosOuterSpatial = 3,   // The annotated iterator is the outermost spatial iterator
-  kPosInnerReduce = 4,    // The annotated iterator is the innermost reduce iterator
-  kPosMiddleReduce = 5,   // The annotated iterator is a middle reduce iterator
-  kPosOuterReduce = 6,    // The annotated iterator is the outermost reduce iterator
-  kPosMixed = 7           // The annotated iterator is a mixed space and reduce iterator
-};
-
-// Buffer access type
-enum class BufferAccessType : int { kRead = 0, kWrite = 1, kReadWrite = 2, kUnknownRW = 3 };
-
-// Accesses to a buffer
-struct BufferAccess {
-  // data reuse type
-  BufferAccessType acc_type{BufferAccessType::kUnknownRW};
-  // Use a two-dimensional array to store multiple multi-dimensional accesses.
-  // The innermost vector stores the multi-dimensional indices of one access.
-  std::vector<std::vector<PrimExpr>> indices;
-};
-
-// Data reuse type
-enum class ReuseType : int { kLoopMultipleRead = 0, kSerialMultipleReadWrite = 1, kNoReuse = 2 };
 
 // Feature for an access of a buffer
 struct BufferAccessFeature {
@@ -230,18 +202,18 @@ class BufferAccessExtractor : public StmtExprVisitor {
   void VisitExpr_(const BufferLoadNode *op) final {
     BufferAccess& acc = buf_accesses[op->buffer];
     switch (acc.acc_type) {
-      case kRead:
+      case BufferAccessType::kRead:
         break;
-      case kWrite:
-        acc.acc_type = kReadWrite; break;
-      case kReadWrite:
+      case BufferAccessType::kWrite:
+        acc.acc_type = BufferAccessType::kReadWrite; break;
+      case BufferAccessType::kReadWrite:
         break;
       case kUnknownRW:
       default:
-        acc.acc_type = kRead; break;
+        acc.acc_type = BufferAccessType::kRead; break;
     }
 
-    if (acc.acc_type != kReadWrite) {
+    if (acc.acc_type != BufferAccessType::kReadWrite) {
       // If a buffer is both read and written, in the tvm DSL, it must be a update,
       // so the indices should be the same. Then we can skip appending indices for it.
       // Otherwise we do the following.
@@ -1424,7 +1396,7 @@ void GetGraph(const State& state,
   Array<te::Tensor> tensors;
 
   std::tie(sch, tensors) = task->compute_dag.ApplySteps(state->transform_steps);
-  sch = sch.normalize(true);
+  sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
   auto stmt = te::ScheduleOps(sch, bounds, false);
@@ -1470,54 +1442,38 @@ void GetGraph(const State& state,
 
 }
 
-void GetGraphFromStates(const Array<State>& states,
-                               const std::vector<SearchTask>& tasks,
-                               int max_n_bufs,
-                               std::vector<std::vector<Node> >* node_list,
-                               std::vector<std::vector<Edge> >* edge_list) {
+void GetGraphFromStates(const Array<State>& states, const std::vector<SearchTask>& tasks,
+                        int skip_first_n_feature_extraction, int max_n_bufs,
+                        std::vector<std::vector<Node> >* node_list,
+                        std::vector<std::vector<Edge> >* edge_list) {
   // extract features
   node_list->assign(states.size(), std::vector<Node>());
   edge_list->assign(states.size(), std::vector<Edge>());
 
   std::atomic<int> error_ct(0);
 
-  ThreadPool& pool = ThreadPool::Global();
-  pool.BeginBatch(static_cast<int>(states.size()) - 0);
-  for (size_t i = 0; i < states.size(); ++i) {
-    pool.Enqueue(GetGraph, states[i], tasks[i],
-                 max_n_bufs, &(*node_list)[i], &(*edge_list)[i]);
-  }
-  pool.WaitBatch();
-
-  if (error_ct > 0) {
-    std::cerr << "Encountered " << error_ct
-              << " errors during feature extraction. which are safely ignored." << std::endl;
-  }
+  support::parallel_for(skip_first_n_feature_extraction, states.size(),
+                        [&states, &tasks, &max_n_bufs, &node_list, &edge_list](int i) {
+                          GetGraph(states[i], tasks[i],
+                            max_n_bufs, &(*node_list)[i], &(*edge_list)[i]);
+                        });
 }
 
-void GetGraphFromStates(const Array<State>& states,
-                               const SearchTask task,
-                               int max_n_bufs,
-                               std::vector<std::vector<Node> >* node_list,
-                               std::vector<std::vector<Edge> >* edge_list) {
+void GetGraphFromStates(const Array<State>& states, const SearchTask task,
+                        int skip_first_n_feature_extraction, int max_n_bufs,
+                        std::vector<std::vector<Node> >* node_list,
+                        std::vector<std::vector<Edge> >* edge_list) {
   // extract features
   node_list->assign(states.size(), std::vector<Node>());
   edge_list->assign(states.size(), std::vector<Edge>());
 
   std::atomic<int> error_ct(0);
 
-  ThreadPool& pool = ThreadPool::Global();
-  pool.BeginBatch(static_cast<int>(states.size()) - 0);
-  for (size_t i = 0; i < states.size(); ++i) {
-    pool.Enqueue(GetGraph, states[i], task,
-                 max_n_bufs, &(*node_list)[i], &(*edge_list)[i]);
-  }
-  pool.WaitBatch();
-
-  if (error_ct > 0) {
-    std::cerr << "Encountered " << error_ct
-              << " errors during feature extraction. which are safely ignored." << std::endl;
-  }
+  support::parallel_for(skip_first_n_feature_extraction, states.size(),
+                        [&states, &task, &max_n_bufs, &node_list, &edge_list](int i) {
+                          GetGraph(states[i], task,
+                            max_n_bufs, &(*node_list)[i], &(*edge_list)[i]);
+                        });
 }
 
 void GetGraphFromFile(const std::string& filename,
@@ -1539,6 +1495,10 @@ void GetGraphFromFile(const std::string& filename,
   // task_id -> min_cost
   std::vector<float> min_costs;
 
+  const auto* workload_key_to_tensors =
+      tvm::runtime::Registry::Get("auto_scheduler.workload_key_to_tensors");
+  ICHECK(workload_key_to_tensors != nullptr);
+
   // read from file
   RecordReader reader(filename);
   auto cur_inp = make_object<MeasureInputNode>();
@@ -1553,9 +1513,10 @@ void GetGraphFromFile(const std::string& filename,
     auto find_res = task_cache.find(key);
     if (find_res == task_cache.end()) {
       // rebuild task
-      task = SearchTask(ComputeDAG(workload_key), workload_key,
-                        cur_inp->task->target, cur_inp->task->target_host,
-                        cur_inp->task->hardware_params);
+      Array<te::Tensor> tensors = (*workload_key_to_tensors)(workload_key);
+      task = SearchTask(ComputeDAG(tensors), workload_key, cur_inp->task->target,
+                        cur_inp->task->target_host, cur_inp->task->hardware_params,
+                        cur_inp->task->layout_rewrite_option, cur_inp->task->task_input_names);
       task_id = task_cache.size();
 
       // compute min cost for each task
@@ -1581,29 +1542,31 @@ void GetGraphFromFile(const std::string& filename,
     (*normalized_throughputs)[i] = min_costs[(*task_ids)[i]] / (*normalized_throughputs)[i];
   }
 
-  GetGraphFromStates(states, tasks, max_n_bufs, node_list, edge_list);
+  GetGraphFromStates(states, tasks, 0, max_n_bufs, node_list, edge_list);
 }
 
 
 void GetGraphFromMeasurePairs(const Array<MeasureInput>& inputs,
-                                    const Array<MeasureResult>& results,
-                                    int skip_first_n_feature_extraction,
-                                    int max_n_bufs,
-                                    std::vector<std::vector<Node> >* node_list,
-                                    std::vector<std::vector<Edge> >* edge_list,
-                                    std::vector<float>* normalized_throughputs,
-                                    std::vector<int>* task_ids) {
+                              const Array<MeasureResult>& results,
+                              int skip_first_n_feature_extraction, int max_n_bufs,
+                              std::vector<std::vector<Node> >* node_list,
+                              std::vector<std::vector<Edge> >* edge_list,
+                              std::vector<float>* normalized_throughputs,
+                              std::vector<int>* task_ids,
+                              std::vector<float>* min_costs) {
   Array<State> states;
-  // ArrayNode* pstates = states.CopyOnWrite();
   std::vector<SearchTask> tasks;
 
   normalized_throughputs->clear();
   task_ids->clear();
+  min_costs->clear();
 
   // (workload_key, target) -> (search_task, task_id)
   std::unordered_map<std::pair<std::string, std::string>, std::pair<SearchTask, size_t>> task_cache;
-  // task_id -> min_cost
-  std::vector<float> min_costs;
+
+  const auto* workload_key_to_tensors =
+      tvm::runtime::Registry::Get("auto_scheduler.workload_key_to_tensors");
+  ICHECK(workload_key_to_tensors != nullptr);
 
   tasks.reserve(inputs.size());
   normalized_throughputs->reserve(inputs.size());
@@ -1617,40 +1580,48 @@ void GetGraphFromMeasurePairs(const Array<MeasureInput>& inputs,
     std::pair<std::string, std::string> key(workload_key, inputs[i]->task->target->str());
     auto find_res = task_cache.find(key);
     if (find_res == task_cache.end()) {
-      if (inputs[i]->task->compute_dag.defined()) {   // the measure input is complete
-          task = inputs[i]->task;
-      } else {  // the measure input is incomplete
-          // rebuild task for incomplete measure pairs read from file
-          task = SearchTask(ComputeDAG(workload_key), workload_key,
-                            inputs[i]->task->target, inputs[i]->task->target_host,
-                            inputs[i]->task->hardware_params);
+      if (inputs[i]->task->compute_dag.defined()) {  // the measure input is complete
+        task = inputs[i]->task;
+      } else {
+        // The measure input is incomplete, rebuild task for incomplete measure pairs read from file
+        try {
+          Array<te::Tensor> tensors = (*workload_key_to_tensors)(workload_key);
+          task =
+              SearchTask(ComputeDAG(tensors), workload_key, inputs[i]->task->target,
+                         inputs[i]->task->target_host, inputs[i]->task->hardware_params,
+                         inputs[i]->task->layout_rewrite_option, inputs[i]->task->task_input_names);
+        } catch (std::exception& e) {
+          // Cannot build ComputeDAG from workload key, the task may have not been registered in
+          // this search round
+          continue;
+        }
       }
       task_id = task_cache.size();
 
       // compute min cost for each task
       task_cache.insert(std::make_pair(key, std::make_pair(task, task_id)));
-      min_costs.push_back(cost);
+      min_costs->push_back(cost);
     } else {
       std::tie(task, task_id) = find_res->second;
-      min_costs[task_id] = std::min(min_costs[task_id], cost);
+      (*min_costs)[task_id] = std::min((*min_costs)[task_id], cost);
     }
 
     tasks.push_back(std::move(task));
     task_ids->push_back(task_id);
-    // pstates->data.push_back(inputs[i]->state);
     states.push_back(inputs[i]->state);
     normalized_throughputs->push_back(cost);
   }
 
   for (size_t i = 0; i < normalized_throughputs->size(); ++i) {
-    (*normalized_throughputs)[i] = min_costs[(*task_ids)[i]] / (*normalized_throughputs)[i];
+    (*normalized_throughputs)[i] = (*min_costs)[(*task_ids)[i]] / (*normalized_throughputs)[i];
   }
-  GetGraphFromStates(states, tasks, max_n_bufs, node_list, edge_list);
+
+  GetGraphFromStates(states, tasks, 0, max_n_bufs, node_list, edge_list);
 }
 
 
 
-TVM_REGISTER_GLOBAL("ansor.GetGraphFromStates")
+TVM_REGISTER_GLOBAL("auto_scheduler.GetGraphFromStates")
   .set_body([](TVMArgs args, TVMRetValue *ret) {
 
   Array<State> states = args[0];
@@ -1662,14 +1633,14 @@ TVM_REGISTER_GLOBAL("ansor.GetGraphFromStates")
   std::vector<float> normalized_throughputs;
   std::vector<int> task_ids;
 
-  GetGraphFromStates(states, task, max_n_bufs, &node_list, &edge_list);
+  GetGraphFromStates(states, task, 0, max_n_bufs, &node_list, &edge_list);
   std::vector<char> byte_data;
   *ret = SerializeGraph(edge_list, node_list, std::move(normalized_throughputs),
                         std::move(task_ids), &byte_data);
 
 });
 
-TVM_REGISTER_GLOBAL("ansor.GetGraphFromFile")
+TVM_REGISTER_GLOBAL("auto_scheduler.GetGraphFromFile")
 .set_body([](TVMArgs args, TVMRetValue *ret) {
 
   std::string filename = args[0];
@@ -1690,7 +1661,7 @@ TVM_REGISTER_GLOBAL("ansor.GetGraphFromFile")
                            std::move(task_ids), &byte_data);
 });
 
-TVM_REGISTER_GLOBAL("ansor.GetGraphFromMeasurePairs")
+TVM_REGISTER_GLOBAL("auto_scheduler.GetGraphFromMeasurePairs")
 .set_body([](TVMArgs args, TVMRetValue *ret) {
   Array<MeasureInput> inputs = args[0];
   Array<MeasureResult> results = args[1];
@@ -1700,10 +1671,11 @@ TVM_REGISTER_GLOBAL("ansor.GetGraphFromMeasurePairs")
   std::vector<std::vector<Node> > node_list;
   std::vector<std::vector<Edge> > edge_list;
   std::vector<float> normalized_throughputs;
-  std::vector<int> task_ids;
+  std::vector<int> task_ids; 
+  std::vector<float> min_costs;
 
   GetGraphFromMeasurePairs(inputs, results, skip_first_n_feature_extraction, max_n_bufs,
-      &node_list, &edge_list, &normalized_throughputs, &task_ids);
+      &node_list, &edge_list, &normalized_throughputs, &task_ids, &min_costs);
 
   std::vector<char> byte_data;
   *ret = SerializeGraph(edge_list, node_list, std::move(normalized_throughputs),
@@ -1711,5 +1683,5 @@ TVM_REGISTER_GLOBAL("ansor.GetGraphFromMeasurePairs")
 });
 
 
-}   // namespace ansor
+}   // namespace auto_scheduler
 }   // namespace tvm
