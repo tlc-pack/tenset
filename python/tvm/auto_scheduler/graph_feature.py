@@ -54,18 +54,16 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
 
     pairs = []
     graphs = []
-    size_of_int = 4
-    size_of_float = 4
     edge_feature_len = 4
     node_feature_len = 84
 
     # unpack size vector
     offset = 0
     n = struct.unpack_from("1i", byte_arr, offset=offset)[0]
-    offset += size_of_int
+    offset += SIZE_OF_INT32
 
     sizes = struct.unpack_from("%di" % (n+n+3), byte_arr, offset=offset)
-    offset += size_of_int * (n+n+3)
+    offset += SIZE_OF_INT32 * (n+n+3)
 
     for size in sizes[:n]:
         src_cur = []
@@ -74,11 +72,11 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
         # unpack edge list
         for i in range(size):
             src = struct.unpack_from("1i", byte_arr, offset=offset)[0]
-            offset += size_of_int
+            offset += SIZE_OF_INT32
             dst = struct.unpack_from("1i", byte_arr, offset=offset)[0]
-            offset += size_of_int
+            offset += SIZE_OF_INT32
             feature = struct.unpack_from("%df" % edge_feature_len, byte_arr, offset=offset)
-            offset += size_of_float * edge_feature_len
+            offset += SIZE_OF_FLOAT32 * edge_feature_len
             src_cur.append(src)
             dst_cur.append(dst)
             fea_cur.append(feature)
@@ -95,9 +93,9 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
         # unpack node list
         fea_cur = []
         for i in range(size):
-            offset += size_of_int*2
+            offset += SIZE_OF_INT32*2
             feature = struct.unpack_from("%df" % node_feature_len, byte_arr, offset=offset)
-            offset += size_of_float * node_feature_len
+            offset += SIZE_OF_FLOAT32 * node_feature_len
             fea_cur.append(feature)
 
         if no_label:
@@ -111,12 +109,12 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
     normalized_throughputs = struct.unpack_from("%df" % m, byte_arr, offset=offset)
     for i in range(len(normalized_throughputs)):
         pairs[i].append(th.tensor(normalized_throughputs[i], dtype=th.float32))
-    offset += m * size_of_int
+    offset += m * SIZE_OF_INT32
 
     # unpack task_ids
     m = sizes[-1]
     task_ids = struct.unpack_from("%di" % m, byte_arr, offset=offset)
-    offset += m * size_of_int
+    offset += m * SIZE_OF_INT32
 
     # unpack min_costs
     m = sizes[-1]
@@ -175,10 +173,10 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
     # unpack sizes
     offset = 0
     n = struct.unpack_from("1i", byte_arr, offset=offset)[0]
-    offset += SIZE_OF_INT32
+    offset += SIZE_OF_INT3232
 
     sizes = struct.unpack_from("%di" % (n + 3), byte_arr, offset=offset)
-    offset += SIZE_OF_INT32 * (n + 3)
+    offset += SIZE_OF_INT3232 * (n + 3)
 
     # unpack features
     features = []
@@ -224,7 +222,7 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
     # unpack task_ids
     m = sizes[-2]
     task_ids = struct.unpack_from("%di" % m, byte_arr, offset=offset)
-    offset += m * SIZE_OF_INT32
+    offset += m * SIZE_OF_INT3232
 
     # unpack min_costs
     m = sizes[-1]
