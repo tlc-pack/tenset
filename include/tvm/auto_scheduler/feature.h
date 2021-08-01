@@ -116,39 +116,6 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
                                          std::vector<float>* normalized_throughputs,
                                          std::vector<int>* task_ids);
 
-// Data reuse type
-enum ReuseType {
-  kLoopMultipleRead, kSerialMultipleReadWrite, kNoReuse
-};
-
-// Buffer access type
-enum BufferAccessType {
-  kRead, kWrite, kReadWrite, kUnknownRW
-};
-
-int64_t GetLoopExtent(const ForNode* node);
-
-int64_t GetLoopMin(const ForNode* node);
-
-bool VarInExpr(const Var& var, const PrimExpr& expr);
-
-std::tuple<ReuseType, float, float, float> ComputeReuse(
-                                        const Buffer& buf,
-                                        const std::vector<std::vector<PrimExpr> >& indices,
-                                        const std::vector<const ForNode*>& for_loop_stack,
-                                        const std::unordered_map<const ForNode*, BufferMap<std::vector<
-                                            std::tuple<BufferAccessType, int64_t, int> > > >& for_touch_regions);
-
-void ComputeRegion(
-    const std::vector<std::vector<PrimExpr> > &indices,
-    arith::Analyzer* ana,
-    std::vector<int>* region);
-
-int64_t ComputeStride(const std::vector<std::vector<PrimExpr> >& indices,
-                      const std::vector<int>& shape,
-                      const VarNode* stride_var);
-
-
 }  // namespace auto_scheduler
 }  // namespace tvm
 

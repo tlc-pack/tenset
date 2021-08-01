@@ -43,7 +43,7 @@
 
 #include "search_policy/utils.h"
 #include "utils.h"
-
+#include "feature.cc"
 
 namespace tvm {
 /* Import the function from driver_api.cc */
@@ -396,7 +396,7 @@ class NodeGather : public StmtExprVisitor {
 
          std::vector<BufferAccessFeature> acc_feas;
          BufferAccessExtractor buf_extractor;
-         buf_extractor.InsertAccess(node->buffer, kWrite, node->indices);
+         buf_extractor.InsertAccess(node->buffer, BufferAccessType::kWrite, node->indices);
          buf_extractor.ExtractReads(node->value);
 
          Analyzer ana;
@@ -530,15 +530,15 @@ class NodeGather : public StmtExprVisitor {
         int i = 42;
         for (int idx : buf_order) {
           const auto& acc_fea = acc_feas[idx];
-          for (int j = 0; j <= kReadWrite; ++j) {
-            newNode.feature[i++] = (j == acc_fea.acc_type);
+          for (int j = 0; j <= (int)BufferAccessType::kReadWrite; ++j) {
+            newNode.feature[i++] = (j == (int)acc_fea.acc_type);
           }
           newNode.feature[i++] = slog2(acc_fea.bytes);
           newNode.feature[i++] = slog2(acc_fea.unique_bytes);
           newNode.feature[i++] = slog2(acc_fea.lines);
           newNode.feature[i++] = slog2(acc_fea.unique_lines);
-          for (int j = 0; j <= kNoReuse; ++j) {
-            newNode.feature[i++] = (acc_fea.reuse_type == j);
+          for (int j = 0; j <= (int)ReuseType::kNoReuse; ++j) {
+            newNode.feature[i++] = ((int)acc_fea.reuse_type == j);
           }
 
           newNode.feature[i++] = slog2(acc_fea.reuse_dis_iter);
@@ -549,11 +549,11 @@ class NodeGather : public StmtExprVisitor {
         }
         // - fill padding
         for (int k = 0; k < max_n_bufs - n_bufs; ++k) {
-          for (int j = 0; j <= kReadWrite; ++j) {  // 3
+          for (int j = 0; j <= (int)BufferAccessType::kReadWrite; ++j) {  // 3
             newNode.feature[i++] = 0.0f;
           }
           newNode.feature[i++] = 0.0f; newNode.feature[i++] = 0.0f; newNode.feature[i++] = 0.0f; newNode.feature[i++] = 0.0f;
-          for (int j = 0; j <= kNoReuse; ++j) {   // 3
+          for (int j = 0; j <= (int)ReuseType::kNoReuse; ++j) {   // 3
             newNode.feature[i++] = 0.0f;
           }
           newNode.feature[i++] = 0.0f; newNode.feature[i++] = 0.0f; newNode.feature[i++] = 0.0f; newNode.feature[i++] = 0.0f;
