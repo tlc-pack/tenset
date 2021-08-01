@@ -310,7 +310,7 @@ class NodeGather : public StmtExprVisitor {
     int primExprType = 0;
     int64_t forExtent = 0;
     int64_t forMin = 0;
-    int forType = 0;
+    int forKind = 0;
     if (n->IsInstance<LetStmtNode>()) {
       primExprType = 0;
     } else if (n->IsInstance<AttrStmtNode>()) {
@@ -321,7 +321,7 @@ class NodeGather : public StmtExprVisitor {
       primExprType = 3;
       forExtent = GetLoopExtent(n.as<ForNode>());
       forMin = GetLoopMin(n.as<ForNode>());
-      forType = (int)n.as<ForNode>()->for_type;
+      forKind = (int)n.as<ForNode>()->kind;
     } else if (n->IsInstance<AllocateNode>()) {
       primExprType = 4;
     } else if (n->IsInstance<StoreNode>()) {
@@ -354,16 +354,16 @@ class NodeGather : public StmtExprVisitor {
       if (primExprType == 3) {
         newNode.feature[35] = slog2(forExtent);
         newNode.feature[36] = slog2(forMin);
-        newNode.feature[37+forType] = 1;
+        newNode.feature[37+forKind] = 1;
 
         const ForNode* node = n.as<ForNode>();
 
         int64_t loop_extent = GetLoopExtent(node);
-        if (node->for_type == ForType::Vectorized) {
+        if (node->kind == ForKind::kVectorized) {
           vec_for_stack.push_back(node);
-        } else if (node->for_type == ForType::Unrolled) {
+        } else if (node->kind == ForKind::kUnrolled) {
           unroll_for_stack.push_back(node);
-        } else if (node->for_type == ForType::Parallel) {
+        } else if (node->kind == ForKind::kParallel) {
           parallel_for_stack.push_back(node);
         }
 
@@ -378,11 +378,11 @@ class NodeGather : public StmtExprVisitor {
         for_loop_stack.pop_back();
         outer_loop_prod /= loop_extent;
 
-        if (node->for_type == ForType::Vectorized) {
+        if (node->kind == ForKind::kVectorized) {
           vec_for_stack.pop_back();
-        } else if (node->for_type == ForType::Unrolled) {
+        } else if (node->kind == ForKind::kUnrolled) {
           unroll_for_stack.pop_back();
-        } else if (node->for_type == ForType::Parallel) {
+        } else if (node->kind == ForKind::kParallel) {
           parallel_for_stack.pop_back();
         }
 
@@ -401,7 +401,7 @@ class NodeGather : public StmtExprVisitor {
 
          Analyzer ana;
         for (auto x : for_loop_stack) {
-          ana.Bind(x->loop_var, Range::make_by_min_extent(x->min, 1), true);
+          ana.Bind(x->loop_var, Range::FromMinExtent(x->min, 1), true);
         }
 
         std::vector<int> tmp_region;
@@ -409,7 +409,7 @@ class NodeGather : public StmtExprVisitor {
           const ForNode* p_for = for_loop_stack[i];
 
           ana.Bind(p_for->loop_var,
-                   Range::make_by_min_extent(for_loop_stack[i]->min, for_loop_stack[i]->extent), true);
+                   Range::FromMinExtent(for_loop_stack[i]->min, for_loop_stack[i]->extent), true);
 
           BufferMap<std::vector<std::tuple<BufferAccessType, int64_t, int> > >&
               buffer_regions_map = for_touch_regions[p_for];
