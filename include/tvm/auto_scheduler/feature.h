@@ -154,7 +154,7 @@ struct BufferAccessFeature {
   float stride;                   // The stride in access
 };
 
-inline float slog(float x) { return x < 0 ? -std::log2(-x + 1) : std::log2(x + 1); };
+inline float slog(float x);
 
 int64_t GetLoopExtent(const ForNode* node);
 
