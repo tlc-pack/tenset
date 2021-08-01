@@ -18,10 +18,6 @@ import math
 import copy
 import matplotlib.pyplot as plt
 
-
-from ..serialization import LogReader
-
-
 logger = logging.getLogger('auto_scheduler')
 
 Edge = collections.namedtuple("Edge", ["src", "dst", "feature"])

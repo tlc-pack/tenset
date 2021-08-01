@@ -38,7 +38,7 @@ void GetGraph(const State& state,
                      const SearchTask& task,
                      int max_n_bufs,
                      std::vector<Node>* node_list,
-                     std::vector<Edge>* edge_list)
+                     std::vector<Edge>* edge_list);
 
 
 /*! \brief Get PerStmt feature from states and different tasks */

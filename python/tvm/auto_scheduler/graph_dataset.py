@@ -6,7 +6,7 @@ import pickle
 from tqdm import tqdm
 import numpy as np
 
-from .serialization import LogReader
+from tvm.auto_scheduler.measure_record import RecordReader
 from .measure import MeasureInput, MeasureResult
 from .feature import get_graph_from_measure_pairs
 
@@ -30,7 +30,7 @@ class GraphDataset:
     def load_raw_files(self, files: List[str]):
         print("Load raw files...")
         for input_file in tqdm(files):
-            for inp, res in LogReader(input_file):
+            for inp, res in RecordReader(input_file):
                 task = input_to_learning_task(inp)
                 if task not in self.measure_records:
                     self.measure_records[task] = [[], []]

@@ -23,7 +23,7 @@
  */
 
 #include <tvm/arith/analyzer.h>
-#include <tvm/auto_scheduler/feature.h>
+#include <tvm/auto_scheduler/graph_feature.h>
 #include <tvm/auto_scheduler/measure.h>
 #include <tvm/auto_scheduler/measure_record.h>
 #include <tvm/runtime/registry.h>
