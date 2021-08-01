@@ -63,23 +63,6 @@ using arith::Analyzer;
 template <class T>
 using BufferMap = std::unordered_map<Buffer, T, ObjectHash, ObjectEqual>;
 
-static const int NODE_FEATURE_LENGTH = 84;
-static const int EDGE_FEATURE_LENGTH = 4;
-
-struct Edge {
-  int src;
-  int dst;
-  float feature[EDGE_FEATURE_LENGTH];
-};
-
-// {"stmtnode": 0, ""}
-struct Node {
-  int node_type;
-  int id;
-  float feature[NODE_FEATURE_LENGTH];
-};
-
-
 // Return the min of a for loop
 int64_t GetLoopMin(const ForNode* node) {
   auto pint = node->min.as<IntImmNode>();
@@ -89,7 +72,6 @@ int64_t GetLoopMin(const ForNode* node) {
     return 0;
   }
 }
-
 
 inline float slog2(float x) {
   return slog(slog(x));
