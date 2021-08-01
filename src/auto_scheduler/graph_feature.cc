@@ -1082,7 +1082,7 @@ TVMByteArray SerializeGraph(std::vector<std::vector<Edge> >& edge_list,
   int n = edge_list.size();
 
   std::cout << "Length of edge list: " << n << std::endl;
-  
+
   // serialize sizes
   size_t size_vector_size = 1 + n + n + 3;
   total_bytes += size_vector_size * sizeof(int);
@@ -1104,6 +1104,10 @@ TVMByteArray SerializeGraph(std::vector<std::vector<Edge> >& edge_list,
   total_bytes += sizeof(int) * task_ids.size();
   size_vector.push_back(static_cast<int>(min_costs.size()));
   total_bytes += sizeof(float) * min_costs.size();
+
+  std::cout << "Sizes: " << normalized_throughputs.size() << 
+  " " << task_ids.size() <<
+  " " << min_costs.size() <<std::endl;
 
   CHECK_EQ(size_vector.size(), size_vector_size);
 
