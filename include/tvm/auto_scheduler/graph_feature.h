@@ -18,7 +18,7 @@
  */
 
 /*!
- * \file auto_scheduler/feature.h
+ * \file auto_scheduler/graph_feature.h
  * \brief Feature extraction for the graph cost model
  */
 
@@ -27,8 +27,8 @@
 
 #include <string>
 #include <vector>
-#include "compute_dag.h"
-#include "measure.h"
+#include <tvm/auto_scheduler/compute_dag.h>
+#include <tvm/auto_scheduler/measure.h>
 
 namespace tvm {
 namespace auto_scheduler {
