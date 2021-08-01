@@ -250,6 +250,8 @@ int64_t GetLoopExtent(const ForNode* node) {
   }
 }
 
+#ifndef MATHOPCOUNTER
+#define MATHOPCOUNTER
 // Count math ops in an expr
 class MathOpCounter : public StmtExprVisitor {
  public:
@@ -342,6 +344,11 @@ class MathOpCounter : public StmtExprVisitor {
   OpAttrMap<TCallEffectKind> op_call_effect_ = Op::GetAttrMap<TCallEffectKind>("TCallEffectKind");
 };
 
+#endif
+
+
+#ifndef BUFFERACCESSEXTRACTOR
+#define BUFFERACCESSEXTRACTOR
 // Extract all buffer accesses in an expr
 class BufferAccessExtractor : public StmtExprVisitor {
  public:
@@ -381,6 +388,7 @@ class BufferAccessExtractor : public StmtExprVisitor {
 
   BufferMap<BufferAccess> buf_accesses;
 };
+#endif
 
 // Compute the coefficient for an loop iterator in an expression
 // Note: we use an approximation strategy to find coefficient.
