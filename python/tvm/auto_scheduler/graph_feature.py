@@ -65,7 +65,7 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
     sizes = struct.unpack_from("%di" % (n+n+3), byte_arr, offset=offset)
     offset += SIZE_OF_INT32 * (n+n+3)
 
-    print(n)
+    //print(sizes[:n])
 
     for size in sizes[:n]:
         src_cur = []
@@ -91,7 +91,7 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
             pairs.append([g])
 
     idx = 0
-    for size in sizes[n:-2]:
+    for size in sizes[n:-3]:
         # unpack node list
         fea_cur = []
         for i in range(size):
@@ -107,14 +107,14 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
         idx += 1
 
     # unpack normalized_throughputs
-    m = sizes[-2]
+    m = sizes[-3]
     normalized_throughputs = struct.unpack_from("%df" % m, byte_arr, offset=offset)
     for i in range(len(normalized_throughputs)):
         pairs[i].append(th.tensor(normalized_throughputs[i], dtype=th.float32))
     offset += m * SIZE_OF_INT32
 
     # unpack task_ids
-    m = sizes[-1]
+    m = sizes[-2]
     task_ids = struct.unpack_from("%di" % m, byte_arr, offset=offset)
     offset += m * SIZE_OF_INT32
 
