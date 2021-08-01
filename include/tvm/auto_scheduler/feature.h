@@ -129,7 +129,7 @@ enum class BufferAccessType : int { kRead = 0, kWrite = 1, kReadWrite = 2, kUnkn
 
 struct BufferAccess {
   // data reuse type
-  BufferAccessType acc_type;
+  BufferAccessType acc_type{BufferAccessType::kUnknownRW};
   // Use a two-dimensional array to store multiple multi-dimensional accesses.
   // The innermost vector stores the multi-dimensional indices of one access.
   std::vector<std::vector<PrimExpr>> indices;

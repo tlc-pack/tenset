@@ -80,18 +80,19 @@ enum class AnnotationPosType : int {
 // enum class BufferAccessType : int { kRead = 0, kWrite = 1, kReadWrite = 2, kUnknownRW = 3 };
 
 // Accesses to a buffer
-struct BufferAccess {
+//struct BufferAccess {
   // data reuse type
-  BufferAccessType acc_type{BufferAccessType::kUnknownRW};
+  //BufferAccessType acc_type{BufferAccessType::kUnknownRW};
   // Use a two-dimensional array to store multiple multi-dimensional accesses.
   // The innermost vector stores the multi-dimensional indices of one access.
-  std::vector<std::vector<PrimExpr>> indices;
-};
+  //std::vector<std::vector<PrimExpr>> indices;
+//};
 
 // Data reuse type
 // enum class ReuseType : int { kLoopMultipleRead = 0, kSerialMultipleReadWrite = 1, kNoReuse = 2 };
 
 // Feature for an access of a buffer
+/*
 struct BufferAccessFeature {
   std::string buffer_name;        // The name of the buffer
   BufferAccessType acc_type;      // The type of the access
@@ -109,7 +110,7 @@ struct BufferAccessFeature {
   float unique_lines_d_reuse_ct;  // unique_lines / reuse_ct
   float stride;                   // The stride in access
 };
-
+*/
 // Feature set of a BufferStore statement
 struct FeatureSet {
   // Group 1: Computation related features
