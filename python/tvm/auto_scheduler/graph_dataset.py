@@ -238,6 +238,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             throughputs = {}
             min_latency = {}
             for task, (inputs, results) in measure_records.items():
+                print('start')
                 features_, normalized_throughputs, task_ids, min_latency_ =\
                     get_graph_from_measure_pairs(inputs, results)
 
@@ -250,7 +251,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
                     # should have only one task
                     assert len(min_latency_) == 1, f"len = {len(min_latency)} in {filename}"
 
-                print(task, features_, normalized_throughputs, min_latency_)
+                #print(task, features_, normalized_throughputs, min_latency_)
                 features[task] = features_
                 throughputs[task] = normalized_throughputs
                 min_latency[task] = min_latency_[0]
