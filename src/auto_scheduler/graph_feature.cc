@@ -24,6 +24,7 @@
 
 #include <tvm/arith/analyzer.h>
 #include <tvm/auto_scheduler/graph_feature.h>
+#include <tvm/auto_scheduler/feature.h>
 #include <tvm/auto_scheduler/measure.h>
 #include <tvm/auto_scheduler/measure_record.h>
 #include <tvm/runtime/registry.h>
@@ -43,7 +44,6 @@
 
 #include "search_policy/utils.h"
 #include "utils.h"
-#include "feature.cc"
 
 namespace tvm {
 /* Import the function from driver_api.cc */

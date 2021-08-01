@@ -116,6 +116,94 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
                                          std::vector<float>* normalized_throughputs,
                                          std::vector<int>* task_ids);
 
+// Data reuse type
+enum ReuseType {
+  kLoopMultipleRead, kSerialMultipleReadWrite, kNoReuse
+};
+
+// Buffer access type
+enum BufferAccessType {
+  kRead, kWrite, kReadWrite, kUnknownRW
+};
+
+struct BufferAccess {
+  // data reuse type
+  BufferAccessType acc_type;
+  // Use a two-dimensional array to store multiple multi-dimensional accesses.
+  // The innermost vector stores the multi-dimensional indices of one access.
+  std::vector<std::vector<PrimExpr>> indices;
+};
+
+struct BufferAccessFeature {
+  std::string buffer_name;        // The name of the buffer
+  BufferAccessType acc_type;      // The type of the access
+  float bytes;                    // The touched memory in bytes
+  float unique_bytes;             // The touched unique memory in bytes
+  float lines;                    // The number of touched cache lines
+  float unique_lines;             // The number touched unique cache lines
+  ReuseType reuse_type;           // Tye type of data reuse
+  float reuse_dis_iter;           // The reuse distance in iterator number
+  float reuse_dis_bytes;          // The reuse distance in total touched bytes
+  float reuse_ct;                 // The reuse ratio
+  float bytes_d_reuse_ct;         // bytes / reuse_ct
+  float unique_bytes_d_reuse_ct;  // unique_bytes / reuse_ct
+  float lines_d_reuse_ct;         // lines / reuse_ct
+  float unique_lines_d_reuse_ct;  // unique_lines / reuse_ct
+  float stride;                   // The stride in access
+};
+
+inline float slog(float x);
+
+int64_t GetLoopExtent(const ForNode* node);
+
+std::tuple<ReuseType, float, float, float> ComputeReuse(
+                                        const Buffer& buf,
+                                        const std::vector<std::vector<PrimExpr> >& indices,
+                                        const std::vector<const ForNode*>& for_loop_stack,
+                                        const std::unordered_map<const ForNode*, BufferMap<std::vector<
+                                            std::tuple<BufferAccessType, int64_t, int> > > >& for_touch_regions);
+
+void ComputeRegion(
+    const std::vector<std::vector<PrimExpr> > &indices,
+    arith::Analyzer* ana,
+    std::vector<int>* region);
+
+int64_t ComputeStride(const std::vector<std::vector<PrimExpr> >& indices,
+                      const std::vector<int>& shape,
+                      const VarNode* stride_var);
+
+class BufferAccessExtractor : public StmtExprVisitor {
+ public:
+  void ExtractReads(const PrimExpr& expr);
+
+  void InsertAccess(const Buffer& buf, BufferAccessType acc_type, const Array<PrimExpr>& indices);
+
+  BufferMap<BufferAccess> buf_accesses;
+};
+
+class MathOpCounter : public StmtExprVisitor {
+ public:
+  size_t float_mad;         // The number of float MAD (Multiply–add) ops
+  size_t float_addsub;      // The number of float add and sub ops
+  size_t float_mul;         // The number of float multiply ops
+  size_t float_divmod;      // The number of float div and mod ops
+  size_t float_cmp;         // The number of float comparison ops
+  size_t float_math_func;   // The number of float math func calls
+  size_t float_other_func;  // The number of other float func calls
+  size_t int_mad;           // The number of integer MAD (Multiply–add) ops
+  size_t int_addsub;        // The number of integer add and sub ops
+  size_t int_mul;           // The number of float multiply ops
+  size_t int_divmod;        // The number of float div and mod ops
+  size_t int_cmp;           // The number of float comparison ops
+  size_t int_math_func;     // The number of float math func calls
+  size_t int_other_func;    // The number of other float func calls
+  size_t bool_op;           // The number of bool ops
+  size_t select_op;         // The number of select ops
+
+  OpAttrMap<TCallEffectKind> op_call_effect_;
+};
+
+
 }  // namespace auto_scheduler
 }  // namespace tvm
 
