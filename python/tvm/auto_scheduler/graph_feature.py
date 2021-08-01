@@ -65,7 +65,7 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
     sizes = struct.unpack_from("%di" % (n+n+3), byte_arr, offset=offset)
     offset += SIZE_OF_INT32 * (n+n+3)
 
-    //print(sizes[:n])
+    #print(sizes[:n])
 
     for size in sizes[:n]:
         src_cur = []
