@@ -1065,6 +1065,7 @@ TVMByteArray SerializeGraph(std::vector<std::vector<Edge> >& edge_list,
                             std::vector<std::vector<Node> >& node_list,
                             std::vector<float>&& normalized_throughputs,
                             std::vector<int>&& task_ids,
+                            std::vector<float>&& min_costs,
                             std::vector<char>* out_data) {
   /* Serialization format
    * {
@@ -1099,6 +1100,8 @@ TVMByteArray SerializeGraph(std::vector<std::vector<Edge> >& edge_list,
   total_bytes += sizeof(float) * normalized_throughputs.size();
   size_vector.push_back(static_cast<int>(task_ids.size()));
   total_bytes += sizeof(int) * task_ids.size();
+  size_vector.push_back(static_cast<int>(min_costs.size()));
+  total_bytes += sizeof(float) * min_costs.size();
 
   CHECK_EQ(size_vector.size(), size_vector_size);
 
@@ -1156,6 +1159,10 @@ TVMByteArray SerializeGraph(std::vector<std::vector<Edge> >& edge_list,
   memmove(ptr, reinterpret_cast<char*>(task_ids.data()), task_ids.size() * sizeof(int));
   ptr += task_ids.size() * sizeof(int);
 
+  // serialize min_costs
+  memmove(ptr, reinterpret_cast<char*>(min_costs.data()), min_costs.size() * sizeof(float));
+  ptr += min_costs.size() * sizeof(float);
+  
   CHECK_EQ(ptr - out_data->data(), total_bytes);
 
   return TVMByteArray{out_data->data(), total_bytes};
@@ -1407,11 +1414,12 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetGraphFromStates")
   std::vector<std::vector<Edge> > edge_list;
   std::vector<float> normalized_throughputs;
   std::vector<int> task_ids;
+  std::vector<float> min_costs;
 
   GetGraphFromStates(states, task, 0, max_n_bufs, &node_list, &edge_list);
   std::vector<char> byte_data;
   *ret = SerializeGraph(edge_list, node_list, std::move(normalized_throughputs),
-                        std::move(task_ids), &byte_data);
+                        std::move(task_ids), std::move(min_costs), &byte_data);
 
 });
 
@@ -1426,6 +1434,7 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetGraphFromFile")
   std::vector<std::vector<Edge> > edge_list;
   std::vector<float> normalized_throughputs;
   std::vector<int> task_ids;
+  std::vector<float> min_costs;
 
 
   GetGraphFromFile(filename, n_lines, max_n_bufs,
@@ -1433,7 +1442,7 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetGraphFromFile")
 
   std::vector<char> byte_data;
   *ret = SerializeGraph(edge_list, node_list, std::move(normalized_throughputs),
-                           std::move(task_ids), &byte_data);
+                        std::move(task_ids), std::move(min_costs), &byte_data);
 });
 
 TVM_REGISTER_GLOBAL("auto_scheduler.GetGraphFromMeasurePairs")
@@ -1454,7 +1463,7 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetGraphFromMeasurePairs")
 
   std::vector<char> byte_data;
   *ret = SerializeGraph(edge_list, node_list, std::move(normalized_throughputs),
-                           std::move(task_ids), &byte_data);
+                        std::move(task_ids), std::move(min_costs), &byte_data);
 });
 
 
