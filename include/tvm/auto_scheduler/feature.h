@@ -36,6 +36,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace tvm {
 namespace auto_scheduler {
@@ -115,6 +116,9 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
                                          std::vector<std::vector<float> >* features,
                                          std::vector<float>* normalized_throughputs,
                                          std::vector<int>* task_ids);
+
+template <class T>
+using BufferMap = std::unordered_map<Buffer, T, ObjectHash, ObjectEqual>;
 
 // Data reuse type
 enum ReuseType {
