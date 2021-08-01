@@ -130,9 +130,9 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
     offset += m * SIZE_OF_FLOAT32
 
     if no_label:
-        return graphs, np.array(task_ids), min_costs
+        return graphs, normalized_throughputs, np.array(task_ids), min_costs
     else:
-        return pairs, np.array(task_ids), min_costs
+        return pairs, normalized_throughputs, np.array(task_ids), min_costs
 
 def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Unpack the flatten feature (in byte array format) from c++
@@ -354,7 +354,7 @@ def get_per_store_feature_names(max_n_bufs: Optional[int] = None) -> List[str]:
 def get_graph_from_states(states: List[Union[State, StateObject]],
                           task: "SearchTask",
                           max_n_bufs: int = None,
-                          no_label = False) -> Tuple[List, np.ndarray, np.ndarray]:
+                          no_label = False) -> Tuple[List, np.ndarray, np.ndarray, np.ndarray]:
     if isinstance(states[0], State):
         state_objects = [s.state_object for s in states]
     elif isinstance(states[0], StateObject):
@@ -366,7 +366,7 @@ def get_graph_from_states(states: List[Union[State, StateObject]],
 def get_graph_from_file(filename: str,
                         n_lines: int,
                         max_n_bufs: int = None) \
-        -> Tuple[List, np.ndarray, np.ndarray]:
+        -> Tuple[List, np.ndarray, np.ndarray, np.ndarray]:
     """Get per_stmt features from a log file"""
 
     byte_arr = _ffi_api.GetGraphFromFile(
@@ -377,7 +377,7 @@ def get_graph_from_measure_pairs(inputs: List[MeasureInput],
                                  results: List[MeasureResult],
                                  skip_first_n_feature_extraction: int = 0,
                                  max_n_bufs: int = None) \
-        -> Tuple[List, np.ndarray, np.ndarray]:
+        -> Tuple[List, np.ndarray, np.ndarray, np.ndarray]:
     """Get per_stmt features from measurement pairs"""
     byte_arr = _ffi_api.GetGraphFromMeasurePairs(
         inputs, results, skip_first_n_feature_extraction, max_n_bufs or DEFAULT_MAX_N_BUFS)
