@@ -252,10 +252,8 @@ int64_t GetLoopExtent(const ForNode* node) {
 
 
 // Count math ops in an expr
-class MathOpCounter : public StmtExprVisitor {
- public:
 #define VisitBinary(Type, float_ct, int_ct) \
-  void VisitExpr_(const Type* op) final {   \
+  void MathOpCounter::VisitExpr_(const Type* op) final {   \
     if (op->a.dtype().is_float()) {         \
       float_ct++;                           \
     } else {                                \
@@ -282,24 +280,24 @@ class MathOpCounter : public StmtExprVisitor {
 
 #undef VisitBinary
 
-  void VisitExpr_(const AndNode* op) final {
+  void MathOpCounter::VisitExpr_(const AndNode* op) final {
     bool_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
-  void VisitExpr_(const OrNode* op) final {
+  void MathOpCounter::VisitExpr_(const OrNode* op) final {
     bool_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
-  void VisitExpr_(const NotNode* op) final {
+  void MathOpCounter::VisitExpr_(const NotNode* op) final {
     bool_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
-  void VisitExpr_(const SelectNode* op) final {
+  void MathOpCounter::VisitExpr_(const SelectNode* op) final {
     select_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
 
-  void VisitExpr_(const CallNode* op) final {
+  void MathOpCounter::VisitExpr_(const CallNode* op) final {
     auto* pop = op->op.as<OpNode>();
     ICHECK(pop != nullptr);
     auto effect_kind = op_call_effect_[GetRef<Op>(pop)];
@@ -321,28 +319,6 @@ class MathOpCounter : public StmtExprVisitor {
     }
     StmtExprVisitor::VisitExpr_(op);
   }
-
-  // todo(merrymercy): Detect MAD (Multiply–add)
-  size_t float_mad{0};         // The number of float MAD (Multiply–add) ops
-  size_t float_addsub{0};      // The number of float add and sub ops
-  size_t float_mul{0};         // The number of float multiply ops
-  size_t float_divmod{0};      // The number of float div and mod ops
-  size_t float_cmp{0};         // The number of float comparison ops
-  size_t float_math_func{0};   // The number of float math func calls
-  size_t float_other_func{0};  // The number of other float func calls
-  size_t int_mad{0};           // The number of integer MAD (Multiply–add) ops
-  size_t int_addsub{0};        // The number of integer add and sub ops
-  size_t int_mul{0};           // The number of float multiply ops
-  size_t int_divmod{0};        // The number of float div and mod ops
-  size_t int_cmp{0};           // The number of float comparison ops
-  size_t int_math_func{0};     // The number of float math func calls
-  size_t int_other_func{0};    // The number of other float func calls
-  size_t bool_op{0};           // The number of bool ops
-  size_t select_op{0};         // The number of select ops
-
-  OpAttrMap<TCallEffectKind> op_call_effect_ = Op::GetAttrMap<TCallEffectKind>("TCallEffectKind");
-};
-
 
 // Extract all buffer accesses in an expr
 class BufferAccessExtractor : public StmtExprVisitor {
