@@ -1587,6 +1587,10 @@ TVMByteArray SerializeFeatures(std::vector<std::vector<float>>&& features,
 
   CHECK_EQ(size_vector.size(), size_vector_size);
 
+  std::cout << "Sizes: " << normalized_throughputs.size() << 
+  " " << task_ids.size() <<
+  " " << min_costs.size() <<std::endl;
+  
   // allocate memory
   out_data->reserve(total_bytes);
   char* ptr = out_data->data();
