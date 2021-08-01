@@ -20,3 +20,4 @@
 from .cost_model import RandomModel, RandomModelInternal
 from .xgb_model import XGBModel
 from .mlp_model import MLPModel
+from .graph_model import GraphModel
