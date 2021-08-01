@@ -174,35 +174,67 @@ int64_t ComputeStride(const std::vector<std::vector<PrimExpr> >& indices,
                       const std::vector<int>& shape,
                       const VarNode* stride_var);
 
+// Extract all buffer accesses in an expr
 class BufferAccessExtractor : public StmtExprVisitor {
  public:
   void ExtractReads(const PrimExpr& expr);
 
   void InsertAccess(const Buffer& buf, BufferAccessType acc_type, const Array<PrimExpr>& indices);
 
+  void VisitExpr_(const BufferLoadNode* op);
+
   BufferMap<BufferAccess> buf_accesses;
 };
 
+// Count math ops in an expr
 class MathOpCounter : public StmtExprVisitor {
  public:
-  size_t float_mad;         // The number of float MAD (Multiply–add) ops
-  size_t float_addsub;      // The number of float add and sub ops
-  size_t float_mul;         // The number of float multiply ops
-  size_t float_divmod;      // The number of float div and mod ops
-  size_t float_cmp;         // The number of float comparison ops
-  size_t float_math_func;   // The number of float math func calls
-  size_t float_other_func;  // The number of other float func calls
-  size_t int_mad;           // The number of integer MAD (Multiply–add) ops
-  size_t int_addsub;        // The number of integer add and sub ops
-  size_t int_mul;           // The number of float multiply ops
-  size_t int_divmod;        // The number of float div and mod ops
-  size_t int_cmp;           // The number of float comparison ops
-  size_t int_math_func;     // The number of float math func calls
-  size_t int_other_func;    // The number of other float func calls
-  size_t bool_op;           // The number of bool ops
-  size_t select_op;         // The number of select ops
+#define VisitBinary(Type, float_ct, int_ct) \
+  void VisitExpr_(const Type* op);
 
-  OpAttrMap<TCallEffectKind> op_call_effect_;
+  VisitBinary(AddNode, float_addsub, int_addsub);
+  VisitBinary(SubNode, float_addsub, int_addsub);
+  VisitBinary(MulNode, float_mul, int_mul);
+  VisitBinary(DivNode, float_divmod, int_divmod);
+  VisitBinary(ModNode, float_divmod, int_divmod);
+  VisitBinary(FloorDivNode, float_divmod, int_divmod);
+  VisitBinary(FloorModNode, float_divmod, int_divmod);
+  VisitBinary(MaxNode, float_cmp, int_cmp);
+  VisitBinary(MinNode, float_cmp, int_cmp);
+  VisitBinary(EQNode, float_cmp, int_cmp);
+  VisitBinary(NENode, float_cmp, int_cmp);
+  VisitBinary(LTNode, float_cmp, int_cmp);
+  VisitBinary(LENode, float_cmp, int_cmp);
+  VisitBinary(GTNode, float_cmp, int_cmp);
+  VisitBinary(GENode, float_cmp, int_cmp);
+
+#undef VisitBinary
+
+  void VisitExpr_(const AndNode* op);
+  void VisitExpr_(const OrNode* op);
+  void VisitExpr_(const NotNode* op);
+  void VisitExpr_(const SelectNode* op);
+  void VisitExpr_(const CallNode* op);
+
+  // todo(merrymercy): Detect MAD (Multiply–add)
+  size_t float_mad{0};         // The number of float MAD (Multiply–add) ops
+  size_t float_addsub{0};      // The number of float add and sub ops
+  size_t float_mul{0};         // The number of float multiply ops
+  size_t float_divmod{0};      // The number of float div and mod ops
+  size_t float_cmp{0};         // The number of float comparison ops
+  size_t float_math_func{0};   // The number of float math func calls
+  size_t float_other_func{0};  // The number of other float func calls
+  size_t int_mad{0};           // The number of integer MAD (Multiply–add) ops
+  size_t int_addsub{0};        // The number of integer add and sub ops
+  size_t int_mul{0};           // The number of float multiply ops
+  size_t int_divmod{0};        // The number of float div and mod ops
+  size_t int_cmp{0};           // The number of float comparison ops
+  size_t int_math_func{0};     // The number of float math func calls
+  size_t int_other_func{0};    // The number of other float func calls
+  size_t bool_op{0};           // The number of bool ops
+  size_t select_op{0};         // The number of select ops
+
+  OpAttrMap<TCallEffectKind> op_call_effect_ = Op::GetAttrMap<TCallEffectKind>("TCallEffectKind");
 };
 
 
