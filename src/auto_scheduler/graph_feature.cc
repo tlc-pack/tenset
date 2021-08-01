@@ -1082,7 +1082,7 @@ TVMByteArray SerializeGraph(std::vector<std::vector<Edge> >& edge_list,
   size_t total_bytes = 0;
   int n = edge_list.size();
 
-  std::cout << "Length of edge list: " << n << std::endl;
+  //std::cout << "Length of edge list: " << n << std::endl;
 
   // serialize sizes
   size_t size_vector_size = 1 + n + n + 3;
