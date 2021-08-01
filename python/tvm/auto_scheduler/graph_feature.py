@@ -83,8 +83,9 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
             dst_cur.append(dst)
             fea_cur.append(feature)
 
-        g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
-        g.edata['fea'] = th.tensor(fea_cur).float()
+        #g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
+        #g.edata['fea'] = th.tensor(fea_cur).float()
+        g = (src_cur, dst_cur, fea_cur)
         if no_label:
             graphs.append(g)
         else:
