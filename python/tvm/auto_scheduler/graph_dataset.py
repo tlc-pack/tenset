@@ -241,6 +241,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
                 features_, normalized_throughputs, task_ids, min_latency_ =\
                     get_graph_from_measure_pairs(inputs, results)
 
+                print('advancing')
                 assert not np.any(task_ids)   # all task ids should be zero
                 if len(min_latency_) == 0:
                     # no valid records
