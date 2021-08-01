@@ -79,7 +79,7 @@ class GraphModel(PythonBasedModel):
         self.results.extend(results)
 
         # extract feature
-        pairs, task_ids = get_graph_from_measure_pairs(self.inputs, self.results)
+        pairs, normalized_throughputs, task_ids, min_latency = get_graph_from_measure_pairs(self.inputs, self.results)
         idx = np.random.permutation(len(pairs))
         train_pairs = [pairs[i] for i in idx]
         train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
@@ -115,7 +115,7 @@ class GraphModel(PythonBasedModel):
 
 
     def predict(self, task, states):
-        graphs, task_ids = get_graph_from_states(states, task, no_label=True)
+        graphs, normalized_throughputs, task_ids, min_latency = get_graph_from_states(states, task, no_label=True)
         tic = time.time()
         batched_graphs = dgl.batch(graphs)
         preds = self.graphNN(batched_graphs).squeeze().tolist()
