@@ -87,7 +87,7 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
         #g.edata['fea'] = th.tensor(fea_cur).float()
         g = (src_cur, dst_cur, fea_cur)
         if no_label:
-            graphs.append(g)
+            graphs.append([g])
         else:
             pairs.append([g])
 
@@ -102,9 +102,9 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
             fea_cur.append(feature)
 
         if no_label:
-            graphs[idx].ndata['fea'] = th.tensor(fea_cur).float()
+            graphs[idx].append(th.tensor(fea_cur).float())
         else:
-            pairs[idx][0].ndata['fea'] = th.tensor(fea_cur).float()
+            pairs[idx].append(th.tensor(fea_cur).float())
         idx += 1
 
     # unpack normalized_throughputs
