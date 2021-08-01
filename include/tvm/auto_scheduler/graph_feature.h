@@ -22,8 +22,8 @@
  * \brief Feature extraction for the graph cost model
  */
 
-#ifndef TVM_ANSOR_FEATURE_H_
-#define TVM_ANSOR_FEATURE_H_
+#ifndef TVM_AUTO_GRAPH_FEATURE_H_
+#define TVM_AUTO_GRAPH_FEATURE_H_
 
 #include <string>
 #include <vector>
@@ -95,4 +95,4 @@ void GetGraphFromMeasurePairs(const Array<MeasureInput>& inputs,
 }   // namespace auto_scheduler
 }   // namespace tvm
 
-#endif  // TVM_ANSOR_GRAPH_FEATURE_H_
+#endif  // TVM_AUTO_GRAPH_FEATURE_H_
