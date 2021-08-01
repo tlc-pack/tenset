@@ -250,9 +250,12 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
                     # should have only one task
                     assert len(min_latency_) == 1, f"len = {len(min_latency)} in {filename}"
 
+                print(task, features_, normalized_throughputs, min_latency_)
                 features[task] = features_
                 throughputs[task] = normalized_throughputs
                 min_latency[task] = min_latency_[0]
+
+                print('done')
             pickle.dump((features, throughputs, min_latency), open(cache_file, "wb"))
 
         for task in features:
