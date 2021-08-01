@@ -123,6 +123,7 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
     min_costs = struct.unpack_from("%df" % m, byte_arr, offset=offset)
     offset += m * SIZE_OF_FLOAT32
 
+    print('unpack successful')
     if no_label:
         return graphs, normalized_throughputs, np.array(task_ids), min_costs
     else:
