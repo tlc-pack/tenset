@@ -33,6 +33,18 @@
 namespace tvm {
 namespace auto_scheduler {
 
+struct Edge {
+  int src;
+  int dst;
+  float feature[EDGE_FEATURE_LENGTH];
+};
+
+// {"stmtnode": 0, ""}
+struct Node {
+  int node_type;
+  int id;
+  float feature[NODE_FEATURE_LENGTH];
+};
 
 void GetGraph(const State& state,
                      const SearchTask& task,
