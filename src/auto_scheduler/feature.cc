@@ -253,7 +253,7 @@ int64_t GetLoopExtent(const ForNode* node) {
 
 // Count math ops in an expr
 #define VisitBinary(Type, float_ct, int_ct) \
-  void MathOpCounter::VisitExpr_(const Type* op) final {   \
+  void MathOpCounter::VisitExpr_(const Type* op)  {   \
     if (op->a.dtype().is_float()) {         \
       float_ct++;                           \
     } else {                                \
@@ -280,24 +280,24 @@ int64_t GetLoopExtent(const ForNode* node) {
 
 #undef VisitBinary
 
-  void MathOpCounter::VisitExpr_(const AndNode* op) final {
+  void MathOpCounter::VisitExpr_(const AndNode* op)  {
     bool_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
-  void MathOpCounter::VisitExpr_(const OrNode* op) final {
+  void MathOpCounter::VisitExpr_(const OrNode* op)  {
     bool_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
-  void MathOpCounter::VisitExpr_(const NotNode* op) final {
+  void MathOpCounter::VisitExpr_(const NotNode* op)  {
     bool_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
-  void MathOpCounter::VisitExpr_(const SelectNode* op) final {
+  void MathOpCounter::VisitExpr_(const SelectNode* op)  {
     select_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
 
-  void MathOpCounter::VisitExpr_(const CallNode* op) final {
+  void MathOpCounter::VisitExpr_(const CallNode* op)  {
     auto* pop = op->op.as<OpNode>();
     ICHECK(pop != nullptr);
     auto effect_kind = op_call_effect_[GetRef<Op>(pop)];

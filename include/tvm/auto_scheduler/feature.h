@@ -190,7 +190,7 @@ class BufferAccessExtractor : public StmtExprVisitor {
 class MathOpCounter : public StmtExprVisitor {
  public:
 #define VisitBinary(Type, float_ct, int_ct) \
-  void VisitExpr_(const Type* op);
+  void VisitExpr_(const Type* op) final;
 
   VisitBinary(AddNode, float_addsub, int_addsub);
   VisitBinary(SubNode, float_addsub, int_addsub);
@@ -210,11 +210,11 @@ class MathOpCounter : public StmtExprVisitor {
 
 #undef VisitBinary
 
-  void VisitExpr_(const AndNode* op);
-  void VisitExpr_(const OrNode* op);
-  void VisitExpr_(const NotNode* op);
-  void VisitExpr_(const SelectNode* op);
-  void VisitExpr_(const CallNode* op);
+  void VisitExpr_(const AndNode* op) final;
+  void VisitExpr_(const OrNode* op) final;
+  void VisitExpr_(const NotNode* op) final;
+  void VisitExpr_(const SelectNode* op) final;
+  void VisitExpr_(const CallNode* op) final;
 
   // todo(merrymercy): Detect MAD (Multiply–add)
   size_t float_mad{0};         // The number of float MAD (Multiply–add) ops
