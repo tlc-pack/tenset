@@ -33,6 +33,7 @@
 
 #include <tvm/auto_scheduler/compute_dag.h>
 #include <tvm/auto_scheduler/measure.h>
+#include <tvm/tir/op_attr_types.h>
 
 #include <string>
 #include <vector>
@@ -121,14 +122,10 @@ template <class T>
 using BufferMap = std::unordered_map<Buffer, T, ObjectHash, ObjectEqual>;
 
 // Data reuse type
-enum ReuseType {
-  kLoopMultipleRead, kSerialMultipleReadWrite, kNoReuse
-};
+enum class ReuseType : int { kLoopMultipleRead = 0, kSerialMultipleReadWrite = 1, kNoReuse = 2 };
 
 // Buffer access type
-enum BufferAccessType {
-  kRead, kWrite, kReadWrite, kUnknownRW
-};
+enum class BufferAccessType : int { kRead = 0, kWrite = 1, kReadWrite = 2, kUnknownRW = 3 };
 
 struct BufferAccess {
   // data reuse type

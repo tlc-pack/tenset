@@ -77,7 +77,7 @@ enum class AnnotationPosType : int {
 };
 
 // Buffer access type
-enum class BufferAccessType : int { kRead = 0, kWrite = 1, kReadWrite = 2, kUnknownRW = 3 };
+// enum class BufferAccessType : int { kRead = 0, kWrite = 1, kReadWrite = 2, kUnknownRW = 3 };
 
 // Accesses to a buffer
 struct BufferAccess {
@@ -89,7 +89,7 @@ struct BufferAccess {
 };
 
 // Data reuse type
-enum class ReuseType : int { kLoopMultipleRead = 0, kSerialMultipleReadWrite = 1, kNoReuse = 2 };
+// enum class ReuseType : int { kLoopMultipleRead = 0, kSerialMultipleReadWrite = 1, kNoReuse = 2 };
 
 // Feature for an access of a buffer
 struct BufferAccessFeature {
