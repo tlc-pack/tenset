@@ -33,6 +33,8 @@
 namespace tvm {
 namespace auto_scheduler {
 
+static const int NODE_FEATURE_LENGTH = 84;
+static const int EDGE_FEATURE_LENGTH = 4;
 struct Edge {
   int src;
   int dst;
