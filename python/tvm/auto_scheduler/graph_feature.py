@@ -47,12 +47,6 @@ DEFAULT_FEATURE_VEC_LEN = 164
 SIZE_OF_INT32 = 4
 SIZE_OF_FLOAT32 = 4
 
-# Maximum number of buffers for one statement to extract feature for
-DEFAULT_MAX_N_BUFS = 5
-
-# The length of the feature vector
-DEFAULT_FEATURE_VEC_LEN = 164
-
 Edge = collections.namedtuple("Edge", ["src", "dst", "feature"])
 Node = collections.namedtuple("Node", ["node_type", "id", "feature"])
 
@@ -70,8 +64,8 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
     n = struct.unpack_from("1i", byte_arr, offset=offset)[0]
     offset += size_of_int
 
-    sizes = struct.unpack_from("%di" % (n+n+2), byte_arr, offset=offset)
-    offset += size_of_int * (n+n+2)
+    sizes = struct.unpack_from("%di" % (n+n+3), byte_arr, offset=offset)
+    offset += size_of_int * (n+n+3)
 
     for size in sizes[:n]:
         src_cur = []
