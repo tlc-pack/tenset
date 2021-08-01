@@ -1082,7 +1082,7 @@ TVMByteArray SerializeGraph(std::vector<std::vector<Edge> >& edge_list,
   int n = edge_list.size();
 
   // serialize sizes
-  size_t size_vector_size = 1 + n + n + 2;
+  size_t size_vector_size = 1 + n + n + 3;
   total_bytes += size_vector_size * sizeof(int);
 
   size_vector.reserve(size_vector_size);
@@ -1162,7 +1162,7 @@ TVMByteArray SerializeGraph(std::vector<std::vector<Edge> >& edge_list,
   // serialize min_costs
   memmove(ptr, reinterpret_cast<char*>(min_costs.data()), min_costs.size() * sizeof(float));
   ptr += min_costs.size() * sizeof(float);
-  
+
   CHECK_EQ(ptr - out_data->data(), total_bytes);
 
   return TVMByteArray{out_data->data(), total_bytes};
