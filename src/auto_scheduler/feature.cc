@@ -321,17 +321,15 @@ int64_t GetLoopExtent(const ForNode* node) {
   }
 
 // Extract all buffer accesses in an expr
-class BufferAccessExtractor : public StmtExprVisitor {
- public:
-  void ExtractReads(const PrimExpr& expr) { this->VisitExpr(expr); }
+  void BufferAccessExtractor::ExtractReads(const PrimExpr& expr) { this->VisitExpr(expr); }
 
-  void InsertAccess(const Buffer& buf, BufferAccessType acc_type, const Array<PrimExpr>& indices) {
+  void BufferAccessExtractor::InsertAccess(const Buffer& buf, BufferAccessType acc_type, const Array<PrimExpr>& indices) {
     BufferAccess& acc = buf_accesses[buf];
     acc.acc_type = acc_type;
     acc.indices.push_back(std::vector<PrimExpr>(indices.begin(), indices.end()));
   }
 
-  void VisitExpr_(const BufferLoadNode* op) final {
+  void BufferAccessExtractor::VisitExpr_(const BufferLoadNode* op) {
     BufferAccess& acc = buf_accesses[op->buffer];
     switch (acc.acc_type) {
       case BufferAccessType::kRead:
@@ -356,9 +354,6 @@ class BufferAccessExtractor : public StmtExprVisitor {
     }
     StmtExprVisitor::VisitExpr_(op);
   }
-
-  BufferMap<BufferAccess> buf_accesses;
-};
 
 // Compute the coefficient for an loop iterator in an expression
 // Note: we use an approximation strategy to find coefficient.

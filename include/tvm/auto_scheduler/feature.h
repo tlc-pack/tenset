@@ -181,7 +181,7 @@ class BufferAccessExtractor : public StmtExprVisitor {
 
   void InsertAccess(const Buffer& buf, BufferAccessType acc_type, const Array<PrimExpr>& indices);
 
-  void VisitExpr_(const BufferLoadNode* op);
+  void VisitExpr_(const BufferLoadNode* op) final;
 
   BufferMap<BufferAccess> buf_accesses;
 };
