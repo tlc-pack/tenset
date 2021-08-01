@@ -34,6 +34,7 @@
 #include <tvm/auto_scheduler/compute_dag.h>
 #include <tvm/auto_scheduler/measure.h>
 #include <tvm/tir/op_attr_types.h>
+#include <tvm/tir/stmt_functor.h>
 
 #include <string>
 #include <vector>
@@ -173,7 +174,7 @@ int64_t ComputeStride(const std::vector<std::vector<PrimExpr> >& indices,
                       const std::vector<int>& shape,
                       const VarNode* stride_var);
 
-class BufferAccessExtractor  {
+class BufferAccessExtractor : public StmtExprVisitor {
  public:
   void ExtractReads(const PrimExpr& expr);
 
@@ -182,7 +183,7 @@ class BufferAccessExtractor  {
   BufferMap<BufferAccess> buf_accesses;
 };
 
-class MathOpCounter {
+class MathOpCounter : public StmtExprVisitor {
  public:
   size_t float_mad;         // The number of float MAD (Multiply–add) ops
   size_t float_addsub;      // The number of float add and sub ops
