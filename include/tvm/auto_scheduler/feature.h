@@ -154,8 +154,6 @@ struct BufferAccessFeature {
   float stride;                   // The stride in access
 };
 
-inline float slog(float x);
-
 int64_t GetLoopExtent(const ForNode* node);
 
 std::tuple<ReuseType, float, float, float> ComputeReuse(
