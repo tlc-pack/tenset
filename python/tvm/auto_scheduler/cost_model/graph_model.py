@@ -5,7 +5,7 @@ import numpy as np
 import time
 import logging
 
-from ..feature import get_graph_from_measure_pairs, get_graph_from_states, get_graph_from_file
+from ..graph_feature import get_graph_from_measure_pairs, get_graph_from_states, get_graph_from_file
 from .cost_model import PythonBasedModel
 
 import dgl
