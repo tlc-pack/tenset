@@ -71,7 +71,8 @@ class GraphModel(PythonBasedModel):
         # measurement input/result pairs
         self.inputs = []
         self.results = []
-
+        self.few_shot_learning="base_only"
+        
     def register_new_task(self, task):
         pass
         #workload_key = str(task.workload_key)
