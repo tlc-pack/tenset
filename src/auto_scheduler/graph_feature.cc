@@ -119,6 +119,7 @@ class NodeGather : public StmtExprVisitor {
     } else if (n->IsInstance<EvaluateNode>()) {
       primExprType = 13;
     }
+    
     if (node_to_index.find(n.get()) == node_to_index.end()) {
       Node newNode = {
           0,
@@ -177,8 +178,8 @@ class NodeGather : public StmtExprVisitor {
          buf_extractor.ExtractReads(node->value);
 
          Analyzer ana;
-        for (auto x : for_loop_stack) {
-          ana.Bind(x->loop_var, Range::FromMinExtent(x->min, 1), true);
+         for (auto x : for_loop_stack) {
+           ana.Bind(x->loop_var, Range::FromMinExtent(x->min, 1), true);
         }
 
         std::vector<int> tmp_region;
