@@ -95,6 +95,10 @@ class GraphModel(PythonBasedModel):
             g = dgl.graph((th.tensor(src_cur).cuda(), th.tensor(dst_cur).cuda()))
             g.edata['fea'] = th.tensor(edge_fea).float().cuda()
             g.ndata['fea'] = node_fea.cuda()
+
+            print(node_fea.size())
+            print(src_cur.shape, dst_cur.shape)
+            print(edge_fea.shape)
             return g, normalized_throughput
 
         pairs = list(train_set.features.values())
