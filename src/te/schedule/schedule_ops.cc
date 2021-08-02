@@ -346,12 +346,16 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
   // reverse the post DFS order.
   for (size_t i = sch->stages.size(); i != 0; --i) {
     Stage s = sch->stages[i - 1];
+    LOG(INFO) << "Stage " << i ;
+
     ICHECK_NE(s->attach_type, kInline) << "call schedule.normalize before scheduleops";
     ICHECK(s->op.defined());
     // no need to specify place holder op.
     if (s->op.as<PlaceholderOpNode>()) continue;
     // Remove grouping sugar, get the real attach spec.
     Stage attach_spec = s.GetAttachSpec();
+
+    LOG(INFO) << "attach_type " << attach_spec->attach_type ;
 
     if (scan_init.count(s->op)) {
       ICHECK(body.defined());
