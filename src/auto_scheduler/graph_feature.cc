@@ -1306,17 +1306,17 @@ void GetGraphFromStates(const Array<State>& states, const std::vector<SearchTask
 
   std::atomic<int> error_ct(0);
 
+  /*
   for (int i = 0; i < states.size(); i++) {
     GetGraph(states[i], tasks[i], max_n_bufs, &(*node_list)[i], 
                                    &(*edge_list)[i], &error_ct);
   }
-  /*
+  */
   support::parallel_for(skip_first_n_feature_extraction, states.size(),
                         [&states, &tasks, &max_n_bufs, &node_list, &edge_list, &error_ct](int i) {
                           GetGraph(states[i], tasks[i], max_n_bufs, &(*node_list)[i], 
                                    &(*edge_list)[i], &error_ct);
                         });
-  */
 }
 
 void GetGraphFromStates(const Array<State>& states, const SearchTask task,
@@ -1329,17 +1329,17 @@ void GetGraphFromStates(const Array<State>& states, const SearchTask task,
 
   std::atomic<int> error_ct(0);
 
+  /*
   for (int i = 0; i < states.size(); i++) {
     GetGraph(states[i], task, max_n_bufs, &(*node_list)[i], 
                                    &(*edge_list)[i], &error_ct);
   }
-  /*
+  */
   support::parallel_for(skip_first_n_feature_extraction, states.size(),
                         [&states, &task, &max_n_bufs, &node_list, &edge_list, &error_ct](int i) {
                           GetGraph(states[i], task, max_n_bufs, &(*node_list)[i], 
                                    &(*edge_list)[i], &error_ct);
                         });
-  */
 }
 
 void GetGraphFromFile(const std::string& filename,
