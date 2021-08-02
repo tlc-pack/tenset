@@ -129,8 +129,6 @@ class NodeGather : public StmtExprVisitor {
       newNode.feature[primExprType+1] = 1;
       if (primExprType == 3) {
         
-        LOG(INFO) << "for node";
-
         newNode.feature[35] = slog2(forExtent);
         newNode.feature[36] = slog2(forMin);
         newNode.feature[37+forKind] = 1;
@@ -165,7 +163,6 @@ class NodeGather : public StmtExprVisitor {
           parallel_for_stack.pop_back();
         }
 
-        LOG(INFO) << "for node successful";
       }
 
       if (primExprType == 6) {
@@ -1258,6 +1255,8 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
 //    std::cout << prim_func->body << std::endl;
 //    i++;
 //  }
+
+  LOG(INFO) << "node start";
 
   NodeGather nodeGather;
   nodeGather(prim_func->body);
