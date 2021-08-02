@@ -81,6 +81,8 @@ def make_model(name, use_gpu=False):
 
 def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
     # Split dataset
+    train_set, test_set = dataset, dataset
+    """
     if split_scheme == "within_task":
         train_set, test_set = dataset.random_split_within_task(train_ratio)
     elif split_scheme == "by_task":
@@ -89,6 +91,7 @@ def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
         train_set, test_set = dataset.random_split_by_target(train_ratio)
     else:
         raise ValueError("Invalid split scheme: " + split_scheme)
+    """
 
     print("Train set: %d. Task 0 = %s" % (len(train_set), train_set.tasks()[0]))
     if len(test_set) == 0:
