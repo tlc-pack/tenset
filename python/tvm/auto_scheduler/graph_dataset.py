@@ -217,6 +217,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
     dataset = GraphDataset()
     dataset.raw_files = log_files
     for filename in tqdm(log_files):
+        print(filename)
         assert os.path.exists(filename), f"{filename} does not exist."
 
         cache_file = f"{cache_folder}/{filename.replace('/', '_')}.feature_cache"

@@ -1455,6 +1455,8 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
       tvm::runtime::Registry::Get("auto_scheduler.workload_key_to_tensors");
   ICHECK(workload_key_to_tensors != nullptr);
 
+  std::cout << "workload key to tensor" << std::endl;
+
   tasks.reserve(inputs.size());
   normalized_throughputs->reserve(inputs.size());
   task_ids->reserve(inputs.size());
