@@ -1497,8 +1497,11 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
     task_ids->push_back(task_id);
     states.push_back(inputs[i]->state);
     normalized_throughputs->push_back(cost);
+
+    std::cout << "running" << std::endl;
   }
 
+  std::cout << "finished" << std::endl;
   for (size_t i = 0; i < normalized_throughputs->size(); ++i) {
     (*normalized_throughputs)[i] = (*min_costs)[(*task_ids)[i]] / (*normalized_throughputs)[i];
   }

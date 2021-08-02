@@ -1177,11 +1177,9 @@ TVMByteArray SerializeGraph(std::vector<std::vector<Edge> >& edge_list,
 }
 
 //int i = 0;
-void GetGraph(const State& state,
-                     const SearchTask& task,
-                     int max_n_bufs,
-                     std::vector<Node>* node_list,
-                     std::vector<Edge>* edge_list) {
+void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
+              std::vector<Node>* node_list, std::vector<Edge>* edge_list,
+              std::atomic<int>* error_ct) {
   te::Schedule sch;
   Array<te::Tensor> tensors;
 
@@ -1283,8 +1281,8 @@ void GetGraphFromStates(const Array<State>& states, const std::vector<SearchTask
 
   support::parallel_for(skip_first_n_feature_extraction, states.size(),
                         [&states, &tasks, &max_n_bufs, &node_list, &edge_list](int i) {
-                          GetGraph(states[i], tasks[i],
-                            max_n_bufs, &(*node_list)[i], &(*edge_list)[i]);
+                          GetGraph(states[i], tasks[i], max_n_bufs, &(*node_list)[i], 
+                                   &(*edge_list)[i], &error_ct);
                         });
 }
 
@@ -1300,8 +1298,8 @@ void GetGraphFromStates(const Array<State>& states, const SearchTask task,
 
   support::parallel_for(skip_first_n_feature_extraction, states.size(),
                         [&states, &task, &max_n_bufs, &node_list, &edge_list](int i) {
-                          GetGraph(states[i], task,
-                            max_n_bufs, &(*node_list)[i], &(*edge_list)[i]);
+                          GetGraph(states[i], task, max_n_bufs, &(*node_list)[i], 
+                                   &(*edge_list)[i], &error_ct);
                         });
 }
 
