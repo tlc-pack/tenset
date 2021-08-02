@@ -1271,6 +1271,8 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
     node_list->push_back(node);
   }
 
+  LOG(INFO) << "edge start";
+
   EdgeGather edgeGather;
   edgeGather.node_to_index = nodeGather.node_to_index;
   edgeGather(prim_func->body);
