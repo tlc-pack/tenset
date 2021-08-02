@@ -358,6 +358,7 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
     LOG(INFO) << "attach_type " << attach_spec->attach_type ;
 
     if (scan_init.count(s->op)) {
+      LOG(INFO) << "case 1 ";
       ICHECK(body.defined());
       InjectScanStep mu(s, scan_init.at(s->op), dom_map, true, debug_keep_trivial_loop);
       body = mu(std::move(body));
@@ -374,6 +375,7 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
       ICHECK(!s->group.defined());
       body = MakePipeline(s, dom_map, body, debug_keep_trivial_loop);
     } else {
+      LOG(INFO) << "case 4 ";
       ICHECK_EQ(attach_spec->attach_type, kScope);
       ICHECK(body.defined());
       InjectAttach mutator(s, attach_spec, dom_map, debug_keep_trivial_loop);
