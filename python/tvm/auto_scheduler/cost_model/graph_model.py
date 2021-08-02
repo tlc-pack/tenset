@@ -120,7 +120,7 @@ class GraphModel(PythonBasedModel):
             tic = time.time()
             for i in range(n):
                 opt.zero_grad()
-                prediction = self.graphNN(train_batched_graphs[i].cuda())
+                prediction = self.graphNN(train_batched_graphs[i])
                 loss = loss_func(prediction, train_batched_labels[i].unsqueeze(1))
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
@@ -177,7 +177,7 @@ class GraphModel(PythonBasedModel):
         graphs = [build_graph(x) for x in features]
         tic = time.time()
         batched_graphs = dgl.batch(graphs)
-        preds = model(batched_graphs.cuda()).squeeze().tolist()
+        preds = model(batched_graphs).squeeze().tolist()
         print("prediction time: %.2f" % (time.time() - tic))
         return preds
 
