@@ -211,6 +211,8 @@ class GraphModel(PythonBasedModel):
 
     def _predict_a_task(self, model, task, features):
         def build_graph(pair):
+            print(len(pair))
+            print(len(pair[0]))
             (src_cur, dst_cur, edge_fea), node_fea = pair
             g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
             g.edata['fea'] = th.tensor(edge_fea).float()
