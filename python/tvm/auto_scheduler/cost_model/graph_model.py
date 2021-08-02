@@ -102,10 +102,10 @@ class GraphModel(PythonBasedModel):
         # extract feature
         idx = np.random.permutation(len(pairs))
         train_pairs = list(chain(*[[build_graph(x) for x in pairs[i]] for i in idx]))
-        print(train_pairs[0])
+        print("Sample Graph: ", train_pairs[0])
         train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
 
-        self.graphNN = graphNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float()
+        self.graphNN = graphNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float().cuda()
         opt = torch.optim.Adam(self.graphNN.parameters(), lr=self.params['lr'])
         scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.99)
         n = len(train_batched_graphs)
@@ -120,13 +120,13 @@ class GraphModel(PythonBasedModel):
             tic = time.time()
             for i in range(n):
                 opt.zero_grad()
-                prediction = self.graphNN(train_batched_graphs[i])
+                prediction = self.graphNN(train_batched_graphs[i].cuda())
                 loss = loss_func(prediction, train_batched_labels[i].unsqueeze(1))
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
                 opt.step()
-                preds = preds + prediction.squeeze().tolist()
-                labels = labels + train_batched_labels[i].squeeze().tolist()
+                preds = preds + prediction.squeeze().cpu().tolist()
+                labels = labels + train_batched_labels[i].squeeze().cpu().tolist()
             epoch_loss = compute_rmse(np.array(preds), np.array(labels))
             print("Time spent in last epoch: %.2f" % (time.time() - tic))
             if epoch % 100 == 0:
@@ -177,7 +177,7 @@ class GraphModel(PythonBasedModel):
         graphs = [build_graph(x) for x in features]
         tic = time.time()
         batched_graphs = dgl.batch(graphs)
-        preds = model(batched_graphs).squeeze().tolist()
+        preds = model(batched_graphs.cuda()).squeeze().tolist()
         print("prediction time: %.2f" % (time.time() - tic))
         return preds
 
