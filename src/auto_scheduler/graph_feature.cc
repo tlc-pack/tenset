@@ -1407,6 +1407,8 @@ void GetGraphFromMeasurePairs(const Array<MeasureInput>& inputs,
       tvm::runtime::Registry::Get("auto_scheduler.workload_key_to_tensors");
   ICHECK(workload_key_to_tensors != nullptr);
 
+  LOG(INFO) << "load func";
+
   tasks.reserve(inputs.size());
   normalized_throughputs->reserve(inputs.size());
   task_ids->reserve(inputs.size());
@@ -1449,7 +1451,10 @@ void GetGraphFromMeasurePairs(const Array<MeasureInput>& inputs,
     task_ids->push_back(task_id);
     states.push_back(inputs[i]->state);
     normalized_throughputs->push_back(cost);
+    LOG(INFO) << "continue";
   }
+
+  LOG(INFO) << "done";
 
   for (size_t i = 0; i < normalized_throughputs->size(); ++i) {
     (*normalized_throughputs)[i] = (*min_costs)[(*task_ids)[i]] / (*normalized_throughputs)[i];
