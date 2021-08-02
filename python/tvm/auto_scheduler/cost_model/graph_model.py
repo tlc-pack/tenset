@@ -88,8 +88,8 @@ class GraphModel(PythonBasedModel):
         print("Fit a GNN. Train size: %d" % len(train_set))
 
         def build_graph(pair):
-            print(len(pair))
-            print(len(pair[0]))
+            #print(len(pair))
+            #print(len(pair[0]))
             (src_cur, dst_cur, edge_fea), node_fea, normalized_throughput = pair
             g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
             g.edata['fea'] = th.tensor(edge_fea).float()
@@ -100,7 +100,8 @@ class GraphModel(PythonBasedModel):
 
         # extract feature
         idx = np.random.permutation(len(pairs))
-        train_pairs = [[build_graph(x) for x in pairs[i]] for i in idx]
+        train_pairs = []
+        train_pairs = map(train_pairs.extend, [[build_graph(x) for x in pairs[i]] for i in idx])
         train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
 
         self.graphNN = graphNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float()
