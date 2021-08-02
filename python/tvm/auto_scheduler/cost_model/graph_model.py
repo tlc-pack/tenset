@@ -100,7 +100,7 @@ class GraphModel(PythonBasedModel):
 
         # extract feature
         idx = np.random.permutation(len(pairs))
-        train_pairs = [build_graph(pairs[i]) for i in idx]
+        train_pairs = [[build_graph(x) for x in pairs[i]] for i in idx]
         train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
 
         self.graphNN = graphNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float()
