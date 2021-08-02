@@ -72,7 +72,7 @@ class GraphModel(PythonBasedModel):
         self.inputs = []
         self.results = []
         self.few_shot_learning="base_only"
-        
+
     def register_new_task(self, task):
         pass
         #workload_key = str(task.workload_key)
@@ -233,7 +233,7 @@ class GraphModel(PythonBasedModel):
             return g
 
         graphs = list(test_set.features.values())
-        graphs = [build_graph[x] for x in graphs]
+        graphs = [build_graph(x) for x in graphs]
         tic = time.time()
         batched_graphs = dgl.batch(graphs)
         preds = self.graphNN(batched_graphs).squeeze().tolist()
