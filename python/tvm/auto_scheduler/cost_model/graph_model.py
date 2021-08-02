@@ -99,7 +99,6 @@ class GraphModel(PythonBasedModel):
         pairs = list(train_set.features.values())
 
         # extract feature
-        pairs, normalized_throughputs, task_ids, min_latency = get_graph_from_measure_pairs(self.inputs, self.results)
         idx = np.random.permutation(len(pairs))
         train_pairs = [build_graph[pairs[i]] for i in idx]
         train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
@@ -134,55 +133,6 @@ class GraphModel(PythonBasedModel):
                 print('Epoch {} | loss {:.4f}'.format(epoch, epoch_loss))
         
         return self.graphNN
-
-    def update(self, inputs, results):
-        if len(inputs) <= 0:
-            return
-
-        self.inputs.extend(inputs)
-        self.results.extend(results)
-
-        def build_graph(pair):
-            (src_cur, dst_cur, edge_fea), node_fea, normalized_throughput = pair
-            g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
-            g.edata['fea'] = th.tensor(edge_fea).float()
-            g.ndata['fea'] = node_fea
-            return g, normalized_throughput
-
-        # extract feature
-        pairs, normalized_throughputs, task_ids, min_latency = get_graph_from_measure_pairs(self.inputs, self.results)
-        idx = np.random.permutation(len(pairs))
-        train_pairs = [build_graph[pairs[i]] for i in idx]
-        train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
-
-        self.graphNN = graphNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float()
-        opt = torch.optim.Adam(self.graphNN.parameters(), lr=self.params['lr'])
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.99)
-        n = len(train_batched_graphs)
-        loss_func = torch.nn.MSELoss()
-
-        print('Learning rate: {} batch size: {}'.format(self.params['lr'], self.params['batch_size']))
-
-        for epoch in range(self.params['itr_num']):
-            total_loss = 0
-            preds = []
-            labels = []
-            tic = time.time()
-            for i in range(n):
-                opt.zero_grad()
-                prediction = self.graphNN(train_batched_graphs[i])
-                loss = loss_func(prediction, train_batched_labels[i].unsqueeze(1))
-                total_loss += loss.detach().item() * self.params['batch_size']
-                loss.backward()
-                opt.step()
-                preds = preds + prediction.squeeze().tolist()
-                labels = labels + train_batched_labels[i].squeeze().tolist()
-            epoch_loss = compute_rmse(np.array(preds), np.array(labels))
-            print("Time spent in last epoch: %.2f" % (time.time() - tic))
-            if epoch % 100 == 0:
-                scheduler.step()
-            if epoch % 10 == 0:
-                print('Epoch {} | loss {:.4f}'.format(epoch, epoch_loss))
 
     def predict(self, dataset):
         if self.few_shot_learning in ["base_only", "fine_tune_mix_task", "fine_tune_per_task", "MAML"]:
@@ -227,7 +177,7 @@ class GraphModel(PythonBasedModel):
         batched_graphs = dgl.batch(graphs)
         preds = model(batched_graphs).squeeze().tolist()
         print("prediction time: %.2f" % (time.time() - tic))
-        return tuple(preds)
+        return preds
 
     def save(self, file_name: str):
         print("saving to: "+ file_name)

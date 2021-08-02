@@ -46,9 +46,10 @@ def evaluate_model(model, test_set):
 
 
     for task in tasks:
-        preds = prediction[task]
-        labels = test_set.throughputs[task]
+        preds = np.array(prediction[task])
+        labels = np.array(test_set.throughputs[task])
 
+        
         #print(preds)
         #print(labels)
 
