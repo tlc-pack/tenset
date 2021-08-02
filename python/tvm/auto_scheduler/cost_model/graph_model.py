@@ -88,6 +88,8 @@ class GraphModel(PythonBasedModel):
         print("Fit a GNN. Train size: %d" % len(train_set))
 
         def build_graph(pair):
+            print(len(pair))
+            print(len(pair[0]))
             (src_cur, dst_cur, edge_fea), node_fea, normalized_throughput = pair
             g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
             g.edata['fea'] = th.tensor(edge_fea).float()
@@ -219,7 +221,7 @@ class GraphModel(PythonBasedModel):
             g.ndata['fea'] = node_fea
             return g
 
-        graphs = [build_graph[features]]
+        graphs = [build_graph(features)]
         tic = time.time()
         batched_graphs = dgl.batch(graphs)
         preds = model(batched_graphs).squeeze().tolist()
