@@ -18,6 +18,7 @@ import math
 import copy
 import matplotlib.pyplot as plt
 import torch as th
+from itertools import chain
 
 logger = logging.getLogger('auto_scheduler')
 
@@ -100,8 +101,8 @@ class GraphModel(PythonBasedModel):
 
         # extract feature
         idx = np.random.permutation(len(pairs))
-        train_pairs = []
-        train_pairs = list(map(train_pairs.extend, [[build_graph(x) for x in pairs[i]] for i in idx]))
+        train_pairs = list(chain(*[[build_graph(x) for x in pairs[i]] for i in idx]))
+        print(train_pairs[0])
         train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
 
         self.graphNN = graphNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float()
