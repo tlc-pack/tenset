@@ -72,6 +72,66 @@ class GraphModel(PythonBasedModel):
         self.inputs = []
         self.results = []
 
+    def register_new_task(self, task):
+        pass
+        #workload_key = str(task.workload_key)
+        #self.workload_embed_dict[workload_key] = get_workload_embedding(workload_key)
+
+    def fit_base(self, train_set, valid_set=None, valid_train_set=None):
+        if self.few_shot_learning == "local_only":
+            self.base_model = None
+        else:
+            self.base_model = self._fit_a_model(train_set, valid_set, valid_train_set)
+
+    def _fit_a_model(self, train_set, valid_set=None, valid_train_set=None):
+        print("Fit a GNN. Train size: %d" % len(train_set))
+
+        def build_graph(pair):
+            (src_cur, dst_cur, edge_fea), node_fea, normalized_throughput = pair
+            g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
+            g.edata['fea'] = th.tensor(edge_fea).float()
+            g.ndata['fea'] = node_fea
+            return g, normalized_throughput
+
+        pairs = list(train_set.features.values())
+
+        # extract feature
+        pairs, normalized_throughputs, task_ids, min_latency = get_graph_from_measure_pairs(self.inputs, self.results)
+        idx = np.random.permutation(len(pairs))
+        train_pairs = [build_graph[pairs[i]] for i in idx]
+        train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
+
+        self.graphNN = graphNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float()
+        opt = torch.optim.Adam(self.graphNN.parameters(), lr=self.params['lr'])
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.99)
+        n = len(train_batched_graphs)
+        loss_func = torch.nn.MSELoss()
+
+        print('Learning rate: {} batch size: {}'.format(self.params['lr'], self.params['batch_size']))
+
+        for epoch in range(self.params['itr_num']):
+            total_loss = 0
+            preds = []
+            labels = []
+            tic = time.time()
+            for i in range(n):
+                opt.zero_grad()
+                prediction = self.graphNN(train_batched_graphs[i])
+                loss = loss_func(prediction, train_batched_labels[i].unsqueeze(1))
+                total_loss += loss.detach().item() * self.params['batch_size']
+                loss.backward()
+                opt.step()
+                preds = preds + prediction.squeeze().tolist()
+                labels = labels + train_batched_labels[i].squeeze().tolist()
+            epoch_loss = compute_rmse(np.array(preds), np.array(labels))
+            print("Time spent in last epoch: %.2f" % (time.time() - tic))
+            if epoch % 100 == 0:
+                scheduler.step()
+            if epoch % 10 == 0:
+                print('Epoch {} | loss {:.4f}'.format(epoch, epoch_loss))
+        
+        return self.graphNN
+
     def update(self, inputs, results):
         if len(inputs) <= 0:
             return
@@ -121,8 +181,34 @@ class GraphModel(PythonBasedModel):
             if epoch % 10 == 0:
                 print('Epoch {} | loss {:.4f}'.format(epoch, epoch_loss))
 
+    def predict(self, dataset):
+        if self.few_shot_learning in ["base_only", "fine_tune_mix_task", "fine_tune_per_task", "MAML"]:
+            return self._predict_a_dataset(self.base_model, dataset)
+        elif self.few_shot_learning in ["local_only_mix_task", "local_only_per_task"]:
+            ret = {}
+            for task in dataset.tasks():
+                local_preds = self._predict_a_task(self.local_model[task], task, dataset.features[task])
+                ret[task] = local_preds
+            return ret
+        elif self.few_shot_learning in ["plus_mix_task", "plus_per_task"]:
+            base_preds = self._predict_a_dataset(self.base_model, dataset)
+            ret = {}
+            for task in dataset.tasks():
+                if task not in self.local_model and self.few_shot_learning == "plus_mix_task":
+                    self.local_model[task] = list(self.local_model.values())[0]
+                local_preds = self._predict_a_task(self.local_model[task], task, dataset.features[task])
+                ret[task] = base_preds[task] + local_preds
+            return ret
+        else:
+            raise ValueError("Invalid few show learing: " + self.few_shot_learning)
+    
+    def _predict_a_dataset(self, model, dataset):
+        ret = {}
+        for task, features in dataset.features.items():
+            ret[task] = self._predict_a_task(model, task, features)
+        return ret
 
-    def predict(self, task, states):
+    def _predict_a_task(self, model, task, features):
         def build_graph(pair):
             (src_cur, dst_cur, edge_fea), node_fea = pair
             g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
@@ -130,7 +216,22 @@ class GraphModel(PythonBasedModel):
             g.ndata['fea'] = node_fea
             return g
 
-        graphs, normalized_throughputs, task_ids, min_latency = get_graph_from_states(states, task, no_label=True)
+        graphs = [build_graph[features]]
+        tic = time.time()
+        batched_graphs = dgl.batch(graphs)
+        preds = model(batched_graphs).squeeze().tolist()
+        print("prediction time: %.2f" % (time.time() - tic))
+        return preds
+
+    def predict(self, test_set):
+        def build_graph(pair):
+            (src_cur, dst_cur, edge_fea), node_fea = pair
+            g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
+            g.edata['fea'] = th.tensor(edge_fea).float()
+            g.ndata['fea'] = node_fea
+            return g
+
+        graphs = list(test_set.features.values())
         graphs = [build_graph[x] for x in graphs]
         tic = time.time()
         batched_graphs = dgl.batch(graphs)
