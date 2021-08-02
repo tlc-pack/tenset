@@ -1202,12 +1202,16 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
     const std::string& name = "main";
     GlobalVar global_var(name);
 
+    LOG(INFO) << "compact";
+
     // Copied from driver_api.cc::lower
     auto pass_ctx = tvm::transform::PassContext::Current();
     GetBinds(tensors, compact, std::unordered_map<te::Tensor, te::Buffer>(), &out_binds,
              &out_arg_list);
     tir::PrimFunc f = te::SchedulePostProcToPrimFunc(out_arg_list, std::move(stmt), out_binds);
     f = WithAttr(std::move(f), "global_symbol", runtime::String(name));
+
+    LOG(INFO) << "GetBinds";
 
     bool noalias = pass_ctx->GetConfig<Bool>("tir.noalias", Bool(true)).value();
     bool disable_vectorize =
