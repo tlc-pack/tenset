@@ -92,9 +92,9 @@ class GraphModel(PythonBasedModel):
             #print(len(pair))
             #print(len(pair[0]))
             (src_cur, dst_cur, edge_fea), node_fea, normalized_throughput = pair
-            g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
-            g.edata['fea'] = th.tensor(edge_fea).float()
-            g.ndata['fea'] = node_fea
+            g = dgl.graph((th.tensor(src_cur).cuda(), th.tensor(dst_cur).cuda()))
+            g.edata['fea'] = th.tensor(edge_fea).float().cuda()
+            g.ndata['fea'] = node_fea.cuda()
             return g, normalized_throughput
 
         pairs = list(train_set.features.values())
@@ -169,9 +169,9 @@ class GraphModel(PythonBasedModel):
             #print(len(pair[0]))
             if len(pair) == 3: (src_cur, dst_cur, edge_fea), node_fea, _ = pair
             else: (src_cur, dst_cur, edge_fea), node_fea = pair
-            g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
-            g.edata['fea'] = th.tensor(edge_fea).float()
-            g.ndata['fea'] = node_fea
+            g = dgl.graph((th.tensor(src_cur).cuda(), th.tensor(dst_cur).cuda()))
+            g.edata['fea'] = th.tensor(edge_fea).float().cuda()
+            g.ndata['fea'] = node_fea.cuda()
             return g
 
         graphs = [build_graph(x) for x in features]
