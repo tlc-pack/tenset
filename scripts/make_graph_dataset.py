@@ -65,7 +65,7 @@ if __name__ == "__main__":
     parser.add_argument("--target", nargs="+", type=str, default=["llvm -model=platinum-8272"])
     parser.add_argument("--sample-in-files", type=int)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--out-file", type=str, default='dataset.pkl')
+    parser.add_argument("--out-file", type=str, default='dataset_graph.pkl')
     parser.add_argument("--min-sample-size", type=int, default=48)
     parser.add_argument("--hold-out", type=str, choices=['resnet-50', 'all_five'])
     parser.add_argument("--n-task", type=int)
