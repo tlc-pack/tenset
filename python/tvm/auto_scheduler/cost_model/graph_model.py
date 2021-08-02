@@ -227,7 +227,7 @@ class GraphModel(PythonBasedModel):
         batched_graphs = dgl.batch(graphs)
         preds = model(batched_graphs).squeeze().tolist()
         print("prediction time: %.2f" % (time.time() - tic))
-        return preds
+        return tuple(preds)
 
     def save(self, file_name: str):
         print("saving to: "+ file_name)
