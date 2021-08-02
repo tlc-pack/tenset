@@ -86,6 +86,7 @@ class NodeGather : public StmtExprVisitor {
     int64_t forExtent = 0;
     int64_t forMin = 0;
     int forKind = 0;
+
     if (n->IsInstance<LetStmtNode>()) {
       primExprType = 0;
     } else if (n->IsInstance<AttrStmtNode>()) {
@@ -127,6 +128,9 @@ class NodeGather : public StmtExprVisitor {
       newNode.feature[0] = 0;
       newNode.feature[primExprType+1] = 1;
       if (primExprType == 3) {
+        
+        LOG(INFO) << "for node";
+
         newNode.feature[35] = slog2(forExtent);
         newNode.feature[36] = slog2(forMin);
         newNode.feature[37+forKind] = 1;
@@ -161,6 +165,7 @@ class NodeGather : public StmtExprVisitor {
           parallel_for_stack.pop_back();
         }
 
+        LOG(INFO) << "for node successful";
       }
 
       if (primExprType == 6) {
@@ -1184,12 +1189,8 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
   Array<te::Tensor> tensors;
 
   std::tie(sch, tensors) = task->compute_dag.ApplySteps(state->transform_steps);
-  
-  LOG(INFO) << "ApplySteps";
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
-
-  LOG(INFO) << "bounds";
 
   // NOTE: Currently, feature extraction with and without layout rewrite
   // returns the same feature vector, so we do not turn on layout rewrite here.
@@ -1246,8 +1247,6 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
     const auto& optimize =
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
-    
-    LOG(INFO) << "optimize";
 
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
@@ -1417,7 +1416,7 @@ void GetGraphFromMeasurePairs(const Array<MeasureInput>& inputs,
       tvm::runtime::Registry::Get("auto_scheduler.workload_key_to_tensors");
   ICHECK(workload_key_to_tensors != nullptr);
 
-  LOG(INFO) << "load func";
+  //LOG(INFO) << "load func";
 
   tasks.reserve(inputs.size());
   normalized_throughputs->reserve(inputs.size());
@@ -1461,10 +1460,10 @@ void GetGraphFromMeasurePairs(const Array<MeasureInput>& inputs,
     task_ids->push_back(task_id);
     states.push_back(inputs[i]->state);
     normalized_throughputs->push_back(cost);
-    LOG(INFO) << "continue";
+    //LOG(INFO) << "continue";
   }
 
-  LOG(INFO) << "done";
+  //LOG(INFO) << "done";
 
   for (size_t i = 0; i < normalized_throughputs->size(); ++i) {
     (*normalized_throughputs)[i] = (*min_costs)[(*task_ids)[i]] / (*normalized_throughputs)[i];
