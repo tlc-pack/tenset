@@ -319,9 +319,7 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
   Stmt body = Stmt();
   std::unordered_map<IterVar, Range> dom_map = as_unordered_map(dom_map_);
   // scan init and scan updates
-  std::unordered_map<Operation, Operation> scan_init;
-  LOG(INFO) << "ScheduleOps start";
-  
+  std::unordered_map<Operation, Operation> scan_init;  
   for (Stage s : sch->stages) {
     const ScanOpNode* scan = s->op.as<ScanOpNode>();
     if (!scan) continue;
@@ -335,18 +333,15 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
     }
   }
 
-  LOG(INFO) << "step 1";
   // verify correctness of group.
   for (Stage g : sch->groups) {
     ICHECK(!g->op.defined());
     ICHECK_EQ(g->leaf_iter_vars.size(), 0U);
   }
 
-  LOG(INFO) << "step 2";
   // reverse the post DFS order.
   for (size_t i = sch->stages.size(); i != 0; --i) {
     Stage s = sch->stages[i - 1];
-    LOG(INFO) << "Stage " << i ;
 
     ICHECK_NE(s->attach_type, kInline) << "call schedule.normalize before scheduleops";
     ICHECK(s->op.defined());
@@ -355,10 +350,7 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
     // Remove grouping sugar, get the real attach spec.
     Stage attach_spec = s.GetAttachSpec();
 
-    LOG(INFO) << "attach_type " << attach_spec->attach_type ;
-
     if (scan_init.count(s->op)) {
-      LOG(INFO) << "case 1 ";
       ICHECK(body.defined());
       InjectScanStep mu(s, scan_init.at(s->op), dom_map, true, debug_keep_trivial_loop);
       body = mu(std::move(body));
@@ -375,7 +367,6 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
       ICHECK(!s->group.defined());
       body = MakePipeline(s, dom_map, body, debug_keep_trivial_loop);
     } else {
-      LOG(INFO) << "case 4 ";
       ICHECK_EQ(attach_spec->attach_type, kScope);
       ICHECK(body.defined());
       InjectAttach mutator(s, attach_spec, dom_map, debug_keep_trivial_loop);
@@ -385,11 +376,8 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
           << " x " << attach_spec->attach_ivar << ", body:\n"
           << body;
     }
-
-    LOG(INFO) << "Stage done";
   }
 
-  LOG(INFO) << "complete";
   SchedulePostProc post_proc;
   post_proc.Init(sch);
   return post_proc(std::move(body));

@@ -1185,30 +1185,30 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
   te::Schedule sch;
   Array<te::Tensor> tensors;
 
-  LOG(INFO) << "GetGraph start";
+  //LOG(INFO) << "GetGraph start";
 
   std::tie(sch, tensors) = task->compute_dag.ApplySteps(state->transform_steps);
   
-  LOG(INFO) << "ApplySteps";
+  //LOG(INFO) << "ApplySteps";
 
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
-  LOG(INFO) << "bounds";
+  //LOG(INFO) << "bounds";
 
   // NOTE: Currently, feature extraction with and without layout rewrite
   // returns the same feature vector, so we do not turn on layout rewrite here.
   // In the future, we can improve the feature extraction to reflect this difference.
-  // try {
+  try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
-    LOG(INFO) << "ScheduleOps";
+    //LOG(INFO) << "ScheduleOps";
     Map<te::Tensor, te::Buffer> out_binds;
     Array<ObjectRef> out_arg_list;
     bool compact = te::VerifyCompactBuffer(stmt);
     const std::string& name = "main";
     GlobalVar global_var(name);
 
-    LOG(INFO) << "compact";
+    //LOG(INFO) << "compact";
 
     // Copied from driver_api.cc::lower
     auto pass_ctx = tvm::transform::PassContext::Current();
@@ -1217,7 +1217,7 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
     tir::PrimFunc f = te::SchedulePostProcToPrimFunc(out_arg_list, std::move(stmt), out_binds);
     f = WithAttr(std::move(f), "global_symbol", runtime::String(name));
 
-    LOG(INFO) << "GetBinds";
+    //LOG(INFO) << "GetBinds";
 
     bool noalias = pass_ctx->GetConfig<Bool>("tir.noalias", Bool(true)).value();
     bool disable_vectorize =
@@ -1257,14 +1257,14 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
 
-    LOG(INFO) << "optimize";
+    //LOG(INFO) << "optimize";
 
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
-  //} catch (Error& e) {
-  //  (*error_ct)++;
-  //}
+  } catch (Error& e) {
+    (*error_ct)++;
+  }
 //  if (i == 0) {
 //    std::cout << prim_func->body << std::endl;
 //    i++;
