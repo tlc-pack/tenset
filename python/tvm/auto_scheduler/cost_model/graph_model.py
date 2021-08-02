@@ -121,7 +121,7 @@ class GraphModel(PythonBasedModel):
             for i in range(n):
                 opt.zero_grad()
                 prediction = self.graphNN(train_batched_graphs[i])
-                loss = loss_func(prediction, train_batched_labels[i].unsqueeze(1))
+                loss = loss_func(prediction, train_batched_labels[i].unsqueeze(1).cuda())
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
                 opt.step()
