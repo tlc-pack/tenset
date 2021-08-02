@@ -1448,7 +1448,7 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
   task_ids->clear();
   min_costs->clear();
 
-  std::cout << "start ------------------------\n------------------------------" << std::endl;
+  LOG(INFO) << "start ------------------------\n------------------------------";
 
   // (workload_key, target) -> (search_task, task_id)
   std::unordered_map<std::pair<std::string, std::string>, std::pair<SearchTask, size_t>> task_cache;
@@ -1457,7 +1457,7 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
       tvm::runtime::Registry::Get("auto_scheduler.workload_key_to_tensors");
   ICHECK(workload_key_to_tensors != nullptr);
 
-  std::cout << "workload key to tensor" << std::endl;
+  LOG(INFO) << "workload key to tensor";
 
   tasks.reserve(inputs.size());
   normalized_throughputs->reserve(inputs.size());
@@ -1502,10 +1502,10 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
     states.push_back(inputs[i]->state);
     normalized_throughputs->push_back(cost);
 
-    std::cout << "running" << std::endl;
+    LOG(INFO) << "running";
   }
 
-  std::cout << "finished" << std::endl;
+  LOG(INFO) << "finished";
   for (size_t i = 0; i < normalized_throughputs->size(); ++i) {
     (*normalized_throughputs)[i] = (*min_costs)[(*task_ids)[i]] / (*normalized_throughputs)[i];
   }
