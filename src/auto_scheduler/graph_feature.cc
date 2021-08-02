@@ -1262,35 +1262,38 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
+
+    //LOG(INFO) << "node start";
+
+    NodeGather nodeGather;
+    nodeGather(prim_func->body);
+
+    //LOG(INFO) << "node";
+
+    for (auto node : nodeGather.node_list) {
+      node_list->push_back(node);
+    }
+
+    //LOG(INFO) << "edge start";
+
+    EdgeGather edgeGather;
+    edgeGather.node_to_index = nodeGather.node_to_index;
+    edgeGather(prim_func->body);
+    for (auto edge : edgeGather.edge_list) {
+      edge_list->push_back(edge);
+    }
+
+    //LOG(INFO) << "edge";
+
   } catch (Error& e) {
     (*error_ct)++;
   }
+
 //  if (i == 0) {
 //    std::cout << prim_func->body << std::endl;
 //    i++;
 //  }
 
-  LOG(INFO) << "node start";
-
-  NodeGather nodeGather;
-  nodeGather(prim_func->body);
-
-  LOG(INFO) << "node";
-
-  for (auto node : nodeGather.node_list) {
-    node_list->push_back(node);
-  }
-
-  LOG(INFO) << "edge start";
-
-  EdgeGather edgeGather;
-  edgeGather.node_to_index = nodeGather.node_to_index;
-  edgeGather(prim_func->body);
-  for (auto edge : edgeGather.edge_list) {
-    edge_list->push_back(edge);
-  }
-
-  LOG(INFO) << "edge";
 }
 
 void GetGraphFromStates(const Array<State>& states, const std::vector<SearchTask>& tasks,
