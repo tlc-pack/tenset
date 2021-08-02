@@ -61,7 +61,7 @@ class GraphModel(PythonBasedModel):
     def __init__(self):
         self.params = {
             'batch_size': 512,
-            'itr_num': 100,
+            'itr_num': 1000,
             'lr':  0.01,
             'hidden_dim': 20,
             'node_fea': 84,
@@ -125,14 +125,14 @@ class GraphModel(PythonBasedModel):
             for i in range(n):
                 opt.zero_grad()
                 prediction = self.graphNN(train_batched_graphs[i])
-                loss = loss_func(prediction, train_batched_labels[i].unsqueeze(1).cuda())
+                loss = loss_func(prediction, torch.log(train_batched_labels[i].unsqueeze(1).cuda()))
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
                 opt.step()
                 preds = preds + prediction.squeeze().cpu().tolist()
                 labels = labels + train_batched_labels[i].squeeze().cpu().tolist()
-            epoch_loss = compute_rmse(np.array(preds), np.array(labels))
-            print("Time spent in last epoch: %.2f" % (time.time() - tic))
+            epoch_loss = compute_rmse(np.exp(np.array(preds)), np.array(labels))
+            #print("Time spent in last epoch: %.2f" % (time.time() - tic))
             if epoch % 100 == 0:
                 scheduler.step()
             if epoch % 10 == 0:
@@ -183,7 +183,7 @@ class GraphModel(PythonBasedModel):
         batched_graphs = dgl.batch(graphs)
         preds = model(batched_graphs).squeeze().tolist()
         print("prediction time: %.2f" % (time.time() - tic))
-        return preds
+        return list(np.exp(np.array(preds)))
 
     def save(self, file_name: str):
         print("saving to: "+ file_name)
