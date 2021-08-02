@@ -49,6 +49,9 @@ def evaluate_model(model, test_set):
         preds = prediction[task]
         labels = test_set.throughputs[task]
 
+        print(preds)
+        print(labels)
+        
         rmse_list.append(np.square(metric_rmse(preds, labels)))
         r_sqaured_list.append(metric_r_squared(preds, labels))
         pair_acc_list.append(metric_pairwise_comp_accuracy(preds, labels))
