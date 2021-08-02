@@ -383,6 +383,8 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
           << " x " << attach_spec->attach_ivar << ", body:\n"
           << body;
     }
+
+    LOG(INFO) << "Stage done";
   }
 
   LOG(INFO) << "complete";
