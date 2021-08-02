@@ -226,22 +226,6 @@ class GraphModel(PythonBasedModel):
         print("prediction time: %.2f" % (time.time() - tic))
         return preds
 
-    def predict(self, test_set):
-        def build_graph(pair):
-            (src_cur, dst_cur, edge_fea), node_fea = pair
-            g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
-            g.edata['fea'] = th.tensor(edge_fea).float()
-            g.ndata['fea'] = node_fea
-            return g
-
-        graphs = list(test_set.features.values())
-        graphs = [build_graph(x) for x in graphs]
-        tic = time.time()
-        batched_graphs = dgl.batch(graphs)
-        preds = self.graphNN(batched_graphs).squeeze().tolist()
-        print("prediction time: %.2f" % (time.time() - tic))
-        return preds
-
     def save(self, file_name: str):
         print("saving to: "+ file_name)
         torch.save(self.graphNN.state_dict(), file_name)
