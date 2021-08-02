@@ -1191,6 +1191,8 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
+  LOG(INFO) << "bounds";
+
   // NOTE: Currently, feature extraction with and without layout rewrite
   // returns the same feature vector, so we do not turn on layout rewrite here.
   // In the future, we can improve the feature extraction to reflect this difference.
