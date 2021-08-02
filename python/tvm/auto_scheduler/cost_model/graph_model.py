@@ -221,7 +221,7 @@ class GraphModel(PythonBasedModel):
             g.ndata['fea'] = node_fea
             return g
 
-        graphs = [build_graph(features)]
+        graphs = [build_graph(x) for x in features]
         tic = time.time()
         batched_graphs = dgl.batch(graphs)
         preds = model(batched_graphs).squeeze().tolist()
