@@ -1245,6 +1245,8 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
 
+    LOG(INFO) << "optimize";
+
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
