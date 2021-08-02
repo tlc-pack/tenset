@@ -374,6 +374,7 @@ def get_graph_from_measure_pairs(inputs: List[MeasureInput],
                                  max_n_bufs: int = None) \
         -> Tuple[List, np.ndarray, np.ndarray, np.ndarray]:
     """Get per_stmt features from measurement pairs"""
+    print('ffi')
     byte_arr = _ffi_api.GetGraphFromMeasurePairs(
         inputs, results, skip_first_n_feature_extraction, max_n_bufs or DEFAULT_MAX_N_BUFS)
     return deserialize_graph(byte_arr)
