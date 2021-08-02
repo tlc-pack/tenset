@@ -1448,6 +1448,8 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
   task_ids->clear();
   min_costs->clear();
 
+  std::cout << "start ------------------------\n------------------------------" << std::endl;
+
   // (workload_key, target) -> (search_task, task_id)
   std::unordered_map<std::pair<std::string, std::string>, std::pair<SearchTask, size_t>> task_cache;
 
