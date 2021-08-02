@@ -17,6 +17,7 @@ import dgl.function as fn
 import math
 import copy
 import matplotlib.pyplot as plt
+import torch as th
 
 logger = logging.getLogger('auto_scheduler')
 
@@ -78,10 +79,17 @@ class GraphModel(PythonBasedModel):
         self.inputs.extend(inputs)
         self.results.extend(results)
 
+        def build_graph(pair):
+            (src_cur, dst_cur, edge_fea), node_fea, normalized_throughput = pair
+            g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
+            g.edata['fea'] = th.tensor(edge_fea).float()
+            g.ndata['fea'] = node_fea
+            return g, normalized_throughput
+
         # extract feature
         pairs, normalized_throughputs, task_ids, min_latency = get_graph_from_measure_pairs(self.inputs, self.results)
         idx = np.random.permutation(len(pairs))
-        train_pairs = [pairs[i] for i in idx]
+        train_pairs = [build_graph[pairs[i]] for i in idx]
         train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
 
         self.graphNN = graphNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float()
@@ -115,7 +123,15 @@ class GraphModel(PythonBasedModel):
 
 
     def predict(self, task, states):
+        def build_graph(pair):
+            (src_cur, dst_cur, edge_fea), node_fea = pair
+            g = dgl.graph((th.tensor(src_cur), th.tensor(dst_cur)))
+            g.edata['fea'] = th.tensor(edge_fea).float()
+            g.ndata['fea'] = node_fea
+            return g
+
         graphs, normalized_throughputs, task_ids, min_latency = get_graph_from_states(states, task, no_label=True)
+        graphs = [build_graph[x] for x in graphs]
         tic = time.time()
         batched_graphs = dgl.batch(graphs)
         preds = self.graphNN(batched_graphs).squeeze().tolist()
