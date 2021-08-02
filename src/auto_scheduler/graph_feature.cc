@@ -1184,8 +1184,12 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
   Array<te::Tensor> tensors;
 
   std::tie(sch, tensors) = task->compute_dag.ApplySteps(state->transform_steps);
+  
+  LOG(INFO) << "ApplySteps";
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
+
+  LOG(INFO) << "bounds";
 
   // NOTE: Currently, feature extraction with and without layout rewrite
   // returns the same feature vector, so we do not turn on layout rewrite here.
@@ -1242,6 +1246,9 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
     const auto& optimize =
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
+    
+    LOG(INFO) << "optimize";
+
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
@@ -1256,6 +1263,8 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
   NodeGather nodeGather;
   nodeGather(prim_func->body);
 
+  LOG(INFO) << "node";
+
   for (auto node : nodeGather.node_list) {
     node_list->push_back(node);
   }
@@ -1267,6 +1276,7 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
     edge_list->push_back(edge);
   }
 
+  LOG(INFO) << "edge";
 }
 
 void GetGraphFromStates(const Array<State>& states, const std::vector<SearchTask>& tasks,
