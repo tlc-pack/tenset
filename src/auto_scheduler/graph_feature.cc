@@ -1201,6 +1201,7 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
   // In the future, we can improve the feature extraction to reflect this difference.
   // try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
+    LOG(INFO) << "ScheduleOps";
     Map<te::Tensor, te::Buffer> out_binds;
     Array<ObjectRef> out_arg_list;
     bool compact = te::VerifyCompactBuffer(stmt);
