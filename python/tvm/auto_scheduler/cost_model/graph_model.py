@@ -97,8 +97,10 @@ class GraphModel(PythonBasedModel):
             g.ndata['fea'] = node_fea.cuda()
 
             print(node_fea.size())
-            print(src_cur.shape, dst_cur.shape)
-            print(edge_fea.shape)
+            print(len(src_cur))
+            print(len(edge_fea))
+            print(src_cur[0])
+            print(edge_fea[0])
             return g, normalized_throughput
 
         pairs = list(train_set.features.values())
