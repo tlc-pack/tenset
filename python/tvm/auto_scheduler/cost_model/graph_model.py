@@ -49,7 +49,7 @@ class graphNN(torch.nn.Module):
             h = F.relu(self.conv1(g, torch.cat([g.ndata['fea'], g.ndata['h_neigh']], 1)))
             h = F.relu(self.conv2(g, h))
             h = F.relu(self.conv3(g, h))
-            
+
             g.ndata['h'] = h
             hg = dgl.mean_nodes(g, 'h')
             hg = self.predict(hg)
@@ -99,7 +99,6 @@ class GraphModel(PythonBasedModel):
             g.edata['fea'] = th.tensor(edge_fea).float().cuda()
             g.ndata['fea'] = node_fea.cuda()
 
-            print(g.)
             return g, normalized_throughput
 
         pairs = list(train_set.features.values())
