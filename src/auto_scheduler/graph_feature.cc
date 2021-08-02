@@ -1185,6 +1185,8 @@ void GetGraph(const State& state, const SearchTask& task, int max_n_bufs,
   te::Schedule sch;
   Array<te::Tensor> tensors;
 
+  LOG(INFO) << "GetGraph start";
+
   std::tie(sch, tensors) = task->compute_dag.ApplySteps(state->transform_steps);
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
