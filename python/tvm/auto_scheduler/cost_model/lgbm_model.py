@@ -16,7 +16,7 @@
 # under the License.
 # pylint: disable=invalid-name
 
-"""Cost model based on xgboost"""
+"""Cost model based on lightgbm"""
 from collections import defaultdict
 import logging
 import multiprocessing
@@ -90,17 +90,17 @@ def get_workload_embedding(workload_key):
 
 
 class LGBModelInternal:
-    """Train a XGBoost model to predict the normalized throughputs of programs.
+    """Train a LightGBM model to predict the normalized throughputs of programs.
     Let the normalized throughput be the score of a program (higher is better). We predict
     the (approximate) score of a program = the sum of the scores of all stages in this program.
     i.e. score(P) = score_s0 + score_s1 + ... + score_sn,
     where score_si is the score of Stage i in Program P.
-    We extract feature for each stage and let the xgboost predict the score for each stage.
+    We extract feature for each stage and let the LightGBM predict the score for each stage.
     We then sum up the predictions as the score of the whole program.
     We use RMSE as the loss function.  i.e. loss(P, y) = 1/2 * (score(P) - y)^2,
     where P is the program and y is the normalized throughput according to
     the ground truth (measurement).
-    XGBoost does not support this loss function because `score(P)` is a sum of the prediction
+    LightGBM does not support this loss function because `score(P)` is a sum of the prediction
     of several samples, so we implemented a custom loss function and call it pack-sum-rmse.
     It is called "pack-sum" because we combine several samples into a "pack" and sum up
     their predictions.
@@ -436,7 +436,7 @@ class LGBModel(PythonBasedModel):
 
 
 def feature_to_pack_sum_lgbmdataset(xs):
-    """Convert an extracted multi-stage feature vector to a xgbmatrx in pack-sum format
+    """Convert an extracted multi-stage feature vector to a lgbmdataset in pack-sum format
     Parameters
     ----------
     xs: np.ndarray
@@ -533,7 +533,7 @@ def pack_sum_predict_throughput(raw_preds, pack_ids):
 
 def pack_sum_square_error(preds, train_set):
     """Implement square error loss on pack-sum format as
-     a custom objective function for xgboost.
+     a custom objective function for lgbmdataset.
     Parameters
     ----------
     preds: np.ndarray
@@ -544,7 +544,7 @@ def pack_sum_square_error(preds, train_set):
     -------
     gradient: np.ndarray
     hessian: np.ndarray
-        gradient and hessian according to the xgboost format
+        gradient and hessian according to the lgbmdataset format
     """
     pack_ids = dataset_context.get("pack_ids", train_set)
     weight = train_set.get_weight()
@@ -630,120 +630,3 @@ def pack_sum_average_peak_score(N):
         return "a-peak@%d" % N, np.mean(scores), True
 
     return feval
-
-
-def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
-                    maximize=False, verbose_eval=True, skip_every=5):
-    """Callback function for xgboost to support multiple custom evaluation functions"""
-    from lightgbm.callback import EarlyStopException
-    from lightgbm.callback import _fmt_metric
-
-    try:
-        from lightgbm.training import aggcv
-    except ImportError:
-        from lightgbm.callback import _aggcv as aggcv
-
-    state = {}
-    metric_shortname = metric.split("-")[1]
-
-    def init(env):
-        """internal function"""
-        bst = env.model
-
-        state['maximize_score'] = maximize
-        state['best_iteration'] = 0
-        if maximize:
-            state['best_score'] = float('-inf')
-        else:
-            state['best_score'] = float('inf')
-
-        if bst is not None:
-            if bst.attr('best_score') is not None:
-                state['best_score'] = float(bst.attr('best_score'))
-                state['best_iteration'] = int(bst.attr('best_iteration'))
-                state['best_msg'] = bst.attr('best_msg')
-            else:
-                bst.set_attr(best_iteration=str(state['best_iteration']))
-                bst.set_attr(best_score=str(state['best_score']))
-        else:
-            assert env.cvfolds is not None
-
-    def callback(env):
-        """internal function"""
-        if not state:
-            init(env)
-
-        bst = env.model
-        i = env.iteration
-        cvfolds = env.cvfolds
-
-        res_dict = {}
-
-        if i % skip_every == 1:
-            return
-
-        ##### evaluation #####
-        if cvfolds is not None:
-            for feval in fevals:
-                tmp = aggcv([f.eval(i, feval) for f in cvfolds])
-                for k, mean, std in tmp:
-                    res_dict[k] = [mean, std]
-        else:
-            for feval in fevals:
-                bst_eval = bst.eval_set(evals, i, feval)
-                res = [x.split(':') for x in bst_eval.split()]
-                for kv in res[1:]:
-                    res_dict[kv[0]] = [float(kv[1])]
-
-        eval_res = []
-        keys = list(res_dict.keys())
-        keys.sort(key=lambda x: x if metric_shortname not in x else "a" + x)
-        for key in keys:
-            v = res_dict[key]
-            eval_res.append([key] + v)
-
-        ##### print eval result #####
-        if not isinstance(verbose_eval, bool) and verbose_eval and i % verbose_eval == 0:
-            infos = ["XGB iter: %3d" % i]
-            for item in eval_res:
-                if 'null' in item[0]:
-                    continue
-                infos.append("%s: %.6f" % (item[0], item[1]))
-
-            logger.debug("\t".join(infos))
-            if log_file:
-                with open(log_file, "a") as fout:
-                    fout.write("\t".join(infos) + '\n')
-
-        ##### choose score and do early stopping #####
-        score = None
-        for item in eval_res:
-            if item[0] == metric:
-                score = item[1]
-                break
-        assert score is not None
-
-        best_score = state['best_score']
-        best_iteration = state['best_iteration']
-        maximize_score = state['maximize_score']
-        if (maximize_score and score > best_score) or \
-                (not maximize_score and score < best_score):
-            msg = '[%d] %s' % (
-                env.iteration,
-                '\t'.join([_fmt_metric(x) for x in eval_res]))
-            state['best_msg'] = msg
-            state['best_score'] = score
-            state['best_iteration'] = env.iteration
-            # save the property to attributes, so they will occur in checkpoint.
-            if env.model is not None:
-                env.model.set_attr(best_score=str(state['best_score']),
-                                   best_iteration=str(state['best_iteration']),
-                                   best_msg=state['best_msg'])
-        elif env.iteration - best_iteration >= stopping_rounds:
-            best_msg = state.get('best_msg', "")
-            if verbose_eval and env.rank == 0:
-                logger.debug("XGB stopped. Best iteration: %s ", best_msg)
-            raise EarlyStopException(best_iteration)
-
-    return callback
-
