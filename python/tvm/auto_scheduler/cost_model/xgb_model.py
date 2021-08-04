@@ -16,7 +16,7 @@
 # under the License.
 # pylint: disable=invalid-name
 
-"""Cost model based on xgboost"""
+"""Cost model based on lightgbm"""
 from collections import defaultdict
 import logging
 import multiprocessing
@@ -87,18 +87,23 @@ def get_workload_embedding(workload_key):
     return vec
 
 
+<<<<<<< HEAD:python/tvm/auto_scheduler/cost_model/xgb_model.py
 class XGBModelInternal:
     """Train a XGBoost model to predict the normalized throughputs of programs.
+=======
+class LGBModelInternal:
+    """Train a LightGBM model to predict the normalized throughputs of programs.
+>>>>>>> Update lgbm_model.py:python/tvm/auto_scheduler/cost_model/lgbm_model.py
     Let the normalized throughput be the score of a program (higher is better). We predict
     the (approximate) score of a program = the sum of the scores of all stages in this program.
     i.e. score(P) = score_s0 + score_s1 + ... + score_sn,
     where score_si is the score of Stage i in Program P.
-    We extract feature for each stage and let the xgboost predict the score for each stage.
+    We extract feature for each stage and let the LightGBM predict the score for each stage.
     We then sum up the predictions as the score of the whole program.
     We use RMSE as the loss function.  i.e. loss(P, y) = 1/2 * (score(P) - y)^2,
     where P is the program and y is the normalized throughput according to
     the ground truth (measurement).
-    XGBoost does not support this loss function because `score(P)` is a sum of the prediction
+    LightGBM does not support this loss function because `score(P)` is a sum of the prediction
     of several samples, so we implemented a custom loss function and call it pack-sum-rmse.
     It is called "pack-sum" because we combine several samples into a "pack" and sum up
     their predictions.
@@ -528,7 +533,7 @@ def pack_sum_predict_throughput(raw_preds, pack_ids):
 
 def pack_sum_square_error(preds, dtrain):
     """Implement square error loss on pack-sum format as
-     a custom objective function for xgboost.
+     a custom objective function for lgbmdataset.
     Parameters
     ----------
     preds: np.ndarray
@@ -539,7 +544,7 @@ def pack_sum_square_error(preds, dtrain):
     -------
     gradient: np.ndarray
     hessian: np.ndarray
-        gradient and hessian according to the xgboost format
+        gradient and hessian according to the lgbmdataset format
     """
     pack_ids = dmatrix_context.get("pack_ids", dtrain)
     weight = dtrain.get_weight()
@@ -625,6 +630,7 @@ def pack_sum_average_peak_score(N):
         return "a-peak@%d" % N, np.mean(scores)
 
     return feval
+<<<<<<< HEAD:python/tvm/auto_scheduler/cost_model/xgb_model.py
 
 
 def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
