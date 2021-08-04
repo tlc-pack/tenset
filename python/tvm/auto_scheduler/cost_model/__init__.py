@@ -20,7 +20,5 @@
 from .cost_model import RandomModel, RandomModelInternal
 from .xgb_model import XGBModel
 from .mlp_model import MLPModel
-from .cat_model import CatModel
 from .lgbm_model import LGBModel
 from .tabnet_model import TabNetModel
-from .autogluon_model import AGModel
