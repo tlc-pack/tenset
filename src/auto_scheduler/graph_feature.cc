@@ -119,7 +119,7 @@ class NodeGather : public StmtExprVisitor {
     } else if (n->IsInstance<EvaluateNode>()) {
       primExprType = 13;
     }
-    
+
     if (node_to_index.find(n.get()) == node_to_index.end()) {
       Node newNode = {
           0,
