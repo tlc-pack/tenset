@@ -104,6 +104,7 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
         params['min_sum_hessian_in_leaf'] = min_sum_hessian_in_leaf
         params['subsample'] = max(min(subsample, 1), 0)
         
+        model = LGBModelInternal(use_gpu=False, params=params)
         #filename = name + ".pkl"
         model.fit_base(train_set, valid_set=test_set)
         #print("Save model to %s" % filename)
@@ -139,7 +140,7 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
 
     print("best result: ", best_result)
 
-
+    model = LGBModelInternal(use_gpu=False, params=opt_params)
     # Train the model
     filename = "lightgbm_tuned.pkl"
     model.fit_base(train_set, valid_set=test_set)
