@@ -107,6 +107,7 @@ class LGBModelInternal:
     """
     def __init__(
         self,
+        params=None,
         use_workload_embedding=True,
         use_data_argumentation=False,
         use_gpu=False,
@@ -136,19 +137,22 @@ class LGBModelInternal:
         self.workload_embed_dict = dict()
 
         # lgbm params
-        self.lgbm_params = {
-            'boosting_type': 'gbdt',
-            'num_leaves': 31,
-            'learning_rate': 0.05,
-            'feature_fraction': 0.9,
-            'bagging_fraction': 0.8,
-            'bagging_freq': 5,
-            'verbose': 0,
-            'min_child_weight': 2,
-            'in_sum_in_hessian': 0,
-            'min_data_in_leaf': 0
-        }
-
+        if params is None:
+            self.lgbm_params = {
+                'boosting_type': 'gbdt',
+                'num_leaves': 31,
+                'learning_rate': 0.05,
+                'feature_fraction': 0.9,
+                'bagging_fraction': 0.8,
+                'bagging_freq': 5,
+                'verbose': 0,
+                'min_child_weight': 2,
+                'in_sum_in_hessian': 0,
+                'min_data_in_leaf': 0
+            }
+        else:
+            self.lgbm_params = params 
+            
         # gpu support
         if use_gpu:
             self.lgbm_params['tree_method'] = 'gpu_hist'
