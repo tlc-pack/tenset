@@ -132,7 +132,6 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
                 'feature_fraction': 0.9,
                 'bagging_fraction': 0.8,
                 'bagging_freq': 5,
-                'min_child_weight': 2,
                 'min_data_in_leaf': 0,
                 'min_sum_hessian_in_leaf': 0
             },
