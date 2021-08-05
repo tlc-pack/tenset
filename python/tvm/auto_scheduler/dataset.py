@@ -211,7 +211,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
     """Make a dataset file from raw log files"""
     from tqdm import tqdm
 
-    cache_folder = ".dataset_cache"
+    cache_folder = ".dataset_cache_assembly"
     os.makedirs(cache_folder, exist_ok=True)
 
     dataset = Dataset()
