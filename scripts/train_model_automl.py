@@ -19,7 +19,6 @@ from common import load_and_register_tasks, str2bool
 
 from tvm.auto_scheduler.dataset import Dataset, LearningTask
 from tvm.auto_scheduler.cost_model.xgb_model import XGBModelInternal
-from tvm.auto_scheduler.cost_model.cat_model import CatModelInternal
 from tvm.auto_scheduler.cost_model.metric import (
     metric_rmse,
     metric_r_squared,
