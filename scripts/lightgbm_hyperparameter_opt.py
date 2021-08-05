@@ -92,14 +92,13 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
         test_set = train_set
     print("Test set:  %d. Task 0 = %s" % (len(test_set), test_set.tasks()[0]))
 
-    def lgb_eval(learning_rate,num_leaves, feature_fraction, bagging_fraction, max_depth, max_bin, min_data_in_leaf,min_sum_hessian_in_leaf,subsample):
+    def lgb_eval(learning_rate,num_leaves, feature_fraction, bagging_fraction, bagging_freq, min_data_in_leaf, min_sum_hessian_in_leaf, subsample):
         params = {'boosting_type': 'gbdt'}
         params['learning_rate'] = max(min(learning_rate, 1), 0)
         params["num_leaves"] = int(round(num_leaves))
         params['feature_fraction'] = max(min(feature_fraction, 1), 0)
         params['bagging_fraction'] = max(min(bagging_fraction, 1), 0)
-        params['max_depth'] = int(round(max_depth))
-        params['max_bin'] = int(round(max_bin))
+        params['bagging_freq'] = int(round(bagging_freq))
         params['min_data_in_leaf'] = int(round(min_data_in_leaf))
         params['min_sum_hessian_in_leaf'] = min_sum_hessian_in_leaf
         params['subsample'] = max(min(subsample, 1), 0)
@@ -114,19 +113,31 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
         eval_res = evaluate_model(model, test_set)
 
         print(eval_res)
-        return -1 * eval_res['rmse']
+        return -1 * eval_res['RMSE']
      
     lgbBO = BayesianOptimization(lgb_eval, {'learning_rate': (0.01, 1.0),
                                             'num_leaves': (24, 80),
-                                            'feature_fraction': (0.1, 0.9),
+                                            'feature_fraction': (0.5, 1),
                                             'bagging_fraction': (0.8, 1),
-                                            'max_depth': (5, 30),
-                                            'max_bin':(20,90),
-                                            'min_data_in_leaf': (20, 80),
-                                            'min_sum_hessian_in_leaf':(0,100),
-                                           'subsample': (0.01, 1.0)}, random_state=200)
+                                            'bagging_freq': (2, 10),
+                                            'min_data_in_leaf': (0, 40),
+                                            'min_sum_hessian_in_leaf':(0, 20),
+                                            'subsample': (0.01, 1.0)}, random_state=300)
 
     
+    lgbBO.probe(
+        params={
+                'learning_rate': 0.05,
+                'num_leaves': 31,
+                'feature_fraction': 0.9,
+                'bagging_fraction': 0.8,
+                'bagging_freq': 5,
+                'min_child_weight': 2,
+                'min_data_in_leaf': 0,
+                'min_sum_hessian_in_leaf': 0
+            },
+        lazy=True,
+    )
     #n_iter: How many steps of bayesian optimization you want to perform. The more steps the more likely to find a good maximum you are.
     #init_points: How many steps of random exploration you want to perform. Random exploration can help by diversifying the exploration space.
     
