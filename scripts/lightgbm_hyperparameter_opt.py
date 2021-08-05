@@ -92,7 +92,7 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
         test_set = train_set
     print("Test set:  %d. Task 0 = %s" % (len(test_set), test_set.tasks()[0]))
 
-    def lgb_eval(learning_rate,num_leaves, feature_fraction, bagging_fraction, bagging_freq, min_data_in_leaf, min_sum_hessian_in_leaf, subsample):
+    def lgb_eval(learning_rate,num_leaves, feature_fraction, bagging_fraction, bagging_freq, min_data_in_leaf, min_sum_hessian_in_leaf):
         params = {'boosting_type': 'gbdt'}
         params['learning_rate'] = max(min(learning_rate, 1), 0)
         params["num_leaves"] = int(round(num_leaves))
@@ -101,7 +101,6 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
         params['bagging_freq'] = int(round(bagging_freq))
         params['min_data_in_leaf'] = int(round(min_data_in_leaf))
         params['min_sum_hessian_in_leaf'] = min_sum_hessian_in_leaf
-        params['subsample'] = max(min(subsample, 1), 0)
         
         model = LGBModelInternal(use_gpu=False, params=params)
         #filename = name + ".pkl"
