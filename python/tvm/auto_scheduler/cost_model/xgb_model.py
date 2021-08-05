@@ -87,13 +87,8 @@ def get_workload_embedding(workload_key):
     return vec
 
 
-<<<<<<< HEAD:python/tvm/auto_scheduler/cost_model/xgb_model.py
 class XGBModelInternal:
     """Train a XGBoost model to predict the normalized throughputs of programs.
-=======
-class LGBModelInternal:
-    """Train a LightGBM model to predict the normalized throughputs of programs.
->>>>>>> Update lgbm_model.py:python/tvm/auto_scheduler/cost_model/lgbm_model.py
     Let the normalized throughput be the score of a program (higher is better). We predict
     the (approximate) score of a program = the sum of the scores of all stages in this program.
     i.e. score(P) = score_s0 + score_s1 + ... + score_sn,
@@ -110,6 +105,7 @@ class LGBModelInternal:
     """
     def __init__(
         self,
+        params=None,
         use_workload_embedding=True,
         use_data_argumentation=False,
         use_gpu=False,
