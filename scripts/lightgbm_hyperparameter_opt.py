@@ -112,7 +112,7 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
         # Evaluate the model
         eval_res = evaluate_model(model, test_set)
 
-        return eval_res['rmse']
+        return -1 * eval_res['rmse']
      
     lgbBO = BayesianOptimization(lgb_eval, {'learning_rate': (0.01, 1.0),
                                             'num_leaves': (24, 80),
@@ -128,7 +128,7 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
     #n_iter: How many steps of bayesian optimization you want to perform. The more steps the more likely to find a good maximum you are.
     #init_points: How many steps of random exploration you want to perform. Random exploration can help by diversifying the exploration space.
     
-    lgbBO.minimize(init_points=15, n_iter=200)
+    lgbBO.maximize(init_points=15, n_iter=200)
     
     model_auc=[]
     for model in range(len(lgbBO.res)):
