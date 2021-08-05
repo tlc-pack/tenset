@@ -122,7 +122,7 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
                                             'bagging_freq': (2, 10),
                                             'min_data_in_leaf': (0, 40),
                                             'min_sum_hessian_in_leaf':(0, 20),
-                                            'subsample': (0.01, 1.0)}, random_state=300)
+                                            'subsample': (0.8, 1.0)}, random_state=300)
 
     
     lgbBO.probe(
@@ -133,7 +133,8 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
                 'bagging_fraction': 0.8,
                 'bagging_freq': 5,
                 'min_data_in_leaf': 0,
-                'min_sum_hessian_in_leaf': 0
+                'min_sum_hessian_in_leaf': 0,
+                'subsample': 1,
             },
         lazy=True,
     )
