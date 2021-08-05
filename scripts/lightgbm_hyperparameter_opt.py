@@ -115,14 +115,14 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
         print(eval_res)
         return -1 * eval_res['RMSE']
      
-    lgbBO = BayesianOptimization(lgb_eval, {'learning_rate': (0.01, 1.0),
+    lgbBO = BayesianOptimization(lgb_eval, {'learning_rate': (0.02, 0.2),
                                             'num_leaves': (24, 80),
-                                            'feature_fraction': (0.5, 1),
-                                            'bagging_fraction': (0.8, 1),
-                                            'bagging_freq': (2, 10),
+                                            'feature_fraction': (0.6, 1),
+                                            'bagging_fraction': (0.7, 1),
+                                            'bagging_freq': (3, 10),
                                             'min_data_in_leaf': (0, 40),
                                             'min_sum_hessian_in_leaf':(0, 20),
-                                            'subsample': (0.8, 1.0)}, random_state=300)
+                                            }, random_state=300)
 
     
     lgbBO.probe(
@@ -134,7 +134,6 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
                 'bagging_freq': 5,
                 'min_data_in_leaf': 0,
                 'min_sum_hessian_in_leaf': 0,
-                'subsample': 1,
             },
         lazy=True,
     )
