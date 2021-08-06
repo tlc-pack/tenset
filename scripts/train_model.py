@@ -167,6 +167,7 @@ if __name__ == "__main__":
     dataset = pickle.load(open(args.dataset[0], "rb"))
     for i in range(1, len(args.dataset)):
         tmp_dataset = pickle.load(open(args.dataset[i], "rb"))
+        print(tmp_dataset)
         dataset.update_from_dataset(tmp_dataset)
 
     train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu)
