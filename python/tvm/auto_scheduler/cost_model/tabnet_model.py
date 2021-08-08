@@ -713,7 +713,17 @@ class SegmentSumMLPModule(torch.nn.Module):
         super().__init__()
 
         print('building SegmentSumMLPModule.....')
-        self.segment_encoder = TabNetNoEmbeddings(in_dim, hidden_dim)
+        self.segment_encoder = TabNetNoEmbeddings(in_dim, hidden_dim, 
+                                                    n_d=64,
+                                                    n_a=64,
+                                                    n_steps=5,
+                                                    gamma=1.3,
+                                                    n_independent=2,
+                                                    n_shared=2,
+                                                    epsilon=1e-15,
+                                                    virtual_batch_size=512,
+                                                    momentum=0.02,
+                                                    mask_type="entmax",)
         self.add_sigmoid = add_sigmoid
 
         if use_norm:
