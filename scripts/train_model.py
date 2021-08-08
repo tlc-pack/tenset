@@ -36,7 +36,7 @@ def evaluate_model(model, test_set):
     # compute weighted average of metrics over all tasks
     tasks = list(test_set.tasks())
     weights = [len(test_set.throughputs[t]) for t in tasks]
-    print("Test set sizes:", weights)
+    #print("Test set sizes:", weights)
 
     rmse_list = []
     r_sqaured_list = []

@@ -250,6 +250,13 @@ class XGBModelInternal:
                 )
             ],
         )
+        feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
+            'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
+            'dense', 'softmax', 'compute(b, i, j)']
+        feature_importances = bst.feature_importance()
+        imp = sorted(list(zip(feature_importances, feature_names)))
+        #print("Feature importances: ", imp)
+
         return bst
 
     def _predict_a_dataset(self, model, dataset):
