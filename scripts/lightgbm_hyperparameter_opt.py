@@ -139,7 +139,7 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
     #n_iter: How many steps of bayesian optimization you want to perform. The more steps the more likely to find a good maximum you are.
     #init_points: How many steps of random exploration you want to perform. Random exploration can help by diversifying the exploration space.
     
-    lgbBO.maximize(init_points=15, n_iter=200)
+    lgbBO.maximize(init_points=15, n_iter=10)
     
     model_auc=[]
     for model in range(len(lgbBO.res)):
@@ -148,7 +148,20 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
     # return best parameters
     best_result, opt_params = lgbBO.res[pd.Series(model_auc).idxmax()]['target'],lgbBO.res[pd.Series(model_auc).idxmax()]['params']
 
-    print("best result: ", best_result)
+    print("best result: ", best_result, opt_params)
+
+    def proc_params(params):
+        params = {'boosting_type': 'gbdt'}
+        params['learning_rate'] = max(min(params['learning_rate'], 1), 0)
+        params["num_leaves"] = int(round(params["num_leaves"]))
+        params['feature_fraction'] = max(min(params['feature_fraction'], 1), 0)
+        params['bagging_fraction'] = max(min(params['bagging_fraction'], 1), 0)
+        params['bagging_freq'] = int(round(params['bagging_freq']))
+        params['min_data_in_leaf'] = int(round(params['min_data_in_leaf']))
+        params['min_sum_hessian_in_leaf'] = params['min_sum_hessian_in_leaf']
+        return params 
+    
+    opt_params = proc_params(opt_params)
 
     model = LGBModelInternal(use_gpu=False, params=opt_params)
     # Train the model
