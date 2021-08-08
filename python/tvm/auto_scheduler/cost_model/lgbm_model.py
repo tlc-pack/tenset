@@ -256,7 +256,7 @@ class LGBModelInternal:
             'dense', 'softmax', 'compute(b, i, j)']
         feature_importances = bst.feature_importance()
         imp = sorted(list(zip(feature_importances, feature_names)))
-        print("Feature importances: ", imp)
+        #print("Feature importances: ", imp)
 
         return bst
 
