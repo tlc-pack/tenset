@@ -34,7 +34,7 @@ from common import load_and_register_tasks
 
 from tvm.auto_scheduler.workload_registry import workload_key_to_tensors, workload_key_to_dag
 from tvm.auto_scheduler.measure_record import RecordReader
-from tvm.auto_scheduler.compute_dat import ComputeDAG
+from tvm.auto_scheduler.compute_dag import ComputeDAG
 
 SHAPE_LENGTH = 6
 
