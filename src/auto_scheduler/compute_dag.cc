@@ -1277,8 +1277,7 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
 
   LoopVarCollector loopvar_collect;
   for (const auto& op : operator->()->ops) {
-    if (op->IsInstance<te::ComputeOpNode>()) {
-      auto pop = op.as<te::ComputeOpNode>();
+    if (auto pop = op.as<te::ComputeOpNode>()) {
       for (auto e : pop->body) {
         loopvar_collect.Extract(e);
       }
