@@ -1335,7 +1335,8 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   size_t NUM_BUFFERS = 6;
   size_t NUM_VARS = 20;
   size_t LENGTH_ACCESS_FEATURES = 480;
-
+  size_t ct = 0;
+  std::vector<int> res(LENGTH_ACCESS_FEATURES);
 
   LoopVarCollector loopvar_collect;
   for (const auto& op : operator->()->ops) {
@@ -1420,17 +1421,17 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
                   ss << ")";
                   i++;
               }
-              /*ss << "|accessMat: ";
+              //ss << "|accessMat: ";
               for (int i = 0; i < NUM_DIMENSIONS; ++i)
               {
                   for (int j = 0; j < NUM_VARS; ++j)
                   {
-                      ss << access_mat[i][j] << ' ';
+                      //ss << access_mat[i][j] << ' ';
+                      res[ct++] = access_mat[i][j];
                   }
-                  ss << '\n';
+                  //ss << '\n';
               }
-              ss << "accessMat|";
-              */
+              //ss << "accessMat|";
               break;
             }
             //ss << pair.second[0][0] << " " << pair.second[0][1] << "}";
@@ -1465,24 +1466,6 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
           if (simple_mode && call) {
             ss << " = *call* " << call->op << "\n";
           } else {
-            /*
-            PrimExpr rhs = pop->body[k];
-            if (rhs->IsInstance<AddNode>()) {
-              const auto& ad = rhs.as<AddNode>();
-              ss << " *add* ";
-              
-              if (ad->a->IsInstance<ProducerLoadNode>()) {
-                const auto& an = ad->a.as<ProducerLoadNode>();
-                ss << an->producer->GetNameHint() << "[" << an->indices << "] ";
-              }
-              if (ad->b->IsInstance<ProducerLoadNode>()) {
-                const auto& bn = ad->b.as<ProducerLoadNode>();
-                ss << bn->producer->GetNameHint() << "[" << bn->indices << "] ";
-              }
-              //ss << ad->b->IsInstance<ProducerLoadNode>();
-              
-            }
-            */
             ss << " = " << pop->body[k] << "\n";
           }
         }
@@ -1491,6 +1474,8 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
       LOG(FATAL) << "Invalid op";
     }
   }
+
+  ss << "Feature Vector: " << res;
   return String(ss.str());
 }
 
