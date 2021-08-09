@@ -92,7 +92,7 @@ def make_search_policies(
     if isinstance(search_policy, str):
         policy_type, model_type = search_policy.split(".")
         if model_type in ['xgb', 'xgb-no-update', 'mlp', 'mlp-no-update', 'tab', 'tab-no-update']:
-            if model_type == 'xgb-no-update' or model_type == 'mlp-no-update':
+            if model_type == 'xgb-no-update' or model_type == 'mlp-no-update' or model_type == 'tab-no-update':
                 disable_cost_model_update = True
             if model_type in ['xgb', 'xgb-no-update']:
                 cost_model = XGBModel(
