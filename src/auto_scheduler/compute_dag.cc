@@ -1273,6 +1273,8 @@ String ComputeDAG::PrintStepsAsPython(const Array<Step>& transform_steps) const 
 String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   std::stringstream ss;
   
+  ss << "loopvar collect start \n";
+
   LoopVarCollector loopvar_collect;
   for (const auto& op : operator->()->ops) {
     if (op->IsInstance<te::ComputeOpNode>()) {
@@ -1283,13 +1285,14 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
     
       for (size_t i = 0; i < pop->axis.size(); i++) {
         if (loopvar_collect.var_map.find(pop->axis[i]->var->name_hint) == loopvar_collect.var_map.end()) {
-            LOG(INFO) << loopvar_collect.counter;
+            ss << loopvar_collect.counter;
             loopvar_collect.var_map[pop->axis[i]->var->name_hint] = loopvar_collect.counter++;
-            LOG(INFO) << loopvar_collect.counter;
+            ss << loopvar_collect.counter;
         }
       }
     }
   }
+  ss << "loopvar collect end \n";
 
   for (const auto& op : operator->()->ops) {
     if (op->IsInstance<te::PlaceholderOpNode>()) {
