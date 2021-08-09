@@ -1273,6 +1273,15 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
           ss << ".v" << k;
         }
 
+        ReadAccessExtractor extractor;
+        extractor.Extract(pop->body[k]);
+        ss << "(access ";
+        for (auto const &pair: extractor.read_access) {
+            ss << "{" << pair.first->name << ": ";
+            ss << pair.second << "}";
+        }
+        ss << " access)";
+
         if (auto preduce = pop->body[k].as<ReduceNode>()) {
           ICHECK_LT(k, preduce->combiner->result.size());
           PrimExpr combiner = preduce->combiner->result[k];
