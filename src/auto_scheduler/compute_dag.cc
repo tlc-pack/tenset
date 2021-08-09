@@ -1259,16 +1259,20 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
     } else if (auto pop = op.as<te::ComputeOpNode>()) {
       for (size_t k = 0; k < pop->body.size(); ++k) {
         ss << op->name << "(";
+       
         for (size_t i = 0; i < pop->axis.size(); i++) {
           ss << pop->axis[i]->var->name_hint;
           if (i != pop->axis.size() - 1) {
             ss << ", ";
           }
         }
+
         ss << ")";
+
         if (pop->body.size() > 1) {
           ss << ".v" << k;
         }
+        
         if (auto preduce = pop->body[k].as<ReduceNode>()) {
           ICHECK_LT(k, preduce->combiner->result.size());
           PrimExpr combiner = preduce->combiner->result[k];
