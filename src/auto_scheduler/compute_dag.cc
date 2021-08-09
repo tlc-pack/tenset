@@ -1283,9 +1283,7 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
 
       for (size_t i = 0; i < pop->axis.size(); i++) {
         if (loopvar_collect.var_map.find(pop->axis[i]->var->name_hint) == loopvar_collect.var_map.end()) {
-            ss << loopvar_collect.counter << " ";
             loopvar_collect.var_map[pop->axis[i]->var->name_hint] = loopvar_collect.counter++;
-            ss << loopvar_collect.counter;
         }
       }
 
@@ -1298,6 +1296,14 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
     }
   }
   ss << "loopvar collect end \n";
+
+  ss << "(var2num ";
+  for (auto const &pair: loopvar_collect.var_map) {
+      ss << "{" << pair.first << ": ";
+      ss << pair.second << "}";
+  }
+  ss << " var2num)";
+
 
   for (const auto& op : operator->()->ops) {
     if (op->IsInstance<te::PlaceholderOpNode>()) {
