@@ -1397,9 +1397,11 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
               for (auto index : indices) {
                   LinearCombinationExtractor lcomb;
                   lcomb.Extract(index);
+                  ss << "(";
                   for  (auto const &ipair: lcomb.var_map) {
                     ss << "[" << ipair.first << " : " << ipair.second << "]";
                   }
+                  ss << ")";
               }
             }
             //ss << pair.second[0][0] << " " << pair.second[0][1] << "}";
