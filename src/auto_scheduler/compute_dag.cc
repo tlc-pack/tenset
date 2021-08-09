@@ -1276,19 +1276,21 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
         if (auto preduce = pop->body[k].as<ReduceNode>()) {
           ICHECK_LT(k, preduce->combiner->result.size());
           PrimExpr combiner = preduce->combiner->result[k];
-          if (combiner->IsInstance<AddNode>()) {
-            ss << " += " << preduce->source[0] << "\n";
-          } else if (combiner->IsInstance<MaxNode>()) {
-            ss << " max= " << preduce->source[0] << "\n";
-          } else if (combiner->IsInstance<MinNode>()) {
-            ss << " min= " << preduce->source[0] << "\n";
-          } else if (combiner->IsInstance<SelectNode>()) {
-            const auto& select = combiner.as<SelectNode>();
-            ss << " select(" << select->condition << ", " << select->true_value << ", "
-               << select->false_value << ")= " << '(' << preduce->source[0] << ','
-               << preduce->source[1] << ")\n";
-          } else {
-            ss << "reduce" << combiner << "\n";
+          if (!simple_mode) {
+            if (combiner->IsInstance<AddNode>()) {
+              ss << " += " << preduce->source[0] << "\n";
+            } else if (combiner->IsInstance<MaxNode>()) {
+              ss << " max= " << preduce->source[0] << "\n";
+            } else if (combiner->IsInstance<MinNode>()) {
+              ss << " min= " << preduce->source[0] << "\n";
+            } else if (combiner->IsInstance<SelectNode>()) {
+              const auto& select = combiner.as<SelectNode>();
+              ss << " select(" << select->condition << ", " << select->true_value << ", "
+                << select->false_value << ")= " << '(' << preduce->source[0] << ','
+                << preduce->source[1] << ")\n";
+            } else {
+              ss << "reduce" << combiner << "\n";
+            }
           }
         } else {
           auto call = pop->body[k].as<CallNode>();
@@ -1332,21 +1334,19 @@ String ComputeDAG::PrintDAG(bool simple_mode) const {
         if (auto preduce = pop->body[k].as<ReduceNode>()) {
           ICHECK_LT(k, preduce->combiner->result.size());
           PrimExpr combiner = preduce->combiner->result[k];
-          if (!simple_mode) {
-            if (combiner->IsInstance<AddNode>()) {
-              ss << " += " << preduce->source[0] << "\n";
-            } else if (combiner->IsInstance<MaxNode>()) {
-              ss << " max= " << preduce->source[0] << "\n";
-            } else if (combiner->IsInstance<MinNode>()) {
-              ss << " min= " << preduce->source[0] << "\n";
-            } else if (combiner->IsInstance<SelectNode>()) {
-              const auto& select = combiner.as<SelectNode>();
-              ss << " select(" << select->condition << ", " << select->true_value << ", "
-                << select->false_value << ")= " << '(' << preduce->source[0] << ','
-                << preduce->source[1] << ")\n";
-            } else {
-              ss << "reduce" << combiner << "\n";
-            }
+          if (combiner->IsInstance<AddNode>()) {
+            ss << " += " << preduce->source[0] << "\n";
+          } else if (combiner->IsInstance<MaxNode>()) {
+            ss << " max= " << preduce->source[0] << "\n";
+          } else if (combiner->IsInstance<MinNode>()) {
+            ss << " min= " << preduce->source[0] << "\n";
+          } else if (combiner->IsInstance<SelectNode>()) {
+            const auto& select = combiner.as<SelectNode>();
+            ss << " select(" << select->condition << ", " << select->true_value << ", "
+              << select->false_value << ")= " << '(' << preduce->source[0] << ','
+              << preduce->source[1] << ")\n";
+          } else {
+            ss << "reduce" << combiner << "\n";
           }
         } else {
           auto call = pop->body[k].as<CallNode>();
