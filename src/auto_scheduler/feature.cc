@@ -1322,7 +1322,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   //std::cout << task->compute_dag.PrintDAG(true) << std::endl;
   //std::cout << "------------\n";
   //std::cout << task->compute_dag.ComputeAccessMatrix(false) << std::endl;
-  auto access_matrix_feas = task->compute_dag.ComputeAccessMatrix(false);
+  auto access_matrix = task->compute_dag.ComputeAccessMatrix(false);
 
   try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
@@ -1380,7 +1380,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
-                       feature);
+                       feature, &access_matrix);
   } catch (Error& e) {
     (*error_ct)++;
   }
