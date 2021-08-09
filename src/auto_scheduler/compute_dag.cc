@@ -1398,7 +1398,7 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
                   LinearCombinationExtractor lcomb;
                   lcomb.Extract(index);
                   for  (auto const &ipair: lcomb.var_map) {
-                    ss << "[" << ipair.first << "-" << ipair.second << "]";
+                    ss << "[" << ipair.first << " : " << ipair.second << "]";
                   }
               }
             }
