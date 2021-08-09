@@ -1300,8 +1300,6 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
           if (simple_mode && call) {
             ss << " = *call* " << call->op << "\n";
           } else {
-            auto pop1 = pop->body[k].as<te::ComputeOpNode>();
-            ss << pop1->name << "NAME";
             ss << " = " << pop->body[k] << "\n";
           }
         }
