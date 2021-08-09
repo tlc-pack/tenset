@@ -1292,6 +1292,9 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
               ss << "reduce" << combiner << "\n";
             }
           }
+          else {
+              ss << "\n";
+          }
         } else {
           auto call = pop->body[k].as<CallNode>();
           if (simple_mode && call) {
