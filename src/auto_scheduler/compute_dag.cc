@@ -1307,11 +1307,11 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
               
               if (ad->a->IsInstance<ProducerLoadNode>()) {
                 const auto& an = ad->a.as<ProducerLoadNode>();
-                ss << an->producer->GetNameHint() << "[] ";
+                ss << an->producer->GetNameHint() << "[" << an->indices << "] ";
               }
               if (ad->b->IsInstance<ProducerLoadNode>()) {
                 const auto& bn = ad->b.as<ProducerLoadNode>();
-                ss << bn->producer->GetNameHint() << "[] ";
+                ss << bn->producer->GetNameHint() << "[" << bn->indices << "] ";
               }
               //ss << ad->b->IsInstance<ProducerLoadNode>();
               
