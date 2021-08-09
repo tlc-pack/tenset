@@ -175,6 +175,7 @@ class GraphEmbeddingModel:
             visited.add(t)
 
         for t in tensors:
+            print(t)
             build_node_dict(t)
 
         for t in tensors:
