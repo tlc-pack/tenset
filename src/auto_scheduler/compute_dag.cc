@@ -1278,7 +1278,7 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
         ss << "(access ";
         for (auto const &pair: extractor.read_access) {
             ss << "{" << pair.first->name << ": ";
-            ss << pair.second << "}";
+            ss << pair.second[0][0] << "}";
         }
         ss << " access)";
 
