@@ -1292,6 +1292,8 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
             ss << loopvar_collect.counter;
         }
       }
+    } else {
+      LOG(FATAL) << "Invalid op";
     }
   }
   ss << "loopvar collect end \n";
