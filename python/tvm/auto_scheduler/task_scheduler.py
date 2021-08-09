@@ -31,7 +31,7 @@ import pickle
 import numpy as np
 
 from .search_policy import SearchPolicy, SketchPolicy, PreloadMeasuredStates
-from .cost_model import RandomModel, XGBModel, MLPModel, LGBModel
+from .cost_model import RandomModel, XGBModel, MLPModel, LGBModel, TabNetModel
 from .utils import array_mean
 from .measure import ProgramMeasurer, EmptyBuilder, EmptyRunner
 from .measure_record import RecordReader
@@ -91,12 +91,17 @@ def make_search_policies(
 
     if isinstance(search_policy, str):
         policy_type, model_type = search_policy.split(".")
-        if model_type in ['xgb', 'xgb-no-update', 'mlp', 'mlp-no-update']:
+        if model_type in ['xgb', 'xgb-no-update', 'mlp', 'mlp-no-update', 'tab', 'tab-no-update']:
             if model_type == 'xgb-no-update' or model_type == 'mlp-no-update':
                 disable_cost_model_update = True
             if model_type in ['xgb', 'xgb-no-update']:
                 cost_model = XGBModel(
                     num_warmup_sample=len(tasks) * num_measures_per_round,
+                    disable_update=disable_cost_model_update,
+                    few_shot_learning=few_shot_learning
+                )
+            elif model_type in ['tab', 'tab-no-update']:
+                cost_model = TabNetModel(
                     disable_update=disable_cost_model_update,
                     few_shot_learning=few_shot_learning
                 )
