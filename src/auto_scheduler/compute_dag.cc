@@ -223,9 +223,9 @@ class LinearCombinationExtractor : public StmtExprVisitor {
   }
 
   void VisitExpr_(const SubNode* op) final {
-    StmtExprVisitor::VisitExpr(op->a);
-    sign = sign * (-1);
-    StmtExprVisitor::VisitExpr(op->b);
+    this->VisitExpr(op->a);
+    this->sign = this->sign * (-1);
+    this->VisitExpr(op->b);
   }
 
   void VisitExpr_(const VarNode* op) final {
@@ -1407,8 +1407,6 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
             //ss << pair.second[0][0] << " " << pair.second[0][1] << "}";
         }
         ss << " access) ";
-
-        LinearCombinationExtractor lcomb;
 
         if (auto preduce = pop->body[k].as<ReduceNode>()) {
           ICHECK_LT(k, preduce->combiner->result.size());
