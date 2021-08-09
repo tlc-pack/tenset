@@ -199,7 +199,7 @@ class LinearCombinationExtractor : public StmtExprVisitor {
 
   void VisitExpr_(const IntImmNode* op) final {
     if (var_map.find("constant") == var_map.end()) {
-      var_map["constant"] = op->value;
+      var_map["constant"] = sign * op->value;
     }
     else {
       LOG(FATAL) << "ill-formed index: IntImmNode";
