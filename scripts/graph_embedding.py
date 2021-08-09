@@ -34,7 +34,7 @@ from common import load_and_register_tasks
 
 from tvm.auto_scheduler.workload_registry import workload_key_to_tensors, workload_key_to_dag
 from tvm.auto_scheduler.measure_record import RecordReader
-
+from tvm.auto_scheduler.compute_dat import ComputeDAG
 
 SHAPE_LENGTH = 6
 
@@ -222,6 +222,7 @@ if __name__ == "__main__":
                 for inp, _ in RecordReader(f"{directory}/{filename}"):
                     workload_key = inp.task.workload_key
                     workload = json.loads(workload_key)
+                    print(workload)
                     if workload[0] not in workload_keys:
                         graph = graph_embedding_model.traverse_and_build_the_graph(
                             workload_key_to_tensors(workload_key))
