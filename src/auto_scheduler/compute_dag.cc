@@ -1303,6 +1303,8 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
             PrimExpr rhs = pop->body[k];
             if (rhs->IsInstance<AddNode>()) {
               const auto& ad = rhs.as<AddNode>();
+              ss << ad->a->IsInstance<CallNode>();
+              ss << ad->b->IsInstance<CallNode>();
               ss << " *add* " << ad->a << ad->b ;
             }
             ss << " = " << pop->body[k] << "\n";
