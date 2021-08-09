@@ -162,6 +162,33 @@ class ReadAccessExtractor : public StmtExprVisitor {
   bool has_branch{false};
 };
 
+class LoopVarCollector : public StmtExprVisitor {
+ public:
+  void Extract(PrimExpr expr) { this->VisitExpr(expr); }
+
+  void VisitExpr_(const CallNode* op) final {
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  void VisitExpr_(const VarNode* op) final {
+    if (var_map.find(op->name_hint) == var_map.end()) {
+      var_map[op->name_hint] = counter++;
+    }
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  void VisitStmt_(const IfThenElseNode* op) final {
+    StmtExprVisitor::VisitStmt_(op);
+  }
+
+  void VisitExpr_(const SelectNode* op) final {
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  std::unordered_map<String, size_t> var_map;
+  size_t counter{0};
+};
+
 // Returns whether the expr equals to the var with an optional const shift
 bool IsConstShiftEqual(const Var& var, const PrimExpr& expr) {
   arith::PVar<PrimExpr> x;
@@ -1245,6 +1272,24 @@ String ComputeDAG::PrintStepsAsPython(const Array<Step>& transform_steps) const 
 
 String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   std::stringstream ss;
+  
+  LoopVarCollector loopvar_collect;
+  for (const auto& op : operator->()->ops) {
+    if (op->IsInstance<te::ComputeOpNode>()) {
+      auto pop = op.as<te::ComputeOpNode>();
+      for (auto e : pop->body) {
+        loopvar_collect.Extract(e);
+      }
+    
+      for (size_t i = 0; i < pop->axis.size(); i++) {
+        if (loopvar_collect.var_map.find(pop->axis[i]->var->name_hint) == loopvar_collect.var_map.end()) {
+            LOG(INFO) << loopvar_collect.counter;
+            loopvar_collect.var_map[pop->axis[i]->var->name_hint] = loopvar_collect.counter++;
+            LOG(INFO) << loopvar_collect.counter;
+        }
+      }
+    }
+  }
 
   for (const auto& op : operator->()->ops) {
     if (op->IsInstance<te::PlaceholderOpNode>()) {
@@ -1275,6 +1320,7 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
 
         ReadAccessExtractor extractor;
         extractor.Extract(pop->body[k]);
+        
         ss << "(access ";
         for (auto const &pair: extractor.read_access) {
             ss << "{" << pair.first->name << ": ";
