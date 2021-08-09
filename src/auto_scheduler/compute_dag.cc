@@ -189,6 +189,64 @@ class LoopVarCollector : public StmtExprVisitor {
   size_t counter{0};
 };
 
+class LinearCombinationExtractor : public StmtExprVisitor {
+ public:
+  void Extract(PrimExpr expr) { this->VisitExpr(expr); }
+
+  void VisitExpr_(const CallNode* op) final {
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  void VisitExpr_(const IntImmNode* op) final {
+    if (var_map.find("constant") == var_map.end()) {
+      var_map["constant"] = op->value;
+    }
+    else {
+      LOG(FATAL) << "ill-formed index: IntImmNode";
+    }
+  }
+
+  void VisitExpr_(const MulNode* op) final {
+    if (op->a->IsInstance<te::IntImmNode>() && op->b->IsInstance<te::VarNode>()) {
+      const auto& an = op->a.as<IntImmNode>();
+      const auto& bn = op->a.as<VarNode>();
+      var_map[bn->name_hint] = sign * an->value;
+    }
+    else if (op->a->IsInstance<te::VarNode>() && op->b->IsInstance<te::IntImmNode>()) {
+      const auto& bn = op->a.as<IntImmNode>();
+      const auto& an = op->a.as<VarNode>();
+      var_map[an->name_hint] = sign * bn->value;
+    }
+    else {
+      LOG(FATAL) << "ill-formed index: MulNode";
+    }
+  }
+
+  void VisitExpr_(const SubNode* op) final {
+    StmtExprVisitor::VisitExpr(op->a);
+    sign = sign * (-1);
+    StmtExprVisitor::VisitExpr(op->b);
+  }
+
+  void VisitExpr_(const VarNode* op) final {
+    var_map[op->name_hint] = sign;
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  void VisitStmt_(const IfThenElseNode* op) final {
+    StmtExprVisitor::VisitStmt_(op);
+  }
+
+  void VisitExpr_(const SelectNode* op) final {
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  std::unordered_map<String, int> var_map;
+  size_t counter{0};
+  int sign{1};
+};
+
+
 // Returns whether the expr equals to the var with an optional const shift
 bool IsConstShiftEqual(const Var& var, const PrimExpr& expr) {
   arith::PVar<PrimExpr> x;
@@ -1273,8 +1331,6 @@ String ComputeDAG::PrintStepsAsPython(const Array<Step>& transform_steps) const 
 String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   std::stringstream ss;
   
-  ss << "loopvar collect start \n";
-
   LoopVarCollector loopvar_collect;
   for (const auto& op : operator->()->ops) {
     if (op->IsInstance<te::PlaceholderOpNode>()) {
@@ -1295,14 +1351,13 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
       LOG(FATAL) << "Invalid op";
     }
   }
-  ss << "loopvar collect end \n";
 
   ss << "(var2num ";
   for (auto const &pair: loopvar_collect.var_map) {
       ss << "{" << pair.first << ": ";
       ss << pair.second << "}";
   }
-  ss << " var2num)";
+  ss << " var2num)\n";
 
 
   for (const auto& op : operator->()->ops) {
@@ -1338,9 +1393,20 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
         ss << "(access ";
         for (auto const &pair: extractor.read_access) {
             ss << "{" << pair.first->name << ": ";
-            ss << pair.second[0][0] << " " << pair.second[0][1] << "}";
+            for (auto indices : pair.second) {
+              for (auto index : indices) {
+                  LinearCombinationExtractor lcomb;
+                  lcomb.Extract(index);
+                  for  (auto const &ipair: lcomb.var_map) {
+                    ss << "[" << ipair.first << "-" << ipair.second << "]";
+                  }
+              }
+            }
+            //ss << pair.second[0][0] << " " << pair.second[0][1] << "}";
         }
-        ss << " access)";
+        ss << " access) ";
+
+        LinearCombinationExtractor lcomb;
 
         if (auto preduce = pop->body[k].as<ReduceNode>()) {
           ICHECK_LT(k, preduce->combiner->result.size());
