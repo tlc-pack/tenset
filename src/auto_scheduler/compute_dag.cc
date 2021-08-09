@@ -1358,8 +1358,8 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
       LOG(FATAL) << "Invalid op";
     }
   }
-  std::cout << "loopvar" << std:endl;
-  
+  std::cout << "loopvar" << std::endl;
+
   ss << "(var2num ";
   for (auto const &pair: loopvar_collect.var_map) {
       ss << "{" << pair.first << ": ";
