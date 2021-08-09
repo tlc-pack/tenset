@@ -140,15 +140,13 @@ class LGBModelInternal:
         if params is None:
             self.lgbm_params = {
                 'boosting_type': 'gbdt',
-                'num_leaves': 31,
-                'learning_rate': 0.05,
-                'feature_fraction': 0.9,
-                'bagging_fraction': 0.8,
-                'bagging_freq': 5,
+                'num_leaves': 72,
+                'learning_rate': 0.1632095,
+                'feature_fraction': 0.84375,
+                'bagging_fraction': 0.89435,
+                'bagging_freq': 4,
                 'verbose': 0,
-                'min_child_weight': 2,
-                'in_sum_in_hessian': 0,
-                'min_data_in_leaf': 0
+                'min_sum_hessian_in_leaf': 4,
             }
         else:
             self.lgbm_params = params 
