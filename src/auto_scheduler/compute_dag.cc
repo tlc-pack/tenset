@@ -1331,6 +1331,9 @@ String ComputeDAG::PrintStepsAsPython(const Array<Step>& transform_steps) const 
 String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   std::stringstream ss;
   
+  size_t NUM_BUFFERS = 6;
+  size_t NUM_VARS = 20;
+
   LoopVarCollector loopvar_collect;
   for (const auto& op : operator->()->ops) {
     if (op->IsInstance<te::PlaceholderOpNode>()) {
@@ -1407,6 +1410,7 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
             //ss << pair.second[0][0] << " " << pair.second[0][1] << "}";
         }
         ss << " access) ";
+        ss << "Num buffers: " << extractor.read_access.size() << " ";
 
         if (auto preduce = pop->body[k].as<ReduceNode>()) {
           ICHECK_LT(k, preduce->combiner->result.size());
