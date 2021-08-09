@@ -1405,7 +1405,7 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
 
         ss << "(access ";
         for (auto const &key: keys) {
-            std::vector<std::vector<int>> access_mat(4, std::vector<int>(NUM_VARS, 0));
+            std::vector<std::vector<int>> access_mat(NUM_DIMENSIONS, std::vector<int>(NUM_VARS, 0));
             ss << "{" << key.first << ": ";
             for (auto indices : extractor.read_access[key.second]) {
               int i = 0;
@@ -1420,8 +1420,8 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
                   ss << ")";
                   i++;
               }
-              ss << "|accessMat: ";
-              for (int i = 0; i < 4; ++i)
+              /*ss << "|accessMat: ";
+              for (int i = 0; i < NUM_DIMENSIONS; ++i)
               {
                   for (int j = 0; j < NUM_VARS; ++j)
                   {
@@ -1430,6 +1430,7 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
                   ss << '\n';
               }
               ss << "accessMat|";
+              */
               break;
             }
             //ss << pair.second[0][0] << " " << pair.second[0][1] << "}";
