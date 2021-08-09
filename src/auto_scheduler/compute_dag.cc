@@ -1334,7 +1334,7 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   size_t NUM_DIMENSIONS = 4;
   size_t NUM_BUFFERS = 6;
   size_t NUM_VARS = 20;
-  size_t LENGTH_ACCESS_FEATURES = 480;
+  size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //480
   size_t ct = 0;
   std::vector<int> res(LENGTH_ACCESS_FEATURES);
 
@@ -1427,7 +1427,9 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
                   for (int j = 0; j < NUM_VARS; ++j)
                   {
                       //ss << access_mat[i][j] << ' ';
-                      res[ct++] = access_mat[i][j];
+                      if (ct < LENGTH_ACCESS_FEATURES){
+                        res[ct++] = access_mat[i][j];
+                      }
                   }
                   //ss << '\n';
               }
@@ -1475,7 +1477,8 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
     }
   }
 
-  ss << "Feature Vector: " << res;
+  ss << "Feature Vector: ";
+  for (int i : res) ss << i << " ";
   return String(ss.str());
 }
 
