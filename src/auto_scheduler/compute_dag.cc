@@ -1395,17 +1395,32 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
         
         ss << "(access ";
         for (auto const &pair: extractor.read_access) {
+            std::vector<std::vector<int>> access_mat(4, std::vector<int>(NUM_VARS, 0));
             ss << "{" << pair.first->name << ": ";
             for (auto indices : pair.second) {
+              int i = 0;
               for (auto index : indices) {
                   LinearCombinationExtractor lcomb;
                   lcomb.Extract(index);
                   ss << "(";
                   for  (auto const &ipair: lcomb.var_map) {
                     ss << "[" << ipair.first << " : " << ipair.second << "]";
+                    access_mat[i][loopvar_collect.var_map[ipair.first]] = ipair.second;
                   }
                   ss << ")";
+                  i++;
               }
+              ss << "|accessMat: ";
+              for (int i = 0; i < 4; ++i)
+              {
+                  for (int j = 0; j < NUM_VARS; ++j)
+                  {
+                      ss << access_mat[i][j] << ' ';
+                  }
+                  ss << '\n';
+              }
+              ss << "accessMat|";
+              break;
             }
             //ss << pair.second[0][0] << " " << pair.second[0][1] << "}";
         }
