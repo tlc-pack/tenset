@@ -1280,11 +1280,7 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
     if (op->IsInstance<te::PlaceholderOpNode>()) {
       int b = 1;
     } else if (auto pop = op.as<te::ComputeOpNode>()) {
-      ss << " this case \n";
-      for (auto e : pop->body) {
-        loopvar_collect.Extract(e);
-      }
-    
+      
       for (size_t i = 0; i < pop->axis.size(); i++) {
         if (loopvar_collect.var_map.find(pop->axis[i]->var->name_hint) == loopvar_collect.var_map.end()) {
             ss << loopvar_collect.counter;
@@ -1292,6 +1288,11 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
             ss << loopvar_collect.counter;
         }
       }
+
+      for (auto e : pop->body) {
+        loopvar_collect.Extract(e);
+      }
+    
     } else {
       LOG(FATAL) << "Invalid op";
     }
