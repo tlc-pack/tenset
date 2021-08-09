@@ -63,6 +63,10 @@ using BufferMap = std::unordered_map<Buffer, T, ObjectHash, ObjectEqual>;
 
 // The number of samples to extract for arithmetic intensity curves
 static const int ARITH_INTENSITY_CURVE_SAMPLE_N = 10;
+static const size_t NUM_DIMENSIONS = 4;
+static const size_t NUM_BUFFERS = 6;
+static const size_t NUM_VARS = 20;
+static const size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //480
 
 // Annotation position encoding
 enum class AnnotationPosType : int {
@@ -1051,7 +1055,7 @@ class PerStoreFeatureExtractor : public StmtExprVisitor {
 inline float slog(float x) { return x < 0 ? -std::log2(-x + 1) : std::log2(x + 1); }
 
 void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
-                        std::vector<float>* ret) {
+                        std::vector<float>* ret, std::vector<int>* access_matrix) {
   PerStoreFeatureExtractor extractor(cache_line_size);
   extractor(stmt);
 
@@ -1184,6 +1188,10 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
     ret->push_back(slog(fea_set.outer_prod));
     ret->push_back(slog(fea_set.num_loops));
     ret->push_back(slog(fea_set.auto_unroll_max_step));
+
+    /***** Group 6: Access matrix related features *****/
+    ret->insert(ret->end(), access_matrix->begin(), access_matrix->end());
+
   }
 }
 
@@ -1290,6 +1298,13 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret) {
   ret->push_back(("num_loops"));
   ret->push_back(("auto_unroll_max_step"));
   // section total : 3
+
+  /***** Group 6: Access matrix related features *****/
+  for (size_t i = 0; i < LENGTH_ACCESS_FEATURES; i++) {
+    ret->push_back(("access_mat_" + std::to_string(i)));
+  }
+  // section total : 480
+
 }
 
 void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, int max_n_bufs,
@@ -1304,9 +1319,10 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
-  std::cout << task->compute_dag.PrintDAG(true) << std::endl;
-  std::cout << "------------\n";
-  std::cout << task->compute_dag.ComputeAccessMatrix(false) << std::endl;
+  //std::cout << task->compute_dag.PrintDAG(true) << std::endl;
+  //std::cout << "------------\n";
+  //std::cout << task->compute_dag.ComputeAccessMatrix(false) << std::endl;
+  auto access_matrix_feas = task->compute_dag.ComputeAccessMatrix(false);
 
   try {
     auto stmt = te::ScheduleOps(sch, bounds, false);

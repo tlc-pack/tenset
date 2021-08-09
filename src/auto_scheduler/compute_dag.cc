@@ -1328,7 +1328,7 @@ String ComputeDAG::PrintStepsAsPython(const Array<Step>& transform_steps) const 
   return ss.str();
 }
 
-String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
+std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   std::stringstream ss;
   
   size_t NUM_DIMENSIONS = 4;
@@ -1422,9 +1422,9 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
                   i++;
               }
               //ss << "|accessMat: ";
-              for (int i = 0; i < NUM_DIMENSIONS; ++i)
+              for (size_t i = 0; i < NUM_DIMENSIONS; ++i)
               {
-                  for (int j = 0; j < NUM_VARS; ++j)
+                  for (size_t j = 0; j < NUM_VARS; ++j)
                   {
                       //ss << access_mat[i][j] << ' ';
                       if (ct < LENGTH_ACCESS_FEATURES){
@@ -1479,7 +1479,8 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
 
   ss << "Feature Vector: ";
   for (int i : res) ss << i << " ";
-  return String(ss.str());
+  String _ret = String(ss.str());
+  return res;
 }
 
 String ComputeDAG::PrintDAG(bool simple_mode) const {
