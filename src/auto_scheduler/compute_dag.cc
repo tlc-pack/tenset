@@ -1298,7 +1298,7 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
         } else {
           auto call = pop->body[k].as<CallNode>();
           if (simple_mode && call) {
-            ss << " = " << call->op << "\n";
+            ss << " = *call* " << call->op << "\n";
           } else {
             ss << " = " << pop->body[k] << "\n";
           }
