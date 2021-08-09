@@ -1329,7 +1329,7 @@ String ComputeDAG::PrintStepsAsPython(const Array<Step>& transform_steps) const 
 }
 
 std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
-  std::stringstream ss;
+  //std::stringstream ss;
   
   size_t NUM_DIMENSIONS = 4;
   size_t NUM_BUFFERS = 6;
@@ -1337,6 +1337,8 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //600
   size_t ct = 0;
   std::vector<int> res(LENGTH_ACCESS_FEATURES);
+
+  std::cout << "start" << std::endl;
 
   LoopVarCollector loopvar_collect;
   for (const auto& op : operator->()->ops) {
@@ -1360,26 +1362,13 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   }
   std::cout << "loopvar" << std::endl;
 
-  ss << "(var2num ";
-  for (auto const &pair: loopvar_collect.var_map) {
-      ss << "{" << pair.first << ": ";
-      ss << pair.second << "}";
-  }
-  ss << " var2num)\n";
-
-
   for (const auto& op : operator->()->ops) {
     if (op->IsInstance<te::PlaceholderOpNode>()) {
-      /*
-      ss << op->name << " = PLACEHOLDER ";
-      if (!simple_mode) {
-        ss << op.output(0)->shape;
-      }
-      ss << "\n";
-      */
-     ss << "PLACEHOLDER\n";
+      int b = 0;
     } else if (auto pop = op.as<te::ComputeOpNode>()) {
       for (size_t k = 0; k < pop->body.size(); ++k) {
+        std::cout << op->name << std::endl;
+        /*
         ss << op->name << "(";
        
         for (size_t i = 0; i < pop->axis.size(); i++) {
@@ -1390,10 +1379,7 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
         }
 
         ss << ")";
-
-        if (pop->body.size() > 1) {
-          ss << ".v" << k;
-        }
+        */
 
         ReadAccessExtractor extractor;
         extractor.Extract(pop->body[k]);
@@ -1405,82 +1391,38 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
         }
         std::sort (keys.begin(), keys.end());
 
-        ss << "(access ";
         for (auto const &key: keys) {
             std::vector<std::vector<int>> access_mat(NUM_DIMENSIONS, std::vector<int>(NUM_VARS, 0));
-            ss << "{" << key.first << ": ";
             for (auto indices : extractor.read_access[key.second]) {
               int i = 0;
               for (auto index : indices) {
                   LinearCombinationExtractor lcomb;
                   lcomb.Extract(index);
-                  ss << "(";
                   for  (auto const &ipair: lcomb.var_map) {
-                    ss << "[" << ipair.first << " : " << ipair.second << "]";
                     access_mat[i][loopvar_collect.var_map[ipair.first]] = ipair.second;
                   }
-                  ss << ")";
                   i++;
               }
-              //ss << "|accessMat: ";
               for (size_t i = 0; i < NUM_DIMENSIONS; ++i)
               {
                   for (size_t j = 0; j < NUM_VARS; ++j)
                   {
-                      //ss << access_mat[i][j] << ' ';
                       if (ct < LENGTH_ACCESS_FEATURES){
                         res[ct++] = access_mat[i][j];
                       }
                   }
-                  //ss << '\n';
               }
-              //ss << "accessMat|";
               break;
             }
-            //ss << pair.second[0][0] << " " << pair.second[0][1] << "}";
-        }
-        ss << " access) ";
-        ss << "Num buffers: " << extractor.read_access.size() << " ";
-
-        if (auto preduce = pop->body[k].as<ReduceNode>()) {
-          ICHECK_LT(k, preduce->combiner->result.size());
-          PrimExpr combiner = preduce->combiner->result[k];
-          if (!simple_mode) {
-            if (combiner->IsInstance<AddNode>()) {
-              ss << " += " << preduce->source[0] << "\n";
-            } else if (combiner->IsInstance<MaxNode>()) {
-              ss << " max= " << preduce->source[0] << "\n";
-            } else if (combiner->IsInstance<MinNode>()) {
-              ss << " min= " << preduce->source[0] << "\n";
-            } else if (combiner->IsInstance<SelectNode>()) {
-              const auto& select = combiner.as<SelectNode>();
-              ss << " select(" << select->condition << ", " << select->true_value << ", "
-                << select->false_value << ")= " << '(' << preduce->source[0] << ','
-                << preduce->source[1] << ")\n";
-            } else {
-              ss << "reduce" << combiner << "\n";
-            }
-          }
-          else {
-              ss << "\n";
-          }
-        } else {
-          auto call = pop->body[k].as<CallNode>();
-          if (simple_mode && call) {
-            ss << " = *call* " << call->op << "\n";
-          } else {
-            ss << " = " << pop->body[k] << "\n";
-          }
-        }
       }
-    } else {
-      LOG(FATAL) << "Invalid op";
+      }
     }
   }
 
-  ss << "Feature Vector: ";
-  for (int i : res) ss << i << " ";
-  String _ret = String(ss.str());
+  std::cout << "end" << std::endl;
+  //ss << "Feature Vector: ";
+  //for (int i : res) ss << i << " ";
+  //String _ret = String(ss.str());
   return res;
 }
 
