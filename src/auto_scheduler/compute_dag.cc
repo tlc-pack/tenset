@@ -213,8 +213,8 @@ class LinearCombinationExtractor : public StmtExprVisitor {
       var_map[bn->name_hint] = sign * an->value;
     }
     else if (op->a->IsInstance<te::VarNode>() && op->b->IsInstance<te::IntImmNode>()) {
-      const auto& bn = op->a.as<IntImmNode>();
-      const auto& an = op->b.as<VarNode>();
+      const auto& an = op->a.as<VarNode>();
+      const auto& bn = op->b.as<IntImmNode>();
       var_map[an->name_hint] = sign * bn->value;
     }
     else {
