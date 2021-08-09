@@ -222,8 +222,10 @@ if __name__ == "__main__":
                 for inp, _ in RecordReader(f"{directory}/{filename}"):
                     workload_key = inp.task.workload_key
                     workload = json.loads(workload_key)
-                    print(workload)
+                    #print(workload)
                     if workload[0] not in workload_keys:
+                        dag = ComputeDAG(workload_key)
+                        print(dag)
                         graph = graph_embedding_model.traverse_and_build_the_graph(
                             workload_key_to_tensors(workload_key))
                         graphs.append(graph)
