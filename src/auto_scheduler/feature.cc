@@ -1304,7 +1304,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
-  std::cout << task->compute_dag.ComputeAccessMatrix(true) << std::endl;
+  std::cout << task->compute_dag.PrintDAG(true) << std::endl;
   std::cout << "------------\n";
   std::cout << task->compute_dag.ComputeAccessMatrix(false) << std::endl;
 
