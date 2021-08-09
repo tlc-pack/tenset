@@ -1331,8 +1331,11 @@ String ComputeDAG::PrintStepsAsPython(const Array<Step>& transform_steps) const 
 String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   std::stringstream ss;
   
+  size_t NUM_DIMENSIONS = 4;
   size_t NUM_BUFFERS = 6;
   size_t NUM_VARS = 20;
+  size_t LENGTH_ACCESS_FEATURES = 480;
+
 
   LoopVarCollector loopvar_collect;
   for (const auto& op : operator->()->ops) {
@@ -1393,11 +1396,18 @@ String ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
         ReadAccessExtractor extractor;
         extractor.Extract(pop->body[k]);
         
+        std::vector<std::pair<String, tvm::te::Operation>> keys;
+        keys.reserve (extractor.read_access.size());
+        for (auto& it : extractor.read_access) {
+            keys.push_back(std::make_pair(it.first->name, it.first));
+        }
+        std::sort (keys.begin(), keys.end());
+
         ss << "(access ";
-        for (auto const &pair: extractor.read_access) {
+        for (auto const &key: keys) {
             std::vector<std::vector<int>> access_mat(4, std::vector<int>(NUM_VARS, 0));
-            ss << "{" << pair.first->name << ": ";
-            for (auto indices : pair.second) {
+            ss << "{" << key.first << ": ";
+            for (auto indices : extractor.read_access[key.second]) {
               int i = 0;
               for (auto index : indices) {
                   LinearCombinationExtractor lcomb;
