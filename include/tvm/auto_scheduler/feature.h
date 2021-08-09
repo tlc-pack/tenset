@@ -46,9 +46,10 @@ namespace auto_scheduler {
  * \param cache_line_size The size of cache line in bytes
  * \param max_n_bufs The maximum number of extracted buffers for one statement
  * \param ret The returned feature vector
+ * \param access_matrix Access matrix feature vector
  */
 void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
-                        std::vector<float>* ret);
+                        std::vector<float>* ret, std::vector<int>* access_matrix);
 
 /*
  * \brief Get the names of elements in the feature vector. Use this for debug and inspection.
