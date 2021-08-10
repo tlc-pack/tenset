@@ -1240,7 +1240,9 @@ class TabNetModelInternal:
                 pickle.load(open(filename, 'rb'))
 
     def save(self, filename):
-        pickle.dump((self.base_model.cpu(), self.local_model.cpu(), self.few_shot_learning, self.fea_norm_vec),
+        base_model = self.base_model.cpu() if self.base_model else None 
+        local_model = self.local_model.cpu() if self.local_model else None
+        pickle.dump((base_model, local_model, self.few_shot_learning, self.fea_norm_vec),
                     open(filename, 'wb'))
 
 
