@@ -763,13 +763,16 @@ class MLPModelInternal:
         else:
             self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec = \
                 pickle.load(open(filename, 'rb'))
+            self.base_model = self.base_model.cuda() if self.base_model else None 
+            self.local_model = self.local_model.cuda() if self.local_model else None
 
     def save(self, filename):
         base_model = self.base_model.cpu() if self.base_model else None 
         local_model = self.local_model.cpu() if self.local_model else None
         pickle.dump((base_model, local_model, self.few_shot_learning, self.fea_norm_vec),
                     open(filename, 'wb'))
-
+        self.base_model = self.base_model.to(self.device) if self.base_model else None 
+        self.local_model = self.local_model.to(self.device) if self.local_model else None
 
 class CPU_Unpickler(pickle.Unpickler):
     def find_class(self, module, name):
