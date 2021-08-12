@@ -819,7 +819,7 @@ class TabNetModelInternal:
 
         self.target_id_dict = {}
         self.loss_type = loss_type
-        self.n_epoch = 100
+        self.n_epoch = 150
         self.lr = 7e-4
         
 
