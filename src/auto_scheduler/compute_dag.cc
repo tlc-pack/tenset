@@ -1417,6 +1417,7 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
               }
               break;
             }
+            std::cout << "read finished" << std::endl;
       }
       }
     }
