@@ -103,11 +103,8 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
         params['min_sum_hessian_in_leaf'] = min_sum_hessian_in_leaf
         
         model = LGBModelInternal(use_gpu=False, params=params)
-        #filename = name + ".pkl"
         model.fit_base(train_set, valid_set=test_set)
-        #print("Save model to %s" % filename)
-        #model.save(filename)
-
+        
         # Evaluate the model
         eval_res = evaluate_model(model, test_set)
 
