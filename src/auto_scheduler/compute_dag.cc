@@ -1397,6 +1397,7 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
             std::vector<std::vector<int>> access_mat(NUM_DIMENSIONS, std::vector<int>(NUM_VARS, 0));
             std::cout << "start to read " << std::endl;
             for (auto indices : extractor.read_access[key.second]) {
+              std::cout << "advancing " << std::endl;
               int i = 0;
               for (auto index : indices) {
                   LinearCombinationExtractor lcomb;
