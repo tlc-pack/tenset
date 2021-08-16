@@ -1331,7 +1331,7 @@ String ComputeDAG::PrintStepsAsPython(const Array<Step>& transform_steps) const 
 std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   //std::stringstream ss;
   
-  size_t NUM_DIMENSIONS = 4;
+  size_t NUM_DIMENSIONS = 5;
   size_t NUM_BUFFERS = 6;
   size_t NUM_VARS = 25;
   size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //600
@@ -1405,7 +1405,9 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
                   lcomb.Extract(index);
                   std::cout << "lcombext " << i << std::endl;
                   for  (auto const &ipair: lcomb.var_map) {
-                    access_mat[i][loopvar_collect.var_map[ipair.first]] = ipair.second;
+                    if (loopvar_collect.var_map[ipair.first] < NUM_VARS) {
+                      access_mat[i][loopvar_collect.var_map[ipair.first]] = ipair.second;
+                    }
                   }
                   i++;
               }
