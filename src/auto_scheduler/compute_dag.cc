@@ -1399,6 +1399,7 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
             for (auto indices : extractor.read_access[key.second]) {
               std::cout << "advancing " << std::endl;
               int i = 0;
+              std::cout << "total number " << indices.size() << std::endl;
               for (auto index : indices) {
                   LinearCombinationExtractor lcomb;
                   lcomb.Extract(index);
