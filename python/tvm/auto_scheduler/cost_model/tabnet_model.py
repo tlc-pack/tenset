@@ -10,14 +10,8 @@ import io
 import json
 import numpy as np
 import torch
-# from torchmeta.modules import (
-#    MetaModule,
-#    MetaSequential,
-#    MetaConv2d,
-#    MetaBatchNorm2d,
-#    MetaLinear,
-# )  # pip3 intall torchmeta
-# from torchmeta.utils import gradient_update_parameters
+from .mlp_model import SegmentDataLoader, SegmentSumMLPModule
+
 import torch.nn.functional as F
 import logging
 
@@ -594,189 +588,6 @@ class TabNetNoEmbeddings(torch.nn.Module):
         return self.encoder.forward_masks(x)
 
 
-class SegmentDataLoader:
-    def __init__(
-            self,
-            dataset,
-            batch_size,
-            device,
-            use_workload_embedding=True,
-            use_target_embedding=False,
-            target_id_dict={},
-            fea_norm_vec=None,
-            shuffle=False,
-    ):
-        self.device = device
-        self.shuffle = shuffle
-        self.number = len(dataset)
-        self.batch_size = batch_size
-
-        self.segment_sizes = torch.empty((self.number,), dtype=torch.int32)
-        self.labels = torch.empty((self.number,), dtype=torch.float32)
-
-        # Flatten features
-        flatten_features = []
-        ct = 0
-        for task in dataset.features:
-            throughputs = dataset.throughputs[task]
-            self.labels[ct: ct + len(throughputs)] = torch.tensor(throughputs)
-            task_embedding = None
-            if use_workload_embedding or use_target_embedding:
-                task_embedding = np.zeros(
-                    9 + len(target_id_dict),
-                    dtype=np.float32,
-                )
-
-                if use_workload_embedding:
-                    tmp_task_embedding = get_workload_embedding(task.workload_key)
-                    task_embedding[:9] = tmp_task_embedding
-
-                if use_target_embedding:
-                    target_id = target_id_dict.get(
-                        str(task.target), np.random.randint(0, len(target_id_dict))
-                    )
-                    task_embedding[9+target_id] = 1.0
-
-
-            for row in dataset.features[task]:
-                self.segment_sizes[ct] = len(row)
-
-                if task_embedding is not None:
-                    tmp = np.tile(task_embedding, (len(row), 1))
-                    flatten_features.extend(np.concatenate([row, tmp], axis=1))
-                else:
-                    flatten_features.extend(row)
-                ct += 1
-
-        max_seg_len = self.segment_sizes.max()
-        self.features = torch.tensor(np.array(flatten_features, dtype=np.float32))
-        if fea_norm_vec is not None:
-            self.normalize(fea_norm_vec)
-
-        self.feature_offsets = (
-                    torch.cumsum(self.segment_sizes, 0, dtype=torch.int32) - self.segment_sizes).cpu().numpy()
-        self.iter_order = self.pointer = None
-
-    def normalize(self, norm_vector=None):
-        if norm_vector is None:
-            norm_vector = torch.ones((self.features.shape[1],))
-            for i in range(self.features.shape[1]):
-                max_val = self.features[:, i].max().item()
-                if max_val > 0:
-                    norm_vector[i] = max_val
-        self.features /= norm_vector
-
-        return norm_vector
-
-    def __iter__(self):
-        if self.shuffle:
-            self.iter_order = torch.randperm(self.number)
-        else:
-            self.iter_order = torch.arange(self.number)
-        self.pointer = 0
-
-        return self
-
-    def sample_batch(self, batch_size):
-        raise NotImplemented
-        batch_indices = np.random.choice(self.number, batch_size)
-        return self._fetch_indices(batch_indices)
-
-    def __next__(self):
-        if self.pointer >= self.number:
-            raise StopIteration
-
-        batch_indices = self.iter_order[self.pointer: self.pointer + self.batch_size]
-        self.pointer += self.batch_size
-        return self._fetch_indices(batch_indices)
-
-    def _fetch_indices(self, indices):
-        segment_sizes = self.segment_sizes[indices]
-
-        feature_offsets = self.feature_offsets[indices]
-        feature_indices = np.empty((segment_sizes.sum(),), dtype=np.int32)
-        ct = 0
-        for offset, seg_size in zip(feature_offsets, segment_sizes.numpy()):
-            feature_indices[ct: ct + seg_size] = np.arange(offset, offset + seg_size, 1)
-            ct += seg_size
-
-        features = self.features[feature_indices]
-        labels = self.labels[indices]
-        return (x.to(self.device) for x in (segment_sizes, features, labels))
-
-    def __len__(self):
-        return self.number
-
-
-class SegmentSumMLPModule(torch.nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim, use_norm=False, add_sigmoid=False):
-        super().__init__()
-
-        print('building SegmentSumMLPModule.....')
-        self.segment_encoder = TabNetNoEmbeddings(in_dim, hidden_dim, 
-                                                    n_d=64,
-                                                    n_a=64,
-                                                    n_steps=7,
-                                                    gamma=1.3,
-                                                    n_independent=2,
-                                                    n_shared=2,
-                                                    epsilon=1e-15,
-                                                    virtual_batch_size=512,
-                                                    momentum=0.02,
-                                                    mask_type="entmax",)
-        self.add_sigmoid = add_sigmoid
-
-        if use_norm:
-            self.norm = torch.nn.BatchNorm1d(hidden_dim)
-        else:
-            self.norm = torch.nn.Identity()
-
-        self.l0 = torch.nn.Sequential(
-            torch.nn.Linear(hidden_dim, hidden_dim),
-            torch.nn.ReLU(),
-        )
-        self.l1 = torch.nn.Sequential(
-            torch.nn.Linear(hidden_dim, hidden_dim),
-            torch.nn.ReLU(),
-        )
-        self.decoder = torch.nn.Linear(hidden_dim, out_dim)
-
-    def freeze_for_fine_tuning(self):
-        for x in self.segment_encoder.parameters():
-            x.requires_grad_(False)
-
-    def forward(self, segment_sizes, features, params=None):
-        n_seg = segment_sizes.shape[0]
-        device = features.device
-
-        segment_sizes = segment_sizes.long()
-
-        features = self.segment_encoder(
-            features
-        )[0]
-        segment_indices = torch.repeat_interleave(
-            torch.arange(n_seg, device=device), segment_sizes
-        )
-
-        n_dim = features.shape[1]
-        segment_sum = torch.scatter_add(
-            torch.zeros((n_seg, n_dim), dtype=features.dtype, device=device),
-            0,
-            segment_indices.view(-1, 1).expand(-1, n_dim),
-            features,
-        )
-        output = self.norm(segment_sum)
-        output = self.l0(output) + output
-        output = self.l1(output) + output
-        output = self.decoder(
-            output
-        ).squeeze()
-
-        if self.add_sigmoid:
-            output = torch.sigmoid(output)
-
-        return output
-
 def make_net(params):
     return SegmentSumMLPModule(
             params["in_dim"], params["hidden_dim"], params["out_dim"],
@@ -799,8 +610,8 @@ class TabNetModelInternal:
                 device = 'cuda:0'
             else:
                 device = 'cpu'
-        #device = 'cuda:0'
         print(device)
+
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
@@ -808,14 +619,6 @@ class TabNetModelInternal:
             "hidden_dim": 256,
             "out_dim": 1,
         }
-
-        # self.net_params = {
-        #    "type": "MultiHeadAttention",
-        #    "in_dim": 164,
-        #    "num_heads": 8,
-        #    "hidden_dim": 1024,
-        #    "out_dim": 1,
-        # }
 
         self.target_id_dict = {}
         self.loss_type = loss_type
@@ -877,11 +680,6 @@ class TabNetModelInternal:
     def fit_base(self, train_set, valid_set=None, valid_train_set=None):
         if self.few_shot_learning == "local_only":
             self.base_model = None
-        elif self.few_shot_learning == "MAML":
-            raise NotImplemented
-            self.fine_tune_lr = self.meta_inner_lr
-            self.fine_tune_num_steps = self.meta_test_num_steps * 2
-            self.base_model = self._fit_a_MAML_model(train_set, valid_set, valid_train_set)
         else:
             self.base_model = self._fit_a_model(train_set, valid_set, valid_train_set)
 
@@ -1125,111 +923,6 @@ class TabNetModelInternal:
         ):
             preds.append(model(segment_sizes, features))
         return torch.cat(preds).detach().cpu().numpy()
-
-    def _fit_a_MAML_model(self, train_set, valid_set=None, valid_train_set=None):
-        print("=" * 60 + "\nFit a MAML net. Train size: %d" % len(train_set))
-        batch_size_tasks = self.meta_batch_size_tasks
-        batch_size_per_task = self.meta_batch_size_per_task
-        few_shot_number = self.few_shot_number
-
-        print_per_batches = 20
-        n_batches = 3000
-        early_stop = 200
-
-        # Compute normalization vector over the whole dataset
-        if self.fea_norm_vec is None:
-            all_train_loader = SegmentDataLoader(
-                train_set, self.batch_size, self.device, self.use_workload_embedding,
-            )
-            self.fea_norm_vec = all_train_loader.normalize()
-            del all_train_loader
-
-        # Build dataloaders
-        train_loaders = {}
-        for task in train_set.feature_data:
-            task_dataset = train_set.extract_subset(task)
-            train_loaders[task] = SegmentDataLoader(
-                task_dataset, None, self.device, self.use_workload_embedding,
-                fea_norm_vec=self.fea_norm_vec, shuffle=True,
-            )
-
-        # Make network
-        net = make_net(self.net_params).to(self.device)
-        optimizer = torch.optim.Adam(
-            net.parameters(), lr=self.meta_outer_lr, weight_decay=self.wd
-        )
-
-        # Training
-        avg_outer_loss = None
-        avg_inner_loss = None
-        task_list = list(train_set.tasks())
-        best_batch = None
-        best_train_loss = 1e10
-        for batch in range(n_batches):
-            tasks = random.choices(task_list, k=batch_size_tasks)
-            net.train()
-            outer_loss = torch.tensor(0.0, device=self.device)
-            # outer loss
-            for task in tasks:
-                train_loader = train_loaders[task]
-
-                train_segment_sizes, train_features, train_labels = train_loader.sample_batch(
-                    few_shot_number
-                )
-                test_segment_sizes, test_features, test_labels = train_loader.sample_batch(
-                    batch_size_per_task
-                )
-
-                # inner loss
-                params = OrderedDict(net.meta_named_parameters())
-                for _ in range(self.meta_test_num_steps):
-                    inner_loss = self.loss_func(
-                        net(train_segment_sizes, train_features, params=params), train_labels
-                    )
-                    params = gradient_update_parameters(
-                        net,
-                        inner_loss,
-                        params=params,
-                        step_size=self.meta_inner_lr,
-                        first_order=False,
-                    )
-                    avg_inner_loss = moving_average(avg_inner_loss, inner_loss.item())
-
-                # acculate gradient for meta-update
-                outer_loss += self.loss_func(
-                    net(test_segment_sizes, test_features, params=params), test_labels
-                )
-
-            optimizer.zero_grad()
-            outer_loss /= len(tasks)
-            outer_loss.backward()
-            torch.nn.utils.clip_grad_norm_(net.parameters(), self.grad_clip)
-            optimizer.step()
-
-            avg_outer_loss = moving_average(avg_outer_loss, outer_loss.item())
-
-            if batch % print_per_batches == 0 or batch == n_batches - 1:
-                # validate
-                valid_loss = self._validate(net, valid_set, valid_train_set, verbose=0)
-                print(
-                    "Task Batch: %d\tOuter RMSE: %.4f\tInner RMSE: %.4f\tValid RMSE: %.4f"
-                    % (
-                        batch,
-                        np.sqrt(avg_outer_loss),
-                        np.sqrt(avg_inner_loss),
-                        np.sqrt(valid_loss),
-                    )
-                )
-
-            # Early stop
-            if avg_outer_loss < best_train_loss:
-                best_train_loss = avg_outer_loss
-                best_batch = batch
-            elif batch - best_batch >= early_stop:
-                print("Early stop. Best batch: %d" % best_batch)
-                break
-
-        return net
 
     def load(self, filename):
         if self.device == 'cpu':
