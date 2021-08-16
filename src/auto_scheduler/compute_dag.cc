@@ -218,7 +218,8 @@ class LinearCombinationExtractor : public StmtExprVisitor {
       var_map[an->name_hint] = sign * bn->value;
     }
     else {
-      LOG(FATAL) << "ill-formed index: MulNode";
+      return; // access like ((floormod(floordiv(p, 4), 4)*4) + eps) will be treated as 0
+      //LOG(FATAL) << "ill-formed index: MulNode";
     }
   }
 
@@ -1406,7 +1407,8 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
                   lcomb.Extract(index);
                   std::cout << "lcombext " << i << std::endl;
                   for  (auto const &ipair: lcomb.var_map) {
-                    if (loopvar_collect.var_map[ipair.first] < NUM_VARS) {
+                    auto result = loopvar_collect.var_map.find(ipair.first);
+                    if ( result != loopvar_collect.var_map.end() and result < NUM_VARS) {
                       access_mat[i][loopvar_collect.var_map[ipair.first]] = ipair.second;
                     }
                   }
