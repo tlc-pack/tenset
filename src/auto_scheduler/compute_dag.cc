@@ -1392,7 +1392,7 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
         }
         std::sort (keys.begin(), keys.end());
 
-        std::cout << "extracted " << keys.size() << std::endl;
+        //std::cout << "extracted " << keys.size() << std::endl;
 
         for (auto const &key: keys) {
             std::vector<std::vector<int>> access_mat(NUM_DIMENSIONS, std::vector<int>(NUM_VARS, 0));
