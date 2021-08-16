@@ -716,7 +716,7 @@ class SegmentSumMLPModule(torch.nn.Module):
         self.segment_encoder = TabNetNoEmbeddings(in_dim, hidden_dim, 
                                                     n_d=64,
                                                     n_a=64,
-                                                    n_steps=5,
+                                                    n_steps=7,
                                                     gamma=1.3,
                                                     n_independent=2,
                                                     n_shared=2,
@@ -804,7 +804,7 @@ class TabNetModelInternal:
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
-            "in_dim": 164 + (9 if use_workload_embedding else 0),
+            "in_dim": 164 + (10 if use_workload_embedding else 0),
             "hidden_dim": 256,
             "out_dim": 1,
         }
