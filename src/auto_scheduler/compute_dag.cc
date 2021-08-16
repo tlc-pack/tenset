@@ -1409,6 +1409,7 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
                   }
                   i++;
               }
+              std::cout << "lcombext done" << std::endl;
               for (size_t i = 0; i < NUM_DIMENSIONS; ++i)
               {
                   for (size_t j = 0; j < NUM_VARS; ++j)
