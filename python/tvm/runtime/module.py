@@ -580,13 +580,12 @@ def enabled(target):
 global encountered_mod 
 encountered_mod = defaultdict(int)
 
-@tvm.register_func("my_func_call_module_export_library")
+@tvm.register_func("auto_scheduler_feature_module_export_library")
 def call_export_library(mod, path):
 
     global encountered_mod
     encountered_mod[path] += 1
-    #mod.export_library(f"assem_models/{path}_{encountered_mod[path]}.so")
-
+    
     return mod.export_assem(f"{path}|{encountered_mod[path]}")
 
 _set_class_module(Module)
