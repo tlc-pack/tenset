@@ -1408,7 +1408,7 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
                   std::cout << "lcombext " << i << std::endl;
                   for  (auto const &ipair: lcomb.var_map) {
                     auto result = loopvar_collect.var_map.find(ipair.first);
-                    if ( result != loopvar_collect.var_map.end() and result < NUM_VARS) {
+                    if ( result != loopvar_collect.var_map.end() && loopvar_collect.var_map[ipair.first] < NUM_VARS) {
                       access_mat[i][loopvar_collect.var_map[ipair.first]] = ipair.second;
                     }
                   }
