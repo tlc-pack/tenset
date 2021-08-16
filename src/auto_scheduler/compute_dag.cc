@@ -1364,7 +1364,7 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
 
   for (const auto& op : operator->()->ops) {
     if (op->IsInstance<te::PlaceholderOpNode>()) {
-      int b = 0;
+      continue;
     } else if (auto pop = op.as<te::ComputeOpNode>()) {
       for (size_t k = 0; k < pop->body.size(); ++k) {
         std::cout << op->name << " "  << k << std::endl;
@@ -1391,7 +1391,7 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
         }
         std::sort (keys.begin(), keys.end());
 
-        std::cout << "extracted" << std::endl;
+        std::cout << "extracted " << keys.size() << std::endl;
 
         for (auto const &key: keys) {
             std::vector<std::vector<int>> access_mat(NUM_DIMENSIONS, std::vector<int>(NUM_VARS, 0));
