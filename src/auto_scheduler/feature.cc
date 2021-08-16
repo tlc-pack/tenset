@@ -1379,8 +1379,8 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
     
-    static const PackedFunc* fexport = runtime::Registry::Get("my_func_call_module_export_library");
-    static const PackedFunc* fbuild = runtime::Registry::Get("my_func_call_build");
+    static const PackedFunc* fexport = runtime::Registry::Get("auto_scheduler_feature_module_export_library");
+    static const PackedFunc* fbuild = runtime::Registry::Get("auto_scheduler_feature_build");
 
     auto rt = (*fbuild)(sch, tensors, task->target, task->target_host);
     String tsrc = (*fexport)(rt, (std::string)task->workload_key);

@@ -444,3 +444,7 @@ def build(inputs, args=None, target=None, target_host=None, name="default_functi
             return create_llvm_crt_metadata_module([rt_mod_host], target_host)
 
     return rt_mod_host
+
+@tvm.register_func("auto_scheduler_feature_build")
+def call_build(sch, args, target, target_host):
+    return build(sch, args=args, target=target, target_host=target_host)
