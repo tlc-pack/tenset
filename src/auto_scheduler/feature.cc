@@ -1394,17 +1394,19 @@ void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask&
 
   std::atomic<int> error_ct(0);
 
+  /*
   for (int i = 0; i<states.size(); i++) {
     GetPerStoreFeaturesWorkerFunc(task, states[i], max_n_bufs,
                                                         &(*features)[i], &error_ct);
   }
-  /*
+  */
+  
   support::parallel_for(skip_first_n_feature_extraction, states.size(),
                         [&task, &states, &max_n_bufs, &features, &error_ct](int i) {
                           GetPerStoreFeaturesWorkerFunc(task, states[i], max_n_bufs,
                                                         &(*features)[i], &error_ct);
                         });
-  */
+  
 }
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const std::vector<SearchTask>& tasks,
@@ -1414,18 +1416,18 @@ void GetPerStoreFeaturesFromStates(const Array<State>& states, const std::vector
   features->assign(states.size(), std::vector<float>());
 
   std::atomic<int> error_ct(0);
-
+  /*
   for (int i = 0; i<states.size(); i++) {
   GetPerStoreFeaturesWorkerFunc(tasks[i], states[i], max_n_bufs,
                                                         &(*features)[i], &error_ct);
   }
-  /*
+  */
   support::parallel_for(skip_first_n_feature_extraction, states.size(),
                         [&tasks, &states, &max_n_bufs, &features, &error_ct](int i) {
                           GetPerStoreFeaturesWorkerFunc(tasks[i], states[i], max_n_bufs,
                                                         &(*features)[i], &error_ct);
                         });
-  */
+  
 }
 
 void GetPerStoreFeaturesFromFile(const std::string& filename, int max_lines, int max_n_bufs,
