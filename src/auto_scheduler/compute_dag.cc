@@ -1343,7 +1343,7 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   LoopVarCollector loopvar_collect;
   for (const auto& op : operator->()->ops) {
     if (op->IsInstance<te::PlaceholderOpNode>()) {
-      int b = 1;
+      continue;
     } else if (auto pop = op.as<te::ComputeOpNode>()) {
 
       for (size_t i = 0; i < pop->axis.size(); i++) {
@@ -1395,6 +1395,7 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
 
         for (auto const &key: keys) {
             std::vector<std::vector<int>> access_mat(NUM_DIMENSIONS, std::vector<int>(NUM_VARS, 0));
+            std::cout << "start to read " << std::endl;
             for (auto indices : extractor.read_access[key.second]) {
               int i = 0;
               for (auto index : indices) {
