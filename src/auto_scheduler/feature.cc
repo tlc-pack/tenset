@@ -1305,19 +1305,6 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret) {
   }
   // section total : 480
 
-<<<<<<< HEAD
-=======
-}
-
-int count_frequency(std::string src, std::string pat) {
-  int occurrences = 0;
-  std::string::size_type pos = 0;
-  while ((pos = src.find(pat, pos )) != std::string::npos) {
-      ++ occurrences;
-      pos += pat.length();
-  }
-  return occurrences;
->>>>>>> a66ed2675e04d59669ff192a0e8e810c1336d611
 }
 
 void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, int max_n_bufs,

@@ -82,13 +82,10 @@ def make_model(name, use_gpu=False):
         return XGBModelInternal(use_gpu=use_gpu)
     elif name == "mlp":
         return MLPModelInternal()
-<<<<<<< HEAD
-=======
     elif name == 'lgbm':
         return LGBModelInternal(use_gpu=use_gpu)
     elif name == 'tab':
         return TabNetModelInternal(use_gpu=use_gpu)
->>>>>>> a66ed2675e04d59669ff192a0e8e810c1336d611
     elif name == "random":
         return RandomModelInternal()
     else:
