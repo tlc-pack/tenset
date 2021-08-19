@@ -141,20 +141,6 @@ class SegmentSumMLPModule(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, use_norm=False, add_sigmoid=False):
         super().__init__()
 
-<<<<<<< HEAD
-        print('building SegmentSumMLPModule.....')
-        self.segment_encoder = TabNetNoEmbeddings(in_dim, hidden_dim, 
-                                                    n_d=64,
-                                                    n_a=64,
-                                                    n_steps=5,
-                                                    gamma=1.3,
-                                                    n_independent=2,
-                                                    n_shared=2,
-                                                    epsilon=1e-15,
-                                                    virtual_batch_size=512,
-                                                    momentum=0.02,
-                                                    mask_type="entmax",)
-=======
         self.segment_encoder = torch.nn.Sequential(
             torch.nn.Linear(in_dim, hidden_dim),
             torch.nn.ReLU(),
@@ -162,7 +148,6 @@ class SegmentSumMLPModule(torch.nn.Module):
             torch.nn.ReLU(),
         )
 
->>>>>>> 04a363d6202737b6f6a7863058a172ecd0e64474
         self.add_sigmoid = add_sigmoid
 
         if use_norm:

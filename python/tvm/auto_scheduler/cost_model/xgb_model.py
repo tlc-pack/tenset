@@ -16,7 +16,7 @@
 # under the License.
 # pylint: disable=invalid-name
 
-"""Cost model based on lightgbm"""
+"""Cost model based on xgboost"""
 from collections import defaultdict
 import logging
 import multiprocessing
@@ -93,19 +93,18 @@ class XGBModelInternal:
     the (approximate) score of a program = the sum of the scores of all stages in this program.
     i.e. score(P) = score_s0 + score_s1 + ... + score_sn,
     where score_si is the score of Stage i in Program P.
-    We extract feature for each stage and let the LightGBM predict the score for each stage.
+    We extract feature for each stage and let the xgboost predict the score for each stage.
     We then sum up the predictions as the score of the whole program.
     We use RMSE as the loss function.  i.e. loss(P, y) = 1/2 * (score(P) - y)^2,
     where P is the program and y is the normalized throughput according to
     the ground truth (measurement).
-    LightGBM does not support this loss function because `score(P)` is a sum of the prediction
+    XGBoost does not support this loss function because `score(P)` is a sum of the prediction
     of several samples, so we implemented a custom loss function and call it pack-sum-rmse.
     It is called "pack-sum" because we combine several samples into a "pack" and sum up
     their predictions.
     """
     def __init__(
         self,
-        params=None,
         use_workload_embedding=True,
         use_data_argumentation=False,
         use_gpu=False,
@@ -250,14 +249,6 @@ class XGBModelInternal:
                 )
             ],
         )
-
-        feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
-            'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
-            'dense', 'softmax', 'compute(b, i, j)']
-        feature_importances = bst.feature_importance()
-        imp = sorted(list(zip(feature_importances, feature_names)))
-        #print("Feature importances: ", imp)
-
         return bst
 
     def _predict_a_dataset(self, model, dataset):
@@ -417,7 +408,6 @@ class XGBModel(PythonBasedModel):
 
     def save(self, file_name: str):
         """Save the model to a file
-
         Parameters
         ----------
         file_name: str
@@ -427,7 +417,6 @@ class XGBModel(PythonBasedModel):
 
     def load(self, file_name: str):
         """Load the model from a file
-
         Parameters
         ----------
         file_name: str
@@ -537,7 +526,7 @@ def pack_sum_predict_throughput(raw_preds, pack_ids):
 
 def pack_sum_square_error(preds, dtrain):
     """Implement square error loss on pack-sum format as
-     a custom objective function for lgbmdataset.
+     a custom objective function for xgboost.
     Parameters
     ----------
     preds: np.ndarray
@@ -548,7 +537,7 @@ def pack_sum_square_error(preds, dtrain):
     -------
     gradient: np.ndarray
     hessian: np.ndarray
-        gradient and hessian according to the lgbmdataset format
+        gradient and hessian according to the xgboost format
     """
     pack_ids = dmatrix_context.get("pack_ids", dtrain)
     weight = dtrain.get_weight()
@@ -634,7 +623,6 @@ def pack_sum_average_peak_score(N):
         return "a-peak@%d" % N, np.mean(scores)
 
     return feval
-<<<<<<< HEAD:python/tvm/auto_scheduler/cost_model/xgb_model.py
 
 
 def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
@@ -751,4 +739,3 @@ def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
             raise EarlyStopException(best_iteration)
 
     return callback
-
