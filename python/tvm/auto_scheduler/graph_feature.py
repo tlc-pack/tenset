@@ -54,7 +54,7 @@ def deserialize_graph(byte_arr, no_label=False) -> Tuple[List[Edge], List[Node],
     pairs = []
     graphs = []
     edge_feature_len = 4
-    node_feature_len = 84
+    node_feature_len = 180
 
     # unpack size vector
     offset = 0
