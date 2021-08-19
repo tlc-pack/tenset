@@ -20,7 +20,7 @@
 import os
 import ctypes
 import struct
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 
 import tvm._ffi
 from tvm._ffi.base import _LIB, check_call, c_str, string_types, _RUNTIME_ONLY
