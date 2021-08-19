@@ -1292,6 +1292,16 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret) {
   // section total : 3
 }
 
+int count_frequency(std::string src, std::string pat) {
+  int occurrences = 0;
+  std::string::size_type pos = 0;
+  while ((pos = src.find(pat, pos )) != std::string::npos) {
+      ++ occurrences;
+      pos += pat.length();
+  }
+  return occurrences;
+}
+
 void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, int max_n_bufs,
                                    std::vector<float>* feature, std::atomic<int>* error_ct) {
   te::Schedule sch;
@@ -1304,6 +1314,11 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
+<<<<<<< HEAD
+=======
+  // std::cout << task->compute_dag.PrintDAG(false) << std::endl;
+
+>>>>>>> 04a363d6202737b6f6a7863058a172ecd0e64474
   try {
     auto stmt = te::ScheduleOps(sch, bounds, false);
     Map<te::Tensor, te::Buffer> out_binds;

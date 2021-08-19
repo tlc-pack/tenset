@@ -108,6 +108,10 @@ def train_zero_shot(dataset, train_ratio, split_scheme):
         # Evaluate the model
         eval_res = evaluate_model(model, test_set)
 
+<<<<<<< HEAD
+=======
+        print(eval_res)
+>>>>>>> 04a363d6202737b6f6a7863058a172ecd0e64474
         return -1 * eval_res['RMSE']
      
     lgbBO = BayesianOptimization(lgb_eval, {'learning_rate': (0.02, 0.2),
