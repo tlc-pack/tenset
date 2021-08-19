@@ -31,7 +31,7 @@ import pickle
 import numpy as np
 
 from .search_policy import SearchPolicy, SketchPolicy, PreloadMeasuredStates
-from .cost_model import RandomModel, XGBModel, MLPModel
+from .cost_model import RandomModel, XGBModel, MLPModel, LGBModel
 from .utils import array_mean
 from .measure import ProgramMeasurer, EmptyBuilder, EmptyRunner
 from .measure_record import RecordReader
@@ -107,8 +107,6 @@ def make_search_policies(
                 )
             if few_shot_learning == 'plus_mix_task' or few_shot_learning == 'plus_per_task':
                 # load base model
-<<<<<<< HEAD
-=======
                 cost_model.load(load_model_file)
                 cost_model.model.few_shot_learning = few_shot_learning
                 dataset_file = 'tmp_dataset.pkl'
@@ -131,7 +129,6 @@ def make_search_policies(
             )
             if load_model_file and os.path.isfile(load_model_file):
                 logger.info("TaskScheduler: Load pretrained model...")
->>>>>>> Merge with MLP models (#1)
                 cost_model.load(load_model_file)
                 cost_model.model.few_shot_learning = few_shot_learning
                 dataset_file = 'tmp_dataset.pkl'

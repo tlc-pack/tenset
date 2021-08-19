@@ -1058,6 +1058,7 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
 
   ret->push_back(extractor.buffer_features.size());
 
+  //std::cout << "buffer feature size " << extractor.buffer_features.size() << std::endl;
   for (const auto& x : extractor.buffer_features) {
     const FeatureSet& fea_set = x.second;    
 
