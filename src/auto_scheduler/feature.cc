@@ -65,8 +65,8 @@ using BufferMap = std::unordered_map<Buffer, T, ObjectHash, ObjectEqual>;
 static const int ARITH_INTENSITY_CURVE_SAMPLE_N = 10;
 static const size_t NUM_DIMENSIONS = 5;
 static const size_t NUM_BUFFERS = 6;
-static const size_t NUM_VARS = 25;
-static const size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //750
+static const size_t NUM_VARS = 15;
+static const size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //450
 
 // Annotation position encoding
 enum class AnnotationPosType : int {

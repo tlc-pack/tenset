@@ -1334,8 +1334,8 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   
   size_t NUM_DIMENSIONS = 5;
   size_t NUM_BUFFERS = 6;
-  size_t NUM_VARS = 25;
-  size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //600
+  size_t NUM_VARS = 15;
+  size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //450
   size_t ct = 0;
   std::vector<int> res(LENGTH_ACCESS_FEATURES);
 
@@ -1368,19 +1368,6 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
       continue;
     } else if (auto pop = op.as<te::ComputeOpNode>()) {
       for (size_t k = 0; k < pop->body.size(); ++k) {
-        //std::cout << op->name << " "  << k << std::endl;
-        /*
-        ss << op->name << "(";
-       
-        for (size_t i = 0; i < pop->axis.size(); i++) {
-          ss << pop->axis[i]->var->name_hint;
-          if (i != pop->axis.size() - 1) {
-            ss << ", ";
-          }
-        }
-
-        ss << ")";
-        */
 
         ReadAccessExtractor extractor;
         extractor.Extract(pop->body[k]);
@@ -1392,20 +1379,13 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
         }
         std::sort (keys.begin(), keys.end());
 
-        //std::cout << "extracted " << keys.size() << std::endl;
-
         for (auto const &key: keys) {
             std::vector<std::vector<int>> access_mat(NUM_DIMENSIONS, std::vector<int>(NUM_VARS, 0));
-            //std::cout << "start to read " << std::endl;
             for (auto indices : extractor.read_access[key.second]) {
-              //std::cout << "advancing " << std::endl;
               int i = 0;
-              //std::cout << "total number " << indices.size() << std::endl;
               for (auto index : indices) {
                   LinearCombinationExtractor lcomb;
-                  //std::cout << index << std::endl;
                   lcomb.Extract(index);
-                  //std::cout << "lcombext " << i << std::endl;
                   for  (auto const &ipair: lcomb.var_map) {
                     auto result = loopvar_collect.var_map.find(ipair.first);
                     if ( result != loopvar_collect.var_map.end() && loopvar_collect.var_map[ipair.first] < NUM_VARS) {
@@ -1414,7 +1394,6 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
                   }
                   i++;
               }
-              //std::cout << "lcombext done" << std::endl;
               for (size_t i = 0; i < NUM_DIMENSIONS; ++i)
               {
                   for (size_t j = 0; j < NUM_VARS; ++j)
@@ -1426,16 +1405,11 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
               }
               break;
             }
-            //std::cout << "read finished" << std::endl;
       }
       }
     }
   }
-
-  //std::cout << "end" << std::endl;
-  //ss << "Feature Vector: ";
-  //for (int i : res) ss << i << " ";
-  //String _ret = String(ss.str());
+  
   return res;
 }
 
