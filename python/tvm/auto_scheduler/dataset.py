@@ -238,7 +238,6 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             throughputs = {}
             min_latency = {}
             for task, (inputs, results) in measure_records.items():
-                print(task)
                 features_, normalized_throughputs, task_ids, min_latency_ =\
                     get_per_store_features_from_measure_pairs(inputs, results)
 
@@ -256,7 +255,6 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             pickle.dump((features, throughputs, min_latency), open(cache_file, "wb"))
 
         for task in features:
-            #print(task)
             dataset.load_task_data(task, features[task], throughputs[task], min_latency[task])
 
     # Delete task with too few samples
