@@ -71,7 +71,7 @@ class GraphModel(PythonBasedModel):
             'batch_size': 128,
             'itr_num': 1000,
             'lr':  0.01,
-            'hidden_dim': 20,
+            'hidden_dim': 32,
             'node_fea': 146,
             'edge_fea': 4,
         }
@@ -118,7 +118,7 @@ class GraphModel(PythonBasedModel):
         train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
 
         self.graphNN = graphNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float().cuda()
-        opt = torch.optim.Adam(self.graphNN.parameters(), lr=self.params['lr'])
+        opt = torch.optim.SGD(self.graphNN.parameters(), lr=self.params['lr'])
         scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.99)
         n = len(train_batched_graphs)
         loss_func = torch.nn.MSELoss()
@@ -133,9 +133,10 @@ class GraphModel(PythonBasedModel):
             for i in range(n):
                 opt.zero_grad()
                 prediction = self.graphNN(train_batched_graphs[i])
-                loss = loss_func(prediction, torch.log(train_batched_labels[i].unsqueeze(1).cuda()))
+                loss = torch.sqrt(loss_func(prediction, train_batched_labels[i].unsqueeze(1).cuda())) #loss_func(prediction, torch.log(train_batched_labels[i].unsqueeze(1).cuda()))
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.graphNN.parameters(), 10)
                 opt.step()
                 preds = preds + prediction.squeeze().cpu().tolist()
                 labels = labels + train_batched_labels[i].squeeze().cpu().tolist()
