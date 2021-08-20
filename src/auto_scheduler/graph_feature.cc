@@ -340,7 +340,7 @@ class NodeGather : public StmtExprVisitor {
         //vectype
         newNode.feature[i++] = slog(feature.unroll_num);
         newNode.feature[i++] = slog(feature.unroll_prod);
-        //newNode.feature[i++] = slog(feature.unroll_len);
+        newNode.feature[i++] = slog(feature.unroll_len);
         //unroll_type
         newNode.feature[i++] = slog(feature.parallel_num);
         newNode.feature[i++] = slog(feature.parallel_prod);

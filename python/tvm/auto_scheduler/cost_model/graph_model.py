@@ -43,6 +43,8 @@ class graphNN(torch.nn.Module):
 
         if len(nans[0]) != 0:
             print(nans)
+        
+        g.ndata['fea'] = torch.nan_to_num(g.ndata['fea'])
         # print(g.ndata['fea'])
         h = F.relu(self.conv1(g, g.ndata['fea']))
         h = F.relu(self.conv2(g, h))
