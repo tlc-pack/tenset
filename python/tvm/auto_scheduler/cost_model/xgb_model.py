@@ -145,7 +145,6 @@ class XGBModelInternal:
             "verbosity": 0,
             "seed": seed or 43,
             "disable_default_eval_metric": 1,
-            "objective": pack_sum_square_error
         }
 
         # gpu support
@@ -250,13 +249,6 @@ class XGBModelInternal:
                 )
             ],
         )
-        feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
-            'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
-            'dense', 'softmax', 'compute(b, i, j)']
-        feature_importances = bst.feature_importance()
-        imp = sorted(list(zip(feature_importances, feature_names)))
-        #print("Feature importances: ", imp)
-
         return bst
 
     def _predict_a_dataset(self, model, dataset):
@@ -416,7 +408,6 @@ class XGBModel(PythonBasedModel):
 
     def save(self, file_name: str):
         """Save the model to a file
-
         Parameters
         ----------
         file_name: str
@@ -426,7 +417,6 @@ class XGBModel(PythonBasedModel):
 
     def load(self, file_name: str):
         """Load the model from a file
-
         Parameters
         ----------
         file_name: str
@@ -550,10 +540,7 @@ def pack_sum_square_error(preds, dtrain):
         gradient and hessian according to the xgboost format
     """
     pack_ids = dmatrix_context.get("pack_ids", dtrain)
-    weight = [] #dtrain.get_weight()
-
-    #print(pack_ids.shape)
-    print(preds.shape)
+    weight = dtrain.get_weight()
 
     sum_pred = np.bincount(pack_ids, weights=preds)
     x = sum_pred[pack_ids]
@@ -752,4 +739,3 @@ def custom_callback(stopping_rounds, metric, fevals, evals=(), log_file=None,
             raise EarlyStopException(best_iteration)
 
     return callback
-
