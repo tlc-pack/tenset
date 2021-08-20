@@ -41,8 +41,8 @@ class graphNN(torch.nn.Module):
         # Apply graph convolution and activation.
         nans = (torch.where(torch.isnan(g.ndata['fea'])))
 
-        if len(nans[0]) != 0:
-            print(nans)
+        #if len(nans[0]) != 0:
+        #    print(nans)
         
         g.ndata['fea'] = torch.nan_to_num(g.ndata['fea'])
         # print(g.ndata['fea'])
