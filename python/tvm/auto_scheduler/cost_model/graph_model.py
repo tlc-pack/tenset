@@ -39,6 +39,7 @@ class graphNN(torch.nn.Module):
 
     def forward(self, g):
         # Apply graph convolution and activation.
+        g = dgl.add_self_loop(g)
         h = F.relu(self.conv1(g, g.ndata['fea']))
         h = F.relu(self.conv2(g, h))
         with g.local_scope():
