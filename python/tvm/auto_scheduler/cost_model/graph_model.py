@@ -45,8 +45,10 @@ class graphNN(torch.nn.Module):
 
     def forward(self, g):
         with g.local_scope():
-            g.update_all(self.message_func, fn.sum('mid', 'h_neigh'))
+            #g.update_all(self.message_func, fn.sum('mid', 'h_neigh'))
             #print(g)
+            print(g.ndata['fea'], g.ndata['h_neigh'])
+            print(g.ndata['fea'].size(), g.ndata['h_neigh'].size())
             h = F.relu(self.conv1(g, torch.cat([g.ndata['fea'], g.ndata['h_neigh']], 1)))
             #print(h.size())
             h = F.relu(self.conv2(g, h))
@@ -58,7 +60,7 @@ class graphNN(torch.nn.Module):
             hg = dgl.mean_nodes(g, 'h')
             hg = self.predict(hg)
 
-            print(torch.where(torch.isnan(hg)))
+            #print(torch.where(torch.isnan(hg)))
 
             #assert(False)
             return hg
