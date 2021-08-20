@@ -287,17 +287,17 @@ class NodeGather : public StmtExprVisitor {
         
         FeatureSet feature;
         // Group 1: Computation related features
-        ExtractComputationFeature(node, math_op_counter, &feature);
+        ExtractComputationFeature(node, math_op_counter, feature);
 
         // Group 2: Buffer access related features (per buffer)
         ExtractBufferAccessFeature(node, math_op_counter, &cur_compute_ops, &compute_ops_list,
-                                  &mem_bytes_list, &feature);
+                                  &mem_bytes_list, feature);
 
         // Group 3: Arithmetic intensity related features
-        ExtractArithmeticIntensityFeature(node, cur_compute_ops, compute_ops_list, mem_bytes_list, &feature);
+        ExtractArithmeticIntensityFeature(node, cur_compute_ops, compute_ops_list, mem_bytes_list, feature);
 
         // Group 4: Allocation related features
-        ExtractOuterScopeFeature(node, &feature);
+        ExtractOuterScopeFeature(node, feature);
 
         std::vector<std::pair<float, float> > buf_order_key;
         for (const auto& acc_fea : feature.access_feas) {
