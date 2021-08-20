@@ -33,13 +33,12 @@ def compute_rmse(preds, labels):
 class graphNN(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim):
         super(graphNN, self).__init__()
-        self.conv1 = dglnn.GraphConv(node_dim, hidden_dim)
-        self.conv2 = dglnn.GraphConv(hidden_dim, hidden_dim)
+        self.conv1 = dglnn.TAGConv(node_dim, hidden_dim)
+        self.conv2 = dglnn.TAGConv(hidden_dim, hidden_dim)
         self.classify = torch.nn.Linear(hidden_dim, 1)
 
     def forward(self, g):
         # Apply graph convolution and activation.
-        g = dgl.add_self_loop(g)
         h = F.relu(self.conv1(g, g.ndata['fea']))
         h = F.relu(self.conv2(g, h))
         with g.local_scope():
