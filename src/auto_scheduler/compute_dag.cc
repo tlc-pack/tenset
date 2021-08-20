@@ -1333,9 +1333,9 @@ std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
   //std::stringstream ss;
   
   size_t NUM_DIMENSIONS = 5;
-  size_t NUM_BUFFERS = 6;
+  size_t NUM_BUFFERS = 5;
   size_t NUM_VARS = 10;
-  size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //300
+  size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //250
   size_t ct = 0;
   std::vector<int> res(LENGTH_ACCESS_FEATURES);
 

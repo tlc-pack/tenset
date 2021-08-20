@@ -64,9 +64,9 @@ using BufferMap = std::unordered_map<Buffer, T, ObjectHash, ObjectEqual>;
 // The number of samples to extract for arithmetic intensity curves
 static const int ARITH_INTENSITY_CURVE_SAMPLE_N = 10;
 static const size_t NUM_DIMENSIONS = 5;
-static const size_t NUM_BUFFERS = 6;
+static const size_t NUM_BUFFERS = 5;
 static const size_t NUM_VARS = 10;
-static const size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //300
+static const size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //250
 
 // Annotation position encoding
 enum class AnnotationPosType : int {
