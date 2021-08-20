@@ -339,21 +339,21 @@ class NodeGather : public StmtExprVisitor {
         newNode.feature[i++] = slog(feature.vec_len);
         //vectype
         newNode.feature[i++] = slog(feature.unroll_num);
-        newNode.feature[i++] = slog(feature.vec_prod);
-        newNode.feature[i++] = slog(feature.vec_len);
-        //unroll_type
-        newNode.feature[i++] = slog(feature.unroll_num);
         newNode.feature[i++] = slog(feature.unroll_prod);
         newNode.feature[i++] = slog(feature.unroll_len);
-        //parallel_type
+        //unroll_type
         newNode.feature[i++] = slog(feature.parallel_num);
         newNode.feature[i++] = slog(feature.parallel_prod);
         newNode.feature[i++] = slog(feature.parallel_len);
+        //parallel_type
+        newNode.feature[i++] = feature.is_gpu;
         newNode.feature[i++] = slog(feature.blockIdx_x_len);
         newNode.feature[i++] = slog(feature.blockIdx_y_len);
         newNode.feature[i++] = slog(feature.blockIdx_z_len);
         newNode.feature[i++] = slog(feature.threadIdx_x_len);
         newNode.feature[i++] = slog(feature.threadIdx_y_len);
+        newNode.feature[i++] = slog(feature.threadIdx_z_len);
+        newNode.feature[i++] = slog(feature.vthread_len);
 
         for (int idx = 0; idx < ARITH_INTENSITY_CURVE_SAMPLE_N; idx++){
           newNode.feature[i++] = feature.arith_intensity_curve[idx];
