@@ -360,7 +360,7 @@ class NodeGather : public StmtExprVisitor {
         }
 
         //std::cout << "i here: " << i << std::endl;
-        newNode.feature[i++] = slog(feature.alloc_size);
+        //newNode.feature[i++] = slog(feature.alloc_size);
 
         newNode.feature[i++] = slog(feature.outer_prod);
         newNode.feature[i++] = slog(feature.num_loops);
