@@ -600,12 +600,12 @@ class NodeGather : public StmtExprVisitor {
     buf_extractor.ExtractReads(node->value);
 
     // Compute touched region for all outer loops
-    for (auto x : for_loop_stack__) {
+    for (auto x : for_loop_stack_) {
       ana_.Bind(x->loop_var, Range::FromMinExtent(x->min, 1), true);
     }
 
-    mem_bytes_list->reserve(for_loop_stack__.size());
-    compute_ops_list->reserve(for_loop_stack__.size());
+    mem_bytes_list->reserve(for_loop_stack_.size());
+    compute_ops_list->reserve(for_loop_stack_.size());
 
     *cur_compute_ops = math_op_counter.float_mad + math_op_counter.float_addsub +
                        math_op_counter.float_mul + math_op_counter.float_divmod +
@@ -613,11 +613,11 @@ class NodeGather : public StmtExprVisitor {
                        math_op_counter.float_other_func;
 
     std::vector<int> tmp_region;
-    for (int i = static_cast<int>(for_loop_stack__.size()) - 1; i >= 0; i--) {
-      const ForNode* p_for = for_loop_stack__[i];
+    for (int i = static_cast<int>(for_loop_stack_.size()) - 1; i >= 0; i--) {
+      const ForNode* p_for = for_loop_stack_[i];
 
       ana_.Bind(p_for->loop_var,
-                Range::FromMinExtent(for_loop_stack__[i]->min, for_loop_stack__[i]->extent), true);
+                Range::FromMinExtent(for_loop_stack_[i]->min, for_loop_stack_[i]->extent), true);
 
       // Note, here we do overwrite.
       // So if there are multiple BufferStoreNode, the last one will overwrite the first few.
@@ -638,7 +638,7 @@ class NodeGather : public StmtExprVisitor {
       }
 
       mem_bytes_list->push_back(std::log2(mem_bytes));
-      *cur_compute_ops *= GetLoopExtent(for_loop_stack__[i]);
+      *cur_compute_ops *= GetLoopExtent(for_loop_stack_[i]);
       compute_ops_list->push_back(std::log2(*cur_compute_ops));
     }
 
@@ -663,25 +663,25 @@ class NodeGather : public StmtExprVisitor {
       float lines;
       float unique_lines;
 
-      if (for_loop_stack__.empty()) {
+      if (for_loop_stack_.empty()) {
         unique_bytes = ele_bytes;
         stride = 0;
         lines = 1.0f;
         unique_lines = 1.0f;
       } else {
         unique_bytes =
-            std::get<1>(for_touch_regions_[for_loop_stack__.front()][t].front()) * ele_bytes;
+            std::get<1>(for_touch_regions_[for_loop_stack_.front()][t].front()) * ele_bytes;
 
         stride = 0;
         int64_t reduce_ratio = 1;
 
         int i;
-        for (i = static_cast<int>(for_loop_stack__.size()) - 1; i >= 0; i--) {
-          stride = ComputeStride(acc.indices, int_shape, for_loop_stack__[i]->loop_var.get());
+        for (i = static_cast<int>(for_loop_stack_.size()) - 1; i >= 0; i--) {
+          stride = ComputeStride(acc.indices, int_shape, for_loop_stack_[i]->loop_var.get());
           if (stride != 0) {
             break;
           }
-          reduce_ratio *= GetLoopExtent(for_loop_stack__.back());
+          reduce_ratio *= GetLoopExtent(for_loop_stack_.back());
         }
 
         lines = outer_loop_prod_ / reduce_ratio *
@@ -689,7 +689,7 @@ class NodeGather : public StmtExprVisitor {
         lines = std::max(lines, 1.0f);
 
         // convert `stride` back to the stride of the innermost iterator
-        stride = (i == static_cast<int>(for_loop_stack__.size()) - 1 ? stride : 0);
+        stride = (i == static_cast<int>(for_loop_stack_.size()) - 1 ? stride : 0);
 
         float n_continuous = ele_bytes;
         for (int i = std::min(static_cast<int>(tmp_region.size()) - 1,
@@ -707,7 +707,7 @@ class NodeGather : public StmtExprVisitor {
       ReuseType reuse_type;
       float reuse_dis_iter, reuse_dis_bytes, reuse_ct;
       std::tie(reuse_type, reuse_dis_iter, reuse_dis_bytes, reuse_ct) =
-          ComputeReuse(t, acc.indices, for_loop_stack__, for_touch_regions_);
+          ComputeReuse(t, acc.indices, for_loop_stack_, for_touch_regions_);
 
       acc_feas.emplace_back();
       BufferAccessFeature& acc_fea = acc_feas.back();
@@ -793,7 +793,7 @@ class NodeGather : public StmtExprVisitor {
   void ExtractOuterScopeFeature(const BufferStoreNode* node, FeatureSet& fea) {
 
     fea.outer_prod = outer_loop_prod_;
-    fea.num_loops = for_loop_stack__.size();
+    fea.num_loops = for_loop_stack_.size();
     fea.auto_unroll_max_step = cur_auto_unroll_max_step_;
   }
 
@@ -813,8 +813,10 @@ class NodeGather : public StmtExprVisitor {
   std::vector<const ForNode*> unroll_for_stack_;
 
   std::unordered_map<const ForNode*, BufferMap<std::vector<
-  std::tuple<BufferAccessType, int64_t, int> > > > for_touch_regions;
+  std::tuple<BufferAccessType, int64_t, int> > > > for_touch_regions_;
   private:
+    // The shared arithmetic analyzer
+    Analyzer ana_;
     const int cache_line_size_ = 64;
     // The product of outer loop
     float outer_loop_prod_ = 1.0f;
