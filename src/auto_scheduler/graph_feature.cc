@@ -359,11 +359,8 @@ class NodeGather : public StmtExprVisitor {
           newNode.feature[i++] = feature.arith_intensity_curve[idx];
         }
 
-        std::cout << "i here: " << i << std::endl;
+        //std::cout << "i here: " << i << std::endl;
         newNode.feature[i++] = slog(feature.alloc_size);
-        newNode.feature[i++] = slog(feature.alloc_outer_prod);
-        newNode.feature[i++] = slog(feature.alloc_inner_prod);
-        newNode.feature[i++] = slog(feature.alloc_prod);
 
         newNode.feature[i++] = slog(feature.outer_prod);
         newNode.feature[i++] = slog(feature.num_loops);
