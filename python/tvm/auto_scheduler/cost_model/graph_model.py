@@ -34,9 +34,9 @@ class graphNN(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim):
         super(graphNN, self).__init__()
         self.msg = torch.nn.Linear(node_dim + edge_dim, hidden_dim)
-        self.conv1 = dglnn.TAGConv(hidden_dim + node_dim, hidden_dim)
-        self.conv2 = dglnn.TAGConv(hidden_dim, hidden_dim)
-        self.conv3 = dglnn.TAGConv(hidden_dim, hidden_dim)
+        self.conv1 = dglnn.SAGEConv(hidden_dim + node_dim, hidden_dim, 'mean')
+        self.conv2 = dglnn.SAGEConv(hidden_dim, hidden_dim, 'mean')
+        self.conv3 = dglnn.SAGEConv(hidden_dim, hidden_dim, 'mean')
 
         self.predict = torch.nn.Linear(hidden_dim, 1)
 
@@ -48,19 +48,19 @@ class graphNN(torch.nn.Module):
             g.update_all(self.message_func, fn.sum('mid', 'h_neigh'))
             print(g)
             h = F.relu(self.conv1(g, torch.cat([g.ndata['fea'], g.ndata['h_neigh']], 1)))
-            print(h)
+            print(h.size())
             h = F.relu(self.conv2(g, h))
-            print(h)
+            print(h.size())
             h = F.relu(self.conv3(g, h))
-            print(h)
+            print(h.size())
 
             g.ndata['h'] = h
             hg = dgl.mean_nodes(g, 'h')
             hg = self.predict(hg)
 
-            print(hg)
+            print(hg.size())
 
-            assert(False)
+            #assert(False)
             return hg
 
 
