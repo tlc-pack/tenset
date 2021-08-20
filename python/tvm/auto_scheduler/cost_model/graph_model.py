@@ -159,7 +159,9 @@ class GraphModel(PythonBasedModel):
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.graphNN.parameters(), 10)
                 opt.step()
-                preds = preds + prediction.squeeze().cpu().tolist()
+                pred = prediction.squeeze().cpu().tolist()
+                if type(pred) is float: pred = [pred]
+                preds = preds + pred
                 labels = labels + train_batched_labels[i].squeeze().cpu().tolist()
             epoch_loss = compute_rmse(np.exp(np.array(preds)), np.array(labels))
             #print("Time spent in last epoch: %.2f" % (time.time() - tic))
