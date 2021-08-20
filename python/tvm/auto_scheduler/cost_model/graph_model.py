@@ -58,7 +58,7 @@ class graphNN(torch.nn.Module):
             hg = dgl.mean_nodes(g, 'h')
             hg = self.predict(hg)
 
-            #print(hg.size())
+            print(torch.where(torch.isnan(hg)))
 
             #assert(False)
             return hg
