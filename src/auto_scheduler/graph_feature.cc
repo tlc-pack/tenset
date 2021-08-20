@@ -182,9 +182,9 @@ int64_t GetLoopMin(const ForNode* node) {
   }
 }
 
-inline float slog(float x) {
-  return slog(slog(x));
-}
+//inline float slog(float x) {
+//  return slog(slog(x));
+//}
 
 
 class NodeGather : public StmtExprVisitor {
