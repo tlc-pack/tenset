@@ -64,7 +64,7 @@ class GraphModel(PythonBasedModel):
             'itr_num': 1000,
             'lr':  0.01,
             'hidden_dim': 20,
-            'node_fea': 84,
+            'node_fea': 146,
             'edge_fea': 4,
         }
 
