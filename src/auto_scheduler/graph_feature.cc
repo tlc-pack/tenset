@@ -540,40 +540,40 @@ class NodeGather : public StmtExprVisitor {
     fea.vec_len = fea.unroll_len = fea.parallel_len = 0.0f;
     fea.vec_type = fea.unroll_type = fea.parallel_type = AnnotationPosType::kPosNone;
 
-    fea.vec_num = vec_for_stack__.size();
-    if (!vec_for_stack__.empty()) {
-      fea.vec_len = GetLoopExtent(vec_for_stack__.back());
+    fea.vec_num = vec_for_stack_.size();
+    if (!vec_for_stack_.empty()) {
+      fea.vec_len = GetLoopExtent(vec_for_stack_.back());
       fea.vec_prod = 1.0;
-      for (const ForNode* pfor : vec_for_stack__) {
+      for (const ForNode* pfor : vec_for_stack_) {
         fea.vec_prod *= GetLoopExtent(pfor);
       }
       fea.vec_type = AnnotationPosType::kPosMixed;
       // todo(merrymercy): this feature requires operation (tvm.compute) information
-      // GetAnnotationPosEncoding(vec_for_stack__.back()->loop_var,
+      // GetAnnotationPosEncoding(vec_for_stack_.back()->loop_var,
       // node->args, pcompute->axis, pcompute->reduce_axis);
     }
 
-    fea.unroll_num = unroll_for_stack__.size();
-    if (!unroll_for_stack__.empty()) {
-      fea.unroll_len = GetLoopExtent(unroll_for_stack__.back());
+    fea.unroll_num = unroll_for_stack_.size();
+    if (!unroll_for_stack_.empty()) {
+      fea.unroll_len = GetLoopExtent(unroll_for_stack_.back());
       fea.unroll_prod = 1.0;
-      for (const ForNode* pfor : unroll_for_stack__) {
+      for (const ForNode* pfor : unroll_for_stack_) {
         fea.unroll_prod *= GetLoopExtent(pfor);
       }
       fea.unroll_type = AnnotationPosType::kPosMixed;
-      // GetAnnotationPosEncoding(unroll_for_stack__.back()->loop_var,
+      // GetAnnotationPosEncoding(unroll_for_stack_.back()->loop_var,
       // node->args, pcompute->axis, pcompute->reduce_axis);
     }
 
-    fea.parallel_num = parallel_for_stack__.size();
-    if (!parallel_for_stack__.empty()) {
-      fea.parallel_len = GetLoopExtent(parallel_for_stack__.back());
+    fea.parallel_num = parallel_for_stack_.size();
+    if (!parallel_for_stack_.empty()) {
+      fea.parallel_len = GetLoopExtent(parallel_for_stack_.back());
       fea.parallel_prod = 1.0;
-      for (const ForNode* pfor : parallel_for_stack__) {
+      for (const ForNode* pfor : parallel_for_stack_) {
         fea.parallel_prod *= GetLoopExtent(pfor);
       }
       fea.parallel_type = AnnotationPosType::kPosMixed;
-      // GetAnnotationPosEncoding(parallel_for_stack__.back()->loop_var,
+      // GetAnnotationPosEncoding(parallel_for_stack_.back()->loop_var,
       // node->args, pcompute->axis, pcompute->reduce_axis);
     }
 
