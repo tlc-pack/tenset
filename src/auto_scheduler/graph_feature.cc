@@ -356,7 +356,7 @@ class NodeGather : public StmtExprVisitor {
         newNode.feature[i++] = slog(feature.float_mad);
 
         for (int idx = 0; idx < ARITH_INTENSITY_CURVE_SAMPLE_N; idx++){
-          newNode.feature[i++] = slog(feature.arith_intensity_curve[idx]);
+          newNode.feature[i++] = feature.arith_intensity_curve[idx];
         }
 
         newNode.feature[i++] = slog(feature.alloc_size);
