@@ -33,6 +33,23 @@ def compute_rmse(preds, labels):
 class graphNN(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim):
         super(graphNN, self).__init__()
+        self.conv1 = dglnn.GraphConv(node_dim, hidden_dim)
+        self.conv2 = dglnn.GraphConv(hidden_dim, hidden_dim)
+        self.classify = torch.nn.Linear(hidden_dim, 1)
+
+    def forward(self, g):
+        # Apply graph convolution and activation.
+        h = F.relu(self.conv1(g, g.ndata['fea']))
+        h = F.relu(self.conv2(g, h))
+        with g.local_scope():
+            g.ndata['h'] = h
+            # Calculate graph representation by average readout.
+            hg = dgl.mean_nodes(g, 'h')
+            return self.classify(hg)
+
+class _graphNN(torch.nn.Module):
+    def __init__(self, node_dim, edge_dim, hidden_dim):
+        super(_graphNN, self).__init__()
         self.msg = torch.nn.Linear(node_dim + edge_dim, hidden_dim)
         self.conv1 = dglnn.SAGEConv(hidden_dim + node_dim, hidden_dim, 'mean')
         self.conv2 = dglnn.SAGEConv(hidden_dim, hidden_dim, 'mean')
