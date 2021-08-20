@@ -404,7 +404,7 @@ class NodeGather : public StmtExprVisitor {
           newNode.feature[i++] = 0.0f; newNode.feature[i++] = 0.0f; newNode.feature[i++] = 0.0f; newNode.feature[i++] = 0.0f;
         }
 
-        std::cout << "i: " << i << std::endl;
+        //std::cout << "i: " << i << std::endl;
 
         }
           if (primExprType != 3) {
