@@ -182,7 +182,7 @@ int64_t GetLoopMin(const ForNode* node) {
   }
 }
 
-inline float slog2(float x) {
+inline float slog(float x) {
   return slog(slog(x));
 }
 
@@ -239,8 +239,8 @@ class NodeGather : public StmtExprVisitor {
       newNode.feature[primExprType+1] = 1;
       if (primExprType == 3) {
         
-        newNode.feature[35] = slog2(forExtent);
-        newNode.feature[36] = slog2(forMin);
+        newNode.feature[35] = slog(forExtent);
+        newNode.feature[36] = slog(forMin);
         newNode.feature[37+forKind] = 1;
 
         const ForNode* node = n.as<ForNode>();
@@ -318,77 +318,77 @@ class NodeGather : public StmtExprVisitor {
 
         int i = 42;
 
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
         //vectype
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
         //unroll_type
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
         //parallel_type
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
-        newNode.feature[i++] = slog2(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
+        newNode.feature[i++] = slog(feature.float_mad);
 
         for (int idx = 0; idx < ARITH_INTENSITY_CURVE_SAMPLE_N; idx++){
-          newNode.feature[i++] = slog2(feature.arith_intensity_curve[idx]);
+          newNode.feature[i++] = slog(feature.arith_intensity_curve[idx]);
         }
 
-        newNode.feature[i++] = slog2(feature.alloc_size);
-        newNode.feature[i++] = slog2(feature.alloc_outer_prod);
-        newNode.feature[i++] = slog2(feature.alloc_inner_prod);
-        newNode.feature[i++] = slog2(feature.alloc_prod);
+        newNode.feature[i++] = slog(feature.alloc_size);
+        newNode.feature[i++] = slog(feature.alloc_outer_prod);
+        newNode.feature[i++] = slog(feature.alloc_inner_prod);
+        newNode.feature[i++] = slog(feature.alloc_prod);
 
-        newNode.feature[i++] = slog2(feature.outer_prod);
-        newNode.feature[i++] = slog2(feature.num_loops);
-        newNode.feature[i++] = slog2(feature.auto_unroll_max_step);
+        newNode.feature[i++] = slog(feature.outer_prod);
+        newNode.feature[i++] = slog(feature.num_loops);
+        newNode.feature[i++] = slog(feature.auto_unroll_max_step);
 
         for (int idx : buf_order) {
           const auto& acc_fea = feature.access_feas[idx];
           for (int j = 0; j <= (int)BufferAccessType::kReadWrite; ++j) {
             newNode.feature[i++] = (j == (int)acc_fea.acc_type);
           }
-          newNode.feature[i++] = slog2(acc_fea.bytes);
-          newNode.feature[i++] = slog2(acc_fea.unique_bytes);
-          newNode.feature[i++] = slog2(acc_fea.lines);
-          newNode.feature[i++] = slog2(acc_fea.unique_lines);
+          newNode.feature[i++] = slog(acc_fea.bytes);
+          newNode.feature[i++] = slog(acc_fea.unique_bytes);
+          newNode.feature[i++] = slog(acc_fea.lines);
+          newNode.feature[i++] = slog(acc_fea.unique_lines);
           for (int j = 0; j <= (int)ReuseType::kNoReuse; ++j) {
             newNode.feature[i++] = ((int)acc_fea.reuse_type == j);
           }
 
-          newNode.feature[i++] = slog2(acc_fea.reuse_dis_iter);
-          newNode.feature[i++] = slog2(acc_fea.reuse_dis_bytes);
-          newNode.feature[i++] = slog2(acc_fea.reuse_ct);
-          newNode.feature[i++] = slog2(acc_fea.bytes_d_reuse_ct);
-          newNode.feature[i++] = slog2(acc_fea.unique_bytes_d_reuse_ct);
-          newNode.feature[i++] = slog2(acc_fea.lines_d_reuse_ct);
-          newNode.feature[i++] = slog2(acc_fea.unique_lines_d_reuse_ct);
-          newNode.feature[i++] = slog2(acc_fea.stride);
+          newNode.feature[i++] = slog(acc_fea.reuse_dis_iter);
+          newNode.feature[i++] = slog(acc_fea.reuse_dis_bytes);
+          newNode.feature[i++] = slog(acc_fea.reuse_ct);
+          newNode.feature[i++] = slog(acc_fea.bytes_d_reuse_ct);
+          newNode.feature[i++] = slog(acc_fea.unique_bytes_d_reuse_ct);
+          newNode.feature[i++] = slog(acc_fea.lines_d_reuse_ct);
+          newNode.feature[i++] = slog(acc_fea.unique_lines_d_reuse_ct);
+          newNode.feature[i++] = slog(acc_fea.stride);
 
         }
         // - fill padding
@@ -502,10 +502,10 @@ class NodeGather : public StmtExprVisitor {
       newNode.feature[primExprType+1] = 1;
 
       if (primExprType == 25) {
-        newNode.feature[41] = slog2(n.as<IntImmNode>()->value);
+        newNode.feature[41] = slog(n.as<IntImmNode>()->value);
       }
       if (primExprType == 26) {
-        newNode.feature[41] = slog2(n.as<FloatImmNode>()->value);
+        newNode.feature[41] = slog(n.as<FloatImmNode>()->value);
       }
       node_list.push_back(newNode);
       node_to_index[n.get()] = count;
