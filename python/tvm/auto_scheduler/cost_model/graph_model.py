@@ -57,6 +57,10 @@ class graphNN(torch.nn.Module):
             g.ndata['h'] = h
             hg = dgl.mean_nodes(g, 'h')
             hg = self.predict(hg)
+
+            print(hg)
+
+            assert(False)
             return hg
 
 
