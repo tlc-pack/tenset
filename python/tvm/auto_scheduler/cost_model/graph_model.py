@@ -40,7 +40,7 @@ class graphNN(torch.nn.Module):
     def forward(self, g):
         # Apply graph convolution and activation.
         print(torch.where(torch.isnan(g.ndata['fea'])))
-        print(g.ndata['fea'])
+        # print(g.ndata['fea'])
         h = F.relu(self.conv1(g, g.ndata['fea']))
         h = F.relu(self.conv2(g, h))
         with g.local_scope():
@@ -89,7 +89,7 @@ class GraphModel(PythonBasedModel):
 
     def __init__(self):
         self.params = {
-            'batch_size': 16,
+            'batch_size': 1,
             'itr_num': 1000,
             'lr':  0.01,
             'hidden_dim': 32,
