@@ -369,7 +369,7 @@ class NodeGather : public StmtExprVisitor {
         newNode.feature[i++] = slog2(feature.auto_unroll_max_step);
 
         for (int idx : buf_order) {
-          const auto& acc_fea = acc_feas[idx];
+          const auto& acc_fea = feature.access_feas[idx];
           for (int j = 0; j <= (int)BufferAccessType::kReadWrite; ++j) {
             newNode.feature[i++] = (j == (int)acc_fea.acc_type);
           }
@@ -816,6 +816,18 @@ class NodeGather : public StmtExprVisitor {
   std::tuple<BufferAccessType, int64_t, int> > > > for_touch_regions;
   private:
     const int cache_line_size_ = 64;
+    // The product of outer loop
+    float outer_loop_prod_ = 1.0f;
+    // GPU-related features
+    bool is_gpu_{false};
+    int blockIdx_x_len_{1};
+    int block_idx_y_len_{1};
+    int block_idx_z_len_{1};
+    int threadIdx_x_len_{1};
+    int thread_idx_y_len_{1};
+    int thread_idx_z_len_{1};
+    int vthread_len_{1};
+    int16_t cur_auto_unroll_max_step_{0};
 
 };
 
