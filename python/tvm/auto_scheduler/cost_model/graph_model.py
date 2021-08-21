@@ -30,11 +30,12 @@ def compute_rmse(preds, labels):
     """Compute RMSE (Rooted mean square error)"""
     return np.sqrt(np.mean(np.square(preds - labels)))
 
-class _graphNN(torch.nn.Module):
+class GNN(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim):
-        super(_graphNN, self).__init__()
+        super(GNN, self).__init__()
         self.conv1 = dglnn.TAGConv(node_dim, hidden_dim)
         self.conv2 = dglnn.TAGConv(hidden_dim, hidden_dim)
+        self.conv3 = dglnn.TAGConv(hidden_dim, hidden_dim)
         self.classify = torch.nn.Linear(hidden_dim, 1)
 
     def forward(self, g):
@@ -48,19 +49,20 @@ class _graphNN(torch.nn.Module):
         # print(g.ndata['fea'])
         h = F.relu(self.conv1(g, g.ndata['fea']))
         h = F.relu(self.conv2(g, h))
+        h = F.relu(self.conv3(g, h))
         with g.local_scope():
             g.ndata['h'] = h
             # Calculate graph representation by average readout.
             hg = dgl.mean_nodes(g, 'h')
             return self.classify(hg)
 
-class GNN(torch.nn.Module):
+class _GNN(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim):
-        super(GNN, self).__init__()
+        super(_GNN, self).__init__()
         self.msg = torch.nn.Linear(node_dim + edge_dim, hidden_dim)
-        self.conv1 = dglnn.SAGEConv(hidden_dim + node_dim, hidden_dim, 'mean')
-        self.conv2 = dglnn.SAGEConv(hidden_dim, hidden_dim, 'mean')
-        self.conv3 = dglnn.SAGEConv(hidden_dim, hidden_dim, 'mean')
+        self.conv1 = dglnn.TAGConv(hidden_dim + node_dim, hidden_dim)
+        self.conv2 = dglnn.TAGConv(hidden_dim, hidden_dim)
+        self.conv3 = dglnn.TAGConv(hidden_dim, hidden_dim)
 
         self.predict = torch.nn.Linear(hidden_dim, 1)
 
