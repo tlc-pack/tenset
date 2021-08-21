@@ -69,9 +69,11 @@ class GNN(torch.nn.Module):
 
     def forward(self, g):
         with g.local_scope():
-            g.update_all(self.message_func, fn.sum('mid', 'h_neigh'))
             g.ndata['fea'] = torch.nan_to_num(g.ndata['fea'])
             g.ndata['h_neigh'] = torch.nan_to_num(g.ndata['h_neigh'])
+            
+            g.update_all(self.message_func, fn.sum('mid', 'h_neigh'))
+            
             h = F.relu(self.conv1(g, torch.cat([g.ndata['fea'], g.ndata['h_neigh']], 1)))
             #print(h.size())
             h = F.relu(self.conv2(g, h))
