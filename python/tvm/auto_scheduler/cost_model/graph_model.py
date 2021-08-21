@@ -1,5 +1,5 @@
 
-""" Cost model based on graphNN """
+""" Cost model based on GNN """
 
 import numpy as np
 import time
@@ -30,9 +30,9 @@ def compute_rmse(preds, labels):
     """Compute RMSE (Rooted mean square error)"""
     return np.sqrt(np.mean(np.square(preds - labels)))
 
-class graphNN(torch.nn.Module):
+class _graphNN(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim):
-        super(graphNN, self).__init__()
+        super(_graphNN, self).__init__()
         self.conv1 = dglnn.TAGConv(node_dim, hidden_dim)
         self.conv2 = dglnn.TAGConv(hidden_dim, hidden_dim)
         self.classify = torch.nn.Linear(hidden_dim, 1)
@@ -54,9 +54,9 @@ class graphNN(torch.nn.Module):
             hg = dgl.mean_nodes(g, 'h')
             return self.classify(hg)
 
-class _graphNN(torch.nn.Module):
+class GNN(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim):
-        super(_graphNN, self).__init__()
+        super(GNN, self).__init__()
         self.msg = torch.nn.Linear(node_dim + edge_dim, hidden_dim)
         self.conv1 = dglnn.SAGEConv(hidden_dim + node_dim, hidden_dim, 'mean')
         self.conv2 = dglnn.SAGEConv(hidden_dim, hidden_dim, 'mean')
@@ -69,10 +69,9 @@ class _graphNN(torch.nn.Module):
 
     def forward(self, g):
         with g.local_scope():
-            #g.update_all(self.message_func, fn.sum('mid', 'h_neigh'))
-            #print(g)
-            print(g.ndata['fea'], g.ndata['h_neigh'])
-            print(g.ndata['fea'].size(), g.ndata['h_neigh'].size())
+            g.update_all(self.message_func, fn.sum('mid', 'h_neigh'))
+            g.ndata['fea'] = torch.nan_to_num(g.ndata['fea'])
+            g.ndata['h_neigh'] = torch.nan_to_num(g.ndata['h_neigh'])
             h = F.relu(self.conv1(g, torch.cat([g.ndata['fea'], g.ndata['h_neigh']], 1)))
             #print(h.size())
             h = F.relu(self.conv2(g, h))
@@ -102,7 +101,7 @@ class GraphModel(PythonBasedModel):
             'edge_fea': 4,
         }
 
-        self.graphNN = None
+        self.GNN = None
 
         super().__init__()
 
@@ -143,8 +142,8 @@ class GraphModel(PythonBasedModel):
         print("Sample Graph: ", train_pairs[0])
         train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
 
-        self.graphNN = graphNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float().cuda()
-        opt = torch.optim.SGD(self.graphNN.parameters(), lr=self.params['lr'])
+        self.GNN = GNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float().cuda()
+        opt = torch.optim.SGD(self.GNN.parameters(), lr=self.params['lr'])
         scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.99)
         n = len(train_batched_graphs)
         loss_func = torch.nn.MSELoss()
@@ -158,11 +157,11 @@ class GraphModel(PythonBasedModel):
             tic = time.time()
             for i in range(n):
                 opt.zero_grad()
-                prediction = self.graphNN(train_batched_graphs[i])
+                prediction = self.GNN(train_batched_graphs[i])
                 loss = torch.sqrt(loss_func(prediction, train_batched_labels[i].unsqueeze(1).cuda())) #loss_func(prediction, torch.log(train_batched_labels[i].unsqueeze(1).cuda()))
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.graphNN.parameters(), 10)
+                torch.nn.utils.clip_grad_norm_(self.GNN.parameters(), 10)
                 opt.step()
                 pred = prediction.squeeze().cpu().tolist()
                 label = train_batched_labels[i].squeeze().cpu().tolist()
@@ -177,7 +176,7 @@ class GraphModel(PythonBasedModel):
             if epoch % 10 == 0:
                 print('Epoch {} | loss {:.4f}'.format(epoch, epoch_loss))
         
-        return self.graphNN
+        return self.GNN
 
     def predict(self, dataset):
         if self.few_shot_learning in ["base_only", "fine_tune_mix_task", "fine_tune_per_task", "MAML"]:
@@ -226,12 +225,12 @@ class GraphModel(PythonBasedModel):
 
     def save(self, file_name: str):
         print("saving to: "+ file_name)
-        torch.save(self.graphNN.state_dict(), file_name)
+        torch.save(self.GNN.state_dict(), file_name)
 
     def load(self, file_name: str):
         print("loading from: "+file_name)
-        self.graphNN = graphNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float()
-        self.graphNN.load_state_dict(torch.load(file_name))
+        self.GNN = GNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float()
+        self.GNN.load_state_dict(torch.load(file_name))
 
 
 def collate(samples):

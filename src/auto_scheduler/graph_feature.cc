@@ -1496,7 +1496,7 @@ TVMByteArray SerializeGraph(std::vector<std::vector<Edge> >& edge_list,
       memcpy(ptr, edge.feature, sizeof(float) * EDGE_FEATURE_LENGTH);
       ptr += sizeof(float) * EDGE_FEATURE_LENGTH;
     }
-//    x.clear();
+    //x.clear();
     //adding backward edges
     for (Edge& edge : x) {
       memcpy(ptr, &edge.dst, sizeof(int));
