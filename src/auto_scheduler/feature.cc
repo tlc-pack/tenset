@@ -1191,7 +1191,7 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
 
     /***** Group 6: Access matrix related features *****/
     for (size_t i = 0; i < LENGTH_ACCESS_FEATURES; ++i) {
-      ret->push_back((float)access_matrix[i]);
+      ret->push_back((float)*access_matrix[i]);
     }
 
   }
