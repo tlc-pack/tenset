@@ -1190,7 +1190,9 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
     ret->push_back(slog(fea_set.auto_unroll_max_step));
 
     /***** Group 6: Access matrix related features *****/
-    ret->insert(ret->end(), access_matrix->begin(), access_matrix->end());
+    for (size_t i = 0; i < LENGTH_ACCESS_FEATURES; ++i) {
+      ret->push_back(access_matrix[i]);
+    }
 
   }
 }
