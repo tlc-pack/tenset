@@ -61,6 +61,7 @@ def get_hold_out_task(target, network=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--access_matrix", type=bool, default=False)
     parser.add_argument("--logs", nargs="+", type=str)
     parser.add_argument("--target", nargs="+", type=str, default=["llvm -model=platinum-8272"])
     parser.add_argument("--sample-in-files", type=int)
@@ -70,7 +71,6 @@ if __name__ == "__main__":
     parser.add_argument("--hold-out", type=str, choices=['resnet-50', 'all_five'])
     parser.add_argument("--n-task", type=int)
     parser.add_argument("--n-measurement", type=int)
-    parser.add_argument("--access_matrix", type=bool, default=False)
 
     args = parser.parse_args()
 
