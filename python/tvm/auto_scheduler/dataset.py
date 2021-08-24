@@ -21,13 +21,14 @@ DATASET_FORMAT_VERSION = 0.1
 
 
 class Dataset:
-    def __init__(self):
+    def __init__(self, access_matrix):
         self.raw_files = None
 
         self.features = OrderedDict()      # Dict[LearningTask -> feature]
         self.throughputs = OrderedDict()   # Dict[LearningTask -> normalized_throughputs]
         self.min_latency = {}              # Dict[LearningTask -> min latency]
         self.measure_records = {}          # Dict[LearningTask -> Tuple[List[MeasureInput], List[MeasureResult]]
+        self.access_matrix = access_matrix
 
     @staticmethod
     def create_one_task(task, features, throughputs, min_latency=None):
@@ -49,7 +50,7 @@ class Dataset:
 
         for task, (inputs, results) in new_data.items():
             features, normalized_throughputs, task_ids, min_latency =\
-                get_per_store_features_from_measure_pairs(inputs, results)
+                get_per_store_features_from_measure_pairs(inputs, results, access_matrix=self.access_matrix)
 
             assert not np.any(task_ids)   # all task ids should be zero
             assert len(min_latency) == 1  # should have only one task
@@ -207,14 +208,14 @@ class Dataset:
         return sum(len(x) for x in self.throughputs.values())
 
 
-def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
+def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1, access_matrix=True):
     """Make a dataset file from raw log files"""
     from tqdm import tqdm
 
     cache_folder = ".dataset_cache"
     os.makedirs(cache_folder, exist_ok=True)
 
-    dataset = Dataset()
+    dataset = Dataset(access_matrix)
     dataset.raw_files = log_files
     for filename in tqdm(log_files):
         assert os.path.exists(filename), f"{filename} does not exist."
@@ -239,7 +240,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             min_latency = {}
             for task, (inputs, results) in measure_records.items():
                 features_, normalized_throughputs, task_ids, min_latency_ =\
-                    get_per_store_features_from_measure_pairs(inputs, results)
+                    get_per_store_features_from_measure_pairs(inputs, results, access_matrix=access_matrix)
 
                 assert not np.any(task_ids)   # all task ids should be zero
                 if len(min_latency_) == 0:

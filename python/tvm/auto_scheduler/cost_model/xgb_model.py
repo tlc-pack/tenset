@@ -367,6 +367,7 @@ class XGBModel(PythonBasedModel):
                                       verbose_eval=verbose_eval,
                                       seed=seed)
         self.dataset = Dataset()
+        self.access_matrix = False
 
     def update(self, inputs, results):
         if self.disable_update or len(inputs) <= 0:
@@ -377,7 +378,7 @@ class XGBModel(PythonBasedModel):
         logger.info("XGBModel Training time: %.2f s", time.time() - tic)
 
     def predict(self, task, states):
-        features = get_per_store_features_from_states(states, task)
+        features = get_per_store_features_from_states(states, task, access_matrix=self.access_matrix)
         if self.model is not None and len(self.dataset) > self.num_warmup_sample:
             learning_task = LearningTask(task.workload_key, str(task.target))
             eval_dataset = Dataset.create_one_task(learning_task, features, None)

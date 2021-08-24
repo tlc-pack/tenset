@@ -135,6 +135,7 @@ class LGBModelInternal:
         self.few_shot_learning = few_shot_learning
         self.verbose_eval = verbose_eval
         self.workload_embed_dict = dict()
+        self.access_matrix = False
 
         # lgbm params
         if params is None:
@@ -251,7 +252,7 @@ class LGBModelInternal:
             verbose_eval=self.verbose_eval  
         )
 
-        feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
+        feature_names = list(get_per_store_feature_names(self.access_matrix)) + ['max', 'min', 'add', 
             'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
             'dense', 'softmax', 'compute(b, i, j)']
         feature_importances = bst.feature_importance()
@@ -376,6 +377,7 @@ class LGBModel(PythonBasedModel):
                                       verbose_eval=verbose_eval,
                                       seed=seed)
         self.dataset = Dataset()
+        self.access_matrix = False
 
     def update(self, inputs, results):
         if self.disable_update or len(inputs) <= 0:
@@ -386,7 +388,7 @@ class LGBModel(PythonBasedModel):
         logger.info("LGBModel Training time: %.2f s", time.time() - tic)
 
     def predict(self, task, states):
-        features = get_per_store_features_from_states(states, task)
+        features = get_per_store_features_from_states(states, task, access_matrix=self.access_matrix)
         if self.model is not None and len(self.dataset) > self.num_warmup_sample:
             learning_task = LearningTask(task.workload_key, str(task.target))
             eval_dataset = Dataset.create_one_task(learning_task, features, None)

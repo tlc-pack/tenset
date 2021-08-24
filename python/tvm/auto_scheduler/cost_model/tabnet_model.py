@@ -1131,6 +1131,7 @@ class TabNetModel(PythonBasedModel):
         self.disable_update = disable_update
         self.model = TabNetModelInternal(few_shot_learning=few_shot_learning)
         self.dataset = Dataset()
+        self.access_matrix = False
 
     def update(self, inputs, results):
         if self.disable_update or len(inputs) <= 0:
@@ -1141,7 +1142,7 @@ class TabNetModel(PythonBasedModel):
         logger.info("TabNetModel Training time: %.2f s", time.time() - tic)
 
     def predict(self, task, states):
-        features = get_per_store_features_from_states(states, task)
+        features = get_per_store_features_from_states(states, task, access_matrix=self.access_matrix)
         if self.model is not None:
             learning_task = LearningTask(task.workload_key, str(task.target))
             eval_dataset = Dataset.create_one_task(learning_task, features, None)
