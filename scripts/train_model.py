@@ -112,7 +112,7 @@ def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu, ac
     names = model_names.split("@")
     models = []
     for name in names:
-        models.append(make_model(name, use_gpu))
+        models.append(make_model(name, use_gpu, access_matrix))
 
     eval_results = []
     for name, model in zip(names, models):
