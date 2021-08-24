@@ -279,8 +279,8 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1, 
     # Save to disk
     pickle.dump(dataset, open(out_file, "wb"))
 
-    dataset = pickle.load(open(out_file, "rb"))
-    print(dataset.access_matrix)
+    #dataset = pickle.load(open(out_file, "rb"))
+    #print(dataset.access_matrix)
 
     if verbose >= 0:
         print("A dataset file is saved to %s" % out_file)
