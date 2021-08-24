@@ -1646,6 +1646,7 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromFile")
       std::string filename = args[0];
       int max_lines = args[1];
       int max_n_bufs = args[2];
+      bool access_matrix = args[3];
 
       std::vector<std::vector<float>> features;
       std::vector<float> normalized_throughputs;
@@ -1653,7 +1654,7 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromFile")
       std::vector<float> min_costs;
 
       GetPerStoreFeaturesFromFile(filename, max_lines, max_n_bufs, &features,
-                                  &normalized_throughputs, &task_ids);
+                                  &normalized_throughputs, &task_ids, access_matrix);
 
       std::vector<char> byte_data;
       *ret = SerializeFeatures(std::move(features), std::move(normalized_throughputs),
