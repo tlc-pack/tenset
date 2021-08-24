@@ -116,7 +116,7 @@ if __name__ == "__main__":
         files = random.sample(files, args.sample_in_files)
 
     print("Featurize measurement records...")
-    print(access_matrix)
+    assert not access_matrix
     auto_scheduler.dataset.make_dataset_from_log_file(
         files, args.out_file, args.min_sample_size, access_matrix = access_matrix)
 
