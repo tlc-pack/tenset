@@ -187,7 +187,7 @@ def get_per_store_features_from_file(
     byte_arr = _ffi_api.GetPerStoreFeaturesFromFile(
         filename, max_lines, max_n_bufs or DEFAULT_MAX_N_BUFS, access_matrix
     )
-    return unpack_feature(byte_arr)
+    return unpack_feature(byte_arr, access_matrix)
 
 
 def get_per_store_features_from_measure_pairs(
@@ -223,7 +223,7 @@ def get_per_store_features_from_measure_pairs(
     byte_arr = _ffi_api.GetPerStoreFeaturesFromMeasurePairs(
         inputs, results, skip_first_n_feature_extraction, max_n_bufs or DEFAULT_MAX_N_BUFS, access_matrix
     )
-    return unpack_feature(byte_arr)
+    return unpack_feature(byte_arr, access_matrix)
 
 
 def get_per_store_features_from_states(
@@ -248,7 +248,7 @@ def get_per_store_features_from_states(
     byte_arr = _ffi_api.GetPerStoreFeaturesFromStates(
         state_objects, task, max_n_bufs or DEFAULT_MAX_N_BUFS, access_matrix
     )
-    return unpack_feature(byte_arr)[0]
+    return unpack_feature(byte_arr, access_matrix)[0]
 
 
 def get_per_store_feature_names(max_n_bufs: Optional[int] = None, access_matrix: bool = True) -> List[str]:
