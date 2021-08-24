@@ -150,9 +150,12 @@ if __name__ == "__main__":
     parser.add_argument("--use-gpu", type=str2bool, nargs='?',
                         const=True, default=False,
                         help="Whether to use GPU for xgb.")
-    parser.add_argument("--access_matrix", type=bool, default=True)
+    parser.add_argument("--access_matrix", type=bool, default=False)
     args = parser.parse_args()
     print("Arguments: %s" % str(args))
+
+    access_matrix = args.access_matrix
+    access_matrix = False
 
     # Setup random seed and logging
     np.random.seed(args.seed)
@@ -170,5 +173,5 @@ if __name__ == "__main__":
         tmp_dataset = pickle.load(open(args.dataset[i], "rb"))
         dataset.update_from_dataset(tmp_dataset)
 
-    train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu, args.access_matrix)
+    train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu, access_matrix)
 
