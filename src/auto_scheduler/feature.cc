@@ -1052,7 +1052,7 @@ class PerStoreFeatureExtractor : public StmtExprVisitor {
 inline float slog(float x) { return x < 0 ? -std::log2(-x + 1) : std::log2(x + 1); }
 
 void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
-                        std::vector<float>* ret, std::vector<int> assem) {
+                        std::vector<float>* ret, std::vector<int> assem, bool assembly) {
   PerStoreFeatureExtractor extractor(cache_line_size);
   extractor(stmt);
 
@@ -1187,14 +1187,16 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
     ret->push_back(slog(fea_set.num_loops));
     ret->push_back(slog(fea_set.auto_unroll_max_step));
 
-    /***** Group 6: Assembly-level features *****/
-    for (int fea: assem) {
-      ret->push_back(slog((float)fea));
+    if (assembly) {
+      /***** Group 6: Assembly-level features *****/
+      for (int fea: assem) {
+        ret->push_back(slog((float)fea));
+      }
     }
   }
 }
 
-void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret) {
+void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret, bool assembly) {
   /***** Group 1: Computation related features *****/
   ret->push_back(("float_mad"));
   ret->push_back(("float_addsub"));
@@ -1298,11 +1300,13 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret) {
   ret->push_back(("auto_unroll_max_step"));
   // section total : 3
 
-  /***** Group 6: Assembly-level features *****/
-  ret->push_back(("n_vfmadd231ss"));
-  ret->push_back(("n_vmovups"));
-  ret->push_back(("n_fma_rn_f32"));
-  // section total : 3
+  if (assembly) {
+    /***** Group 6: Assembly-level features *****/
+    ret->push_back(("n_vfmadd231ss"));
+    ret->push_back(("n_vmovups"));
+    ret->push_back(("n_fma_rn_f32"));
+    // section total : 3
+  }
 }
 
 int count_frequency(std::string src, std::string pat) {
@@ -1316,7 +1320,7 @@ int count_frequency(std::string src, std::string pat) {
 }
 
 void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, int max_n_bufs,
-                                   std::vector<float>* feature, std::atomic<int>* error_ct) {
+                                   std::vector<float>* feature, std::atomic<int>* error_ct, bool assembly) {
   te::Schedule sch;
   Array<te::Tensor> tensors;
 
@@ -1380,19 +1384,24 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
         tir::transform::Sequential(Array<tvm::transform::Pass>{tir::transform::Simplify()});
     mod = optimize(std::move(mod));
     
-    static const PackedFunc* fexport = runtime::Registry::Get("auto_scheduler_feature_module_export_library");
-    static const PackedFunc* fbuild = runtime::Registry::Get("auto_scheduler_feature_build");
+    if (assembly) {
+      static const PackedFunc* fexport = runtime::Registry::Get("auto_scheduler_feature_module_export_library");
+      static const PackedFunc* fbuild = runtime::Registry::Get("auto_scheduler_feature_build");
 
-    auto rt = (*fbuild)(sch, tensors, task->target, task->target_host);
-    String tsrc = (*fexport)(rt, (std::string)task->workload_key);
-    std::string src = (std::string)tsrc;
+      auto rt = (*fbuild)(sch, tensors, task->target, task->target_host);
+      String tsrc = (*fexport)(rt, (std::string)task->workload_key);
+      std::string src = (std::string)tsrc;
 
-    // Assembly-Level Feature Extraction
-    int n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
-    int n_vmovups = count_frequency(src, "vmovups");
-    int n_fma_rn_f32 = count_frequency(src, "fma.rn.f32");
+      // Assembly-Level Feature Extraction
+      int n_vfmadd231ss = count_frequency(src, "vfmadd231ss");
+      int n_vmovups = count_frequency(src, "vmovups");
+      int n_fma_rn_f32 = count_frequency(src, "fma.rn.f32");
 
-    std::vector<int> assem = {n_vfmadd231ss, n_vmovups, n_fma_rn_f32};
+      std::vector<int> assem = {n_vfmadd231ss, n_vmovups, n_fma_rn_f32};
+    }
+    else {
+      std::vector<int> assem = {0};
+    }
 
     const auto& it = mod->functions.find(global_var);
     ICHECK(it != mod->functions.end());
@@ -1407,38 +1416,38 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask& task,
                                    int skip_first_n_feature_extraction, int max_n_bufs,
-                                   std::vector<std::vector<float>>* features) {
+                                   std::vector<std::vector<float>>* features, bool assembly) {
   // extract features
   features->assign(states.size(), std::vector<float>());
 
   std::atomic<int> error_ct(0);
 
   support::parallel_for(skip_first_n_feature_extraction, states.size(),
-                        [&task, &states, &max_n_bufs, &features, &error_ct](int i) {
+                        [&task, &states, &max_n_bufs, &features, &error_ct, &assembly](int i) {
                           GetPerStoreFeaturesWorkerFunc(task, states[i], max_n_bufs,
-                                                        &(*features)[i], &error_ct);
+                                                        &(*features)[i], &error_ct, assembly);
                         });
 }
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const std::vector<SearchTask>& tasks,
                                    int skip_first_n_feature_extraction, int max_n_bufs,
-                                   std::vector<std::vector<float>>* features) {
+                                   std::vector<std::vector<float>>* features, bool assembly) {
   // extract features
   features->assign(states.size(), std::vector<float>());
 
   std::atomic<int> error_ct(0);
   
   support::parallel_for(skip_first_n_feature_extraction, states.size(),
-                        [&tasks, &states, &max_n_bufs, &features, &error_ct](int i) {
+                        [&tasks, &states, &max_n_bufs, &features, &error_ct, &assembly](int i) {
                           GetPerStoreFeaturesWorkerFunc(tasks[i], states[i], max_n_bufs,
-                                                        &(*features)[i], &error_ct);
+                                                        &(*features)[i], &error_ct, assembly);
                         });
 }
 
 void GetPerStoreFeaturesFromFile(const std::string& filename, int max_lines, int max_n_bufs,
                                  std::vector<std::vector<float>>* features,
                                  std::vector<float>* normalized_throughputs,
-                                 std::vector<int>* task_ids) {
+                                 std::vector<int>* task_ids, bool assembly) {
   Array<State> states;
   std::vector<SearchTask> tasks;
 
@@ -1496,7 +1505,7 @@ void GetPerStoreFeaturesFromFile(const std::string& filename, int max_lines, int
     (*normalized_throughputs)[i] = min_costs[(*task_ids)[i]] / (*normalized_throughputs)[i];
   }
 
-  GetPerStoreFeaturesFromStates(states, tasks, 0, max_n_bufs, features);
+  GetPerStoreFeaturesFromStates(states, tasks, 0, max_n_bufs, features, assembly);
 }
 
 void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
@@ -1505,7 +1514,7 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
                                          std::vector<std::vector<float>>* features,
                                          std::vector<float>* normalized_throughputs,
                                          std::vector<int>* task_ids,
-                                         std::vector<float>* min_costs) {
+                                         std::vector<float>* min_costs, bool assembly) {
   Array<State> states;
   std::vector<SearchTask> tasks;
 
@@ -1569,7 +1578,7 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
   }
 
   GetPerStoreFeaturesFromStates(states, tasks, skip_first_n_feature_extraction, max_n_bufs,
-                                features);
+                                features, assembly);
 }
 
 /*
@@ -1664,14 +1673,15 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromFile")
       std::string filename = args[0];
       int max_lines = args[1];
       int max_n_bufs = args[2];
-
+      bool assembly = args[3];
+      
       std::vector<std::vector<float>> features;
       std::vector<float> normalized_throughputs;
       std::vector<int> task_ids;
       std::vector<float> min_costs;
 
       GetPerStoreFeaturesFromFile(filename, max_lines, max_n_bufs, &features,
-                                  &normalized_throughputs, &task_ids);
+                                  &normalized_throughputs, &task_ids, assembly);
 
       std::vector<char> byte_data;
       *ret = SerializeFeatures(std::move(features), std::move(normalized_throughputs),
@@ -1684,6 +1694,7 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromMeasurePairs")
       Array<MeasureResult> results = args[1];
       int skip_first_n_feature_extraction = args[2];
       int max_n_bufs = args[3];
+      bool assembly = args[4];
 
       std::vector<std::vector<float>> features;
       std::vector<float> normalized_throughputs;
@@ -1692,7 +1703,7 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromMeasurePairs")
 
       GetPerStoreFeaturesFromMeasurePairs(inputs, results, skip_first_n_feature_extraction,
                                           max_n_bufs, &features, &normalized_throughputs,
-                                          &task_ids, &min_costs);
+                                          &task_ids, &min_costs, assembly);
 
       std::vector<char> byte_data;
       *ret = SerializeFeatures(std::move(features), std::move(normalized_throughputs),
@@ -1704,6 +1715,7 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromStates")
       Array<State> states = args[0];
       SearchTask task = args[1];
       int max_n_bufs = args[2];
+      bool assembly = args[3];
 
       std::vector<std::vector<float>> features;
       std::vector<float> normalized_throughputs;
@@ -1714,15 +1726,16 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromStates")
 
       std::vector<char> byte_data;
       *ret = SerializeFeatures(std::move(features), std::move(normalized_throughputs),
-                               std::move(task_ids), std::move(min_costs), &byte_data);
+                               std::move(task_ids), std::move(min_costs), &byte_data, assembly);
     });
 
 TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeatureNames")
     .set_body([](TVMArgs args, TVMRetValue* ret) {
       int max_n_bufs = args[0];
+      bool assembly = args[1];
       std::vector<std::string> names;
 
-      GetPerStoreFeatureName(max_n_bufs, &names);
+      GetPerStoreFeatureName(max_n_bufs, &names, assembly);
 
       Array<String> arr;
       for (const auto& x : names) {
