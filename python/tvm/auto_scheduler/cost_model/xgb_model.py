@@ -32,6 +32,7 @@ from tvm.auto_scheduler.feature import (
 from tvm.auto_scheduler.measure_record import RecordReader
 from tvm.auto_scheduler.workload_registry import workload_key_to_tensors
 from .cost_model import PythonBasedModel
+from ..feature import get_per_store_feature_names
 
 xgb = None
 
@@ -110,7 +111,8 @@ class XGBModelInternal:
         use_gpu=False,
         few_shot_learning="base_only",
         verbose_eval=25,
-        seed=None):
+        seed=None,
+        assembly=True):
 
         global xgb
         try:
@@ -154,6 +156,7 @@ class XGBModelInternal:
         # models
         self.base_model = None
         self.local_model = {}
+        self.assembly = assembly
 
     def fit(self, *args, **kwargs):
         return self.fit_base(*args, **kwargs)
@@ -185,7 +188,7 @@ class XGBModelInternal:
         elif self.few_shot_learning == "plus_per_task":
             base_preds = self._predict_a_dataset(self.base_model, train_set)
             for task in train_set.tasks():
-                diff_train_set = Dataset()
+                diff_train_set = Dataset(self.assembly)
                 diff_train_set.load_task_data(
                     task,
                     train_set.features[task],
@@ -278,7 +281,7 @@ class XGBModelInternal:
 
     def make_diff_set(self, base_model, dataset):
         base_preds = self._predict_a_dataset(base_model, dataset)
-        diff_set = Dataset()
+        diff_set = Dataset(self.assembly)
         for task in dataset.tasks():
             diff_set.load_task_data(
                 task,
@@ -332,7 +335,8 @@ class XGBModelInternal:
         ys = np.concatenate(ys)
         gids = np.concatenate(gids)
         dmatrix = pack_sum_xgbmatrix(
-            xs, ys, gids=gids, weights=np.maximum(ys, 0.1) if self.use_weight else None
+            xs, ys, gids=gids, weights=np.maximum(ys, 0.1) if self.use_weight else None,
+            assembly=self.assembly
         )
 
         if return_task_order:
@@ -358,15 +362,16 @@ class XGBModelInternal:
 class XGBModel(PythonBasedModel):
     """The wrapper of XGBModelInternal. So we can use it in end-to-end search."""
     def __init__(self, few_shot_learning="base_only", verbose_eval=25,
-                 num_warmup_sample=100, seed=None, disable_update=False):
+                 num_warmup_sample=100, seed=None, disable_update=False, assembly=True):
         super().__init__()
 
         self.num_warmup_sample = num_warmup_sample
         self.disable_update = disable_update
         self.model = XGBModelInternal(few_shot_learning=few_shot_learning,
                                       verbose_eval=verbose_eval,
-                                      seed=seed)
-        self.dataset = Dataset()
+                                      seed=seed, assembly=assembly)
+        self.assembly = assembly
+        self.dataset = Dataset(self.assembly)
 
     def update(self, inputs, results):
         if self.disable_update or len(inputs) <= 0:
@@ -377,7 +382,7 @@ class XGBModel(PythonBasedModel):
         logger.info("XGBModel Training time: %.2f s", time.time() - tic)
 
     def predict(self, task, states):
-        features = get_per_store_features_from_states(states, task)
+        features = get_per_store_features_from_states(states, task, assembly=self.assembly)
         if self.model is not None and len(self.dataset) > self.num_warmup_sample:
             learning_task = LearningTask(task.workload_key, str(task.target))
             eval_dataset = Dataset.create_one_task(learning_task, features, None)
@@ -430,7 +435,7 @@ class XGBModel(PythonBasedModel):
         self.num_warmup_sample = -1
 
 
-def feature_to_pack_sum_xgbmatrix(xs):
+def feature_to_pack_sum_xgbmatrix(xs, assembly=True):
     """Convert an extracted multi-stage feature vector to a xgb matrix in pack-sum format
     Parameters
     ----------
@@ -451,10 +456,14 @@ def feature_to_pack_sum_xgbmatrix(xs):
             x_flatten.append(row)
             pack_ids.append(ct)
 
-    return xgb.DMatrix(np.array(x_flatten)), pack_ids
+    feature_names = list(get_per_store_feature_names(assembly=assembly)) + ['max', 'min', 'add', 
+            'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
+            'dense', 'softmax', 'compute(b, i, j)']
+
+    return xgb.DMatrix(np.array(x_flatten), feature_names=feature_names), pack_ids
 
 
-def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
+def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None, assembly=True):
     """Convert (feature, label) pairs into a xgb matrix with pack-sum format
     Parameters
     ----------
@@ -501,7 +510,11 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
                 y_flatten.append(y)
                 pack_ids.append(ct)
 
-    ret = xgb.DMatrix(np.array(x_flatten), y_flatten)
+    feature_names = list(get_per_store_feature_names(assembly=assembly)) + ['max', 'min', 'add', 
+        'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
+        'dense', 'softmax', 'compute(b, i, j)']
+
+    ret = xgb.DMatrix(np.array(x_flatten), y_flatten, feature_names=feature_names)
     if weights is not None:
         ret.set_weight(weights_flatten)
     dmatrix_context.set("pack_ids", ret, np.array(pack_ids))

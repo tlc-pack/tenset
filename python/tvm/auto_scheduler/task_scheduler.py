@@ -51,7 +51,8 @@ def make_search_policies(
     load_log_file,
     adapative_training,
     disable_cost_model_update,
-    few_shot_learning='base_only'
+    few_shot_learning='base_only',
+    assembly=True
 ):
     """Make a list of search policies for a list of search tasks.
     It creates one policy per task.
@@ -110,7 +111,7 @@ def make_search_policies(
                 cost_model.load(load_model_file)
                 cost_model.model.few_shot_learning = few_shot_learning
                 dataset_file = 'tmp_dataset.pkl'
-                make_dataset_from_log_file([load_log_file], dataset_file, min_sample_size=1)
+                make_dataset_from_log_file([load_log_file], dataset_file, min_sample_size=1, assembly=assembly)
                 local_dataset = pickle.load(open(dataset_file, 'rb'))
                 cost_model.model.fit_local(local_dataset)
             else:
@@ -240,6 +241,7 @@ class TaskScheduler:
         gamma: float = 0.5,
         backward_window_size: int = 3,
         callbacks=None,
+        assembly=True,
     ):
         self.tasks = tasks
         if objective_func:  # use custom objective function
@@ -262,6 +264,7 @@ class TaskScheduler:
             if callbacks is not None
             else [PrintTableInfo(), LogEstimatedLatency("total_latency.tsv")]
         )
+        self.assembly = assembly
 
         assert len(self.tasks) != 0, "No tasks"
         assert self.strategy in ["round-robin", "gradient"]
@@ -379,6 +382,7 @@ class TaskScheduler:
             self.load_log_file,
             adapative_training,
             disable_cost_model_update,
+            self.assembly
         )
 
         # do a round robin first to warm up
@@ -533,6 +537,7 @@ class TaskScheduler:
             self.load_log_file,
             adapative_training,
             disable_cost_model_update,
+            self.assembly
         )
 
         for idx in range(len(self.tasks) // 2):
@@ -551,7 +556,8 @@ class TaskScheduler:
             self.load_log_file,
             adapative_training,
             disable_cost_model_update,
-            few_shot_learning='plus_mix_task'
+            few_shot_learning='plus_mix_task',
+            assembly=self.assembly
         )
 
         for idx in range(len(self.tasks) // 2, len(self.tasks)):

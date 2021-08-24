@@ -52,7 +52,7 @@ class SegmentDataLoader:
             task_embedding = None
             if use_workload_embedding or use_target_embedding:
                 task_embedding = np.zeros(
-                    (9 if use_workload_embedding else 0) + (3 if use_target_embedding else 0),
+                    (10 if use_workload_embedding else 0),
                     dtype=np.float32,
                 )
 
@@ -320,7 +320,7 @@ def moving_average(average, update):
 
 class MLPModelInternal:
     def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=False,
-                 loss_type='lambdaRankLoss'):
+                 loss_type='lambdaRankLoss', assembly=True):
         if device is None:
             if torch.cuda.device_count():
                 device = 'cuda:0'
@@ -330,7 +330,7 @@ class MLPModelInternal:
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
-            "in_dim": 167 + (10 if use_workload_embedding else 0),  
+            "in_dim": 164 + (3 if assembly else 0) + (10 if use_workload_embedding else 0),  
             "hidden_dim": 256,
             "out_dim": 1,
         }
@@ -399,6 +399,7 @@ class MLPModelInternal:
         # models
         self.base_model = None
         self.local_model = {}
+        self.assembly = assembly
 
     def fit_base(self, train_set, valid_set=None, valid_train_set=None):
         if self.few_shot_learning == "local_only":
@@ -429,7 +430,7 @@ class MLPModelInternal:
             self.loss_func = torch.nn.MSELoss()
             self.net_params['add_sigmoid'] = True
             base_preds = self._predict_a_dataset(self.base_model, train_set)
-            diff_train_set = Dataset()
+            diff_train_set = Dataset(self.assembly)
             for task in train_set.tasks():
                 diff_train_set.load_task_data(
                     task,
@@ -439,7 +440,7 @@ class MLPModelInternal:
 
             if valid_set:
                 base_preds = self._predict_a_dataset(self.base_model, valid_set)
-                diff_valid_set = Dataset()
+                diff_valid_set = Dataset(self.assembly)
                 for task in valid_set.tasks():
                     diff_valid_set.load_task_data(
                         task,
@@ -456,7 +457,7 @@ class MLPModelInternal:
         elif self.few_shot_learning == "plus_per_task":
             base_preds = self._predict_a_dataset(self.base_model, train_set)
             for task in train_set.tasks():
-                diff_train_set = Dataset()
+                diff_train_set = Dataset(self.assembly)
                 diff_train_set.load_task_data(
                     task,
                     train_set.features[task],
@@ -780,12 +781,12 @@ class CPU_Unpickler(pickle.Unpickler):
 class MLPModel(PythonBasedModel):
     """The wrapper of MLPModelInternal. So we can use it in end-to-end search."""
 
-    def __init__(self, few_shot_learning="base_only", disable_update=False):
+    def __init__(self, few_shot_learning="base_only", disable_update=False, assembly=True):
         super().__init__()
 
         self.disable_update = disable_update
-        self.model = MLPModelInternal(few_shot_learning=few_shot_learning)
-        self.dataset = Dataset()
+        self.model = MLPModelInternal(few_shot_learning=few_shot_learning, assembly=assembly)
+        self.dataset = Dataset(self.assembly)
 
     def update(self, inputs, results):
         if self.disable_update or len(inputs) <= 0:
@@ -796,7 +797,7 @@ class MLPModel(PythonBasedModel):
         logger.info("MLPModel Training time: %.2f s", time.time() - tic)
 
     def predict(self, task, states):
-        features = get_per_store_features_from_states(states, task)
+        features = get_per_store_features_from_states(states, task, assembly=self.assembly)
         if self.model is not None:
             learning_task = LearningTask(task.workload_key, str(task.target))
             eval_dataset = Dataset.create_one_task(learning_task, features, None)
