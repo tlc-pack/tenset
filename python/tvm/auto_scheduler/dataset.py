@@ -88,7 +88,8 @@ class Dataset:
     def random_split_within_task(self,
                                  train_set_ratio: float=None,
                                  train_set_num: int=None,
-                                 shuffle_time: bool=False) -> Tuple["Dataset", "Dataset"]:
+                                 shuffle_time: bool=False,
+                                ) -> Tuple["Dataset", "Dataset"]:
         """Randomly split the dataset into a training set and a test set.
         Do the split within each task. A measurement record is a basic unit.
         """
