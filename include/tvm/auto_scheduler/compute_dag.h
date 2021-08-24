@@ -264,10 +264,10 @@ class ComputeDAG : public ObjectRef {
 
   /*!
    * \brief Compute the access matrix of compute DAG.
-   * \param simple_mode Simple mode will only include the op names and brief compute.
+   * \param enabled Enables feature extraction.
    * \return The flattened access matrix.
    */
-  std::vector<int> ComputeAccessMatrix(bool simple_mode = false) const;
+  std::vector<int> ComputeAccessMatrix(bool enabled = true) const;
 
   /*!
    * \brief Print the compute DAG to a string. This is also used to generate the ComputeDAG hash.

@@ -1325,7 +1325,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
   sch = sch.normalize_for_feature_extraction();
   auto bounds = te::InferBound(sch);
 
-  auto access_matrix = task->compute_dag.ComputeAccessMatrix(false);
+  auto access_matrix = task->compute_dag.ComputeAccessMatrix(access_matrix_enabled);
 
   try {
     auto stmt = te::ScheduleOps(sch, bounds, false);

@@ -1329,9 +1329,14 @@ String ComputeDAG::PrintStepsAsPython(const Array<Step>& transform_steps) const 
   return ss.str();
 }
 
-std::vector<int> ComputeDAG::ComputeAccessMatrix(bool simple_mode) const {
+std::vector<int> ComputeDAG::ComputeAccessMatrix(bool enabled) const {
   //std::stringstream ss;
   
+  if (!enabled) {
+    std::vector<int> res;
+    return res;
+  }
+
   size_t NUM_DIMENSIONS = 5;
   size_t NUM_BUFFERS = 5;
   size_t NUM_VARS = 10;
