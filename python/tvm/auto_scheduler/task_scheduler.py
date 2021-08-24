@@ -135,18 +135,9 @@ def make_search_policies(
             if load_model_file and os.path.isfile(load_model_file):
                 logger.info("TaskScheduler: Load pretrained model...")
                 cost_model.load(load_model_file)
-                cost_model.model.few_shot_learning = few_shot_learning
-                dataset_file = 'tmp_dataset.pkl'
-                make_dataset_from_log_file([load_log_file], dataset_file, min_sample_size=1)
-                local_dataset = pickle.load(open(dataset_file, 'rb'))
-                cost_model.model.fit_local(local_dataset)
-            else:
-                if load_model_file and os.path.isfile(load_model_file):
-                    logger.info("TaskScheduler: Load pretrained model...")
-                    cost_model.load(load_model_file)
-                elif load_log_file:
-                    logger.info("TaskScheduler: Reload measured states and train the model...")
-                    cost_model.update_from_file(load_log_file)
+            elif load_log_file:
+                logger.info("TaskScheduler: Reload measured states and train the model...")
+                cost_model.update_from_file(load_log_file)
 
         elif model_type == "random":
             cost_model = RandomModel()
