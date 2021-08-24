@@ -76,16 +76,16 @@ def evaluate_model(model, test_set):
     return eval_res
 
 
-def make_model(name, use_gpu=False):
+def make_model(name, use_gpu=False, access_matrix=True):
     """Make model according to a name"""
     if name == "xgb":
-        return XGBModelInternal(use_gpu=use_gpu)
+        return XGBModelInternal(use_gpu=use_gpu, access_matrix=access_matrix)
     elif name == "mlp":
-        return MLPModelInternal()
+        return MLPModelInternal(access_matrix=access_matrix)
     elif name == 'lgbm':
-        return LGBModelInternal(use_gpu=use_gpu)
+        return LGBModelInternal(use_gpu=use_gpu, access_matrix=access_matrix)
     elif name == 'tab':
-        return TabNetModelInternal(use_gpu=use_gpu)
+        return TabNetModelInternal(use_gpu=use_gpu, access_matrix=access_matrix)
     elif name == "random":
         return RandomModelInternal()
     else:
