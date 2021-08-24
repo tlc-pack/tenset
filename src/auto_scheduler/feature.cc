@@ -1303,6 +1303,8 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret, bool 
   ret->push_back(("auto_unroll_max_step"));
   // section total : 3
 
+  std::cout << access_matrix_enabled << std::endl;
+  
   if (access_matrix_enabled) {
   /***** Group 6: Access matrix related features *****/
   for (size_t i = 0; i < LENGTH_ACCESS_FEATURES; i++) {
