@@ -429,7 +429,7 @@ class MLPModelInternal:
             self.loss_func = torch.nn.MSELoss()
             self.net_params['add_sigmoid'] = True
             base_preds = self._predict_a_dataset(self.base_model, train_set)
-            diff_train_set = Dataset()
+            diff_train_set = Dataset(self.access_matrix)
             for task in train_set.tasks():
                 diff_train_set.load_task_data(
                     task,
@@ -439,7 +439,7 @@ class MLPModelInternal:
 
             if valid_set:
                 base_preds = self._predict_a_dataset(self.base_model, valid_set)
-                diff_valid_set = Dataset()
+                diff_valid_set = Dataset(self.access_matrix)
                 for task in valid_set.tasks():
                     diff_valid_set.load_task_data(
                         task,
@@ -456,7 +456,7 @@ class MLPModelInternal:
         elif self.few_shot_learning == "plus_per_task":
             base_preds = self._predict_a_dataset(self.base_model, train_set)
             for task in train_set.tasks():
-                diff_train_set = Dataset()
+                diff_train_set = Dataset(self.access_matrix)
                 diff_train_set.load_task_data(
                     task,
                     train_set.features[task],
@@ -785,7 +785,7 @@ class MLPModel(PythonBasedModel):
 
         self.disable_update = disable_update
         self.model = MLPModelInternal(few_shot_learning=few_shot_learning)
-        self.dataset = Dataset()
+        self.dataset = Dataset(self.access_matrix)
         self.access_matrix = access_matrix
 
     def update(self, inputs, results):

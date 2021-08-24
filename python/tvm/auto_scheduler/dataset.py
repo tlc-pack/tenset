@@ -31,9 +31,9 @@ class Dataset:
         self.access_matrix = access_matrix
 
     @staticmethod
-    def create_one_task(task, features, throughputs, min_latency=None):
+    def create_one_task(task, features, throughputs, min_latency=None, access_matrix=True):
         """Create a new dataset with one task and its feature and throughput data"""
-        ret = Dataset()
+        ret = Dataset(access_matrix)
         ret.load_task_data(task, features, throughputs, min_latency)
         return ret
 
@@ -92,8 +92,8 @@ class Dataset:
         """Randomly split the dataset into a training set and a test set.
         Do the split within each task. A measurement record is a basic unit.
         """
-        train_set = Dataset()
-        test_set = Dataset()
+        train_set = Dataset(self.access_matrix)
+        test_set = Dataset(self.access_matrix)
 
         assert train_set_ratio is not None or train_set_num is not None
 
@@ -133,8 +133,8 @@ class Dataset:
 
         train_records = int(len(self) * train_set_ratio)
 
-        train_set = Dataset()
-        test_set = Dataset()
+        train_set = Dataset(self.access_matrix)
+        test_set = Dataset(self.access_matrix)
         ct = 0
         for task in tasks:
             features, throughputs = self.features[task], self.throughputs[task]
@@ -159,8 +159,8 @@ class Dataset:
 
         train_records = int(len(self) * train_set_ratio)
 
-        train_set = Dataset()
-        test_set = Dataset()
+        train_set = Dataset(self.access_matrix)
+        test_set = Dataset(self.access_matrix)
         ct = 0
         for target in targets:
             tmp_adder = 0
@@ -191,7 +191,7 @@ class Dataset:
 
     def extract_subset(self, tasks: List[LearningTask]) -> "Dataset":
         """Extract a subset containing given tasks"""
-        ret = Dataset()
+        ret = Dataset(self.access_matrix)
         for task in tasks:
             if not (task in self.features):
                 continue

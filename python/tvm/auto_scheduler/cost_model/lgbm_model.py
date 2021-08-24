@@ -193,7 +193,7 @@ class LGBModelInternal:
         elif self.few_shot_learning == "plus_per_task":
             base_preds = self._predict_a_dataset(self.base_model, train_set)
             for task in train_set.tasks():
-                diff_train_set = Dataset()
+                diff_train_set = Dataset(self.access_matrix)
                 diff_train_set.load_task_data(
                     task,
                     train_set.features[task],
@@ -289,7 +289,7 @@ class LGBModelInternal:
 
     def make_diff_set(self, base_model, dataset):
         base_preds = self._predict_a_dataset(base_model, dataset)
-        diff_set = Dataset()
+        diff_set = Dataset(self.access_matrix)
         for task in dataset.tasks():
             diff_set.load_task_data(
                 task,
@@ -377,7 +377,7 @@ class LGBModel(PythonBasedModel):
         self.model = LGBModelInternal(few_shot_learning=few_shot_learning,
                                       verbose_eval=verbose_eval,
                                       seed=seed)
-        self.dataset = Dataset()
+        self.dataset = Dataset(self.access_matrix)
         self.access_matrix = access_matrix
 
     def update(self, inputs, results):
