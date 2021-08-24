@@ -70,6 +70,8 @@ if __name__ == "__main__":
     parser.add_argument("--hold-out", type=str, choices=['resnet-50', 'all_five'])
     parser.add_argument("--n-task", type=int)
     parser.add_argument("--n-measurement", type=int)
+    parser.add_argument("--access_matrix", type=bool, default=True)
+
 
     args = parser.parse_args()
 
@@ -114,5 +116,5 @@ if __name__ == "__main__":
 
     print("Featurize measurement records...")
     auto_scheduler.dataset.make_dataset_from_log_file(
-        files, args.out_file, args.min_sample_size)
+        files, args.out_file, args.min_sample_size, access_matrix = args.access_matrix)
 
