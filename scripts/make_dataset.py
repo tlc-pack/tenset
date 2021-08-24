@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    assert(not args.access_matrix)
+    access_matrix = args.access_matrix
 
     random.seed(args.seed)
 
@@ -116,7 +116,7 @@ if __name__ == "__main__":
         files = random.sample(files, args.sample_in_files)
 
     print("Featurize measurement records...")
-    print(args.access_matrix)
+    print(access_matrix)
     auto_scheduler.dataset.make_dataset_from_log_file(
-        files, args.out_file, args.min_sample_size, access_matrix = args.access_matrix)
+        files, args.out_file, args.min_sample_size, access_matrix = access_matrix)
 
