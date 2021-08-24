@@ -72,8 +72,9 @@ if __name__ == "__main__":
     parser.add_argument("--n-measurement", type=int)
     parser.add_argument("--access_matrix", type=bool)
 
-
     args = parser.parse_args()
+
+    assert(not args.access_matrix)
 
     random.seed(args.seed)
 
