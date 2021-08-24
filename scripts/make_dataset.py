@@ -70,7 +70,7 @@ if __name__ == "__main__":
     parser.add_argument("--hold-out", type=str, choices=['resnet-50', 'all_five'])
     parser.add_argument("--n-task", type=int)
     parser.add_argument("--n-measurement", type=int)
-    parser.add_argument("--access_matrix", type=bool)
+    parser.add_argument("--access_matrix", type=bool, default=False)
 
     args = parser.parse_args()
 
