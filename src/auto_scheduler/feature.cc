@@ -1055,7 +1055,7 @@ class PerStoreFeatureExtractor : public StmtExprVisitor {
 inline float slog(float x) { return x < 0 ? -std::log2(-x + 1) : std::log2(x + 1); }
 
 void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
-                        std::vector<float>* ret, std::vector<int>* access_matrix) {
+                        std::vector<float>* ret, std::vector<int>* access_matrix, bool access_matrix_enabled) {
   PerStoreFeatureExtractor extractor(cache_line_size);
   extractor(stmt);
 
@@ -1197,7 +1197,7 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
   }
 }
 
-void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret) {
+void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret, bool access_matrix_enabled) {
   /***** Group 1: Computation related features *****/
   ret->push_back(("float_mad"));
   ret->push_back(("float_addsub"));
@@ -1310,7 +1310,7 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret) {
 }
 
 void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, int max_n_bufs,
-                                   std::vector<float>* feature, std::atomic<int>* error_ct) {
+                                   std::vector<float>* feature, std::atomic<int>* error_ct, bool access_matrix_enabled) {
   te::Schedule sch;
   Array<te::Tensor> tensors;
 
@@ -1379,7 +1379,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
     ICHECK(it != mod->functions.end());
     const auto& prim_func = (*it).second.as<PrimFuncNode>();
     GetPerStoreFeature(prim_func->body, task->hardware_params->cache_line_bytes, max_n_bufs,
-                       feature, &access_matrix);
+                       feature, &access_matrix, access_matrix_enabled);
   } catch (Error& e) {
     (*error_ct)++;
   }
@@ -1387,32 +1387,32 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask& task,
                                    int skip_first_n_feature_extraction, int max_n_bufs,
-                                   std::vector<std::vector<float>>* features) {
+                                   std::vector<std::vector<float>>* features, bool access_matrix) {
   // extract features
   features->assign(states.size(), std::vector<float>());
 
   std::atomic<int> error_ct(0);
 
   support::parallel_for(skip_first_n_feature_extraction, states.size(),
-                        [&task, &states, &max_n_bufs, &features, &error_ct](int i) {
+                        [&task, &states, &max_n_bufs, &features, &error_ct, &access_matrix](int i) {
                           GetPerStoreFeaturesWorkerFunc(task, states[i], max_n_bufs,
-                                                        &(*features)[i], &error_ct);
+                                                        &(*features)[i], &error_ct, access_matrix);
                         });
   
 }
 
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const std::vector<SearchTask>& tasks,
                                    int skip_first_n_feature_extraction, int max_n_bufs,
-                                   std::vector<std::vector<float>>* features) {
+                                   std::vector<std::vector<float>>* features, bool access_matrix) {
   // extract features
   features->assign(states.size(), std::vector<float>());
 
   std::atomic<int> error_ct(0);
 
   support::parallel_for(skip_first_n_feature_extraction, states.size(),
-                        [&tasks, &states, &max_n_bufs, &features, &error_ct](int i) {
+                        [&tasks, &states, &max_n_bufs, &features, &error_ct, &access_matrix](int i) {
                           GetPerStoreFeaturesWorkerFunc(tasks[i], states[i], max_n_bufs,
-                                                        &(*features)[i], &error_ct);
+                                                        &(*features)[i], &error_ct, access_matrix);
                         });
   
 }
@@ -1420,7 +1420,7 @@ void GetPerStoreFeaturesFromStates(const Array<State>& states, const std::vector
 void GetPerStoreFeaturesFromFile(const std::string& filename, int max_lines, int max_n_bufs,
                                  std::vector<std::vector<float>>* features,
                                  std::vector<float>* normalized_throughputs,
-                                 std::vector<int>* task_ids) {
+                                 std::vector<int>* task_ids, bool access_matrix) {
   Array<State> states;
   std::vector<SearchTask> tasks;
 
@@ -1478,7 +1478,7 @@ void GetPerStoreFeaturesFromFile(const std::string& filename, int max_lines, int
     (*normalized_throughputs)[i] = min_costs[(*task_ids)[i]] / (*normalized_throughputs)[i];
   }
 
-  GetPerStoreFeaturesFromStates(states, tasks, 0, max_n_bufs, features);
+  GetPerStoreFeaturesFromStates(states, tasks, 0, max_n_bufs, features, access_matrix);
 }
 
 void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
@@ -1487,7 +1487,7 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
                                          std::vector<std::vector<float>>* features,
                                          std::vector<float>* normalized_throughputs,
                                          std::vector<int>* task_ids,
-                                         std::vector<float>* min_costs) {
+                                         std::vector<float>* min_costs, bool access_matrix) {
   Array<State> states;
   std::vector<SearchTask> tasks;
 
@@ -1551,7 +1551,7 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
   }
 
   GetPerStoreFeaturesFromStates(states, tasks, skip_first_n_feature_extraction, max_n_bufs,
-                                features);
+                                features, access_matrix);
 }
 
 /*
@@ -1666,6 +1666,7 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromMeasurePairs")
       Array<MeasureResult> results = args[1];
       int skip_first_n_feature_extraction = args[2];
       int max_n_bufs = args[3];
+      bool access_matrix = args[4];
 
       std::vector<std::vector<float>> features;
       std::vector<float> normalized_throughputs;
@@ -1674,7 +1675,7 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromMeasurePairs")
 
       GetPerStoreFeaturesFromMeasurePairs(inputs, results, skip_first_n_feature_extraction,
                                           max_n_bufs, &features, &normalized_throughputs,
-                                          &task_ids, &min_costs);
+                                          &task_ids, &min_costs, access_matrix);
 
       std::vector<char> byte_data;
       *ret = SerializeFeatures(std::move(features), std::move(normalized_throughputs),
@@ -1686,13 +1687,14 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromStates")
       Array<State> states = args[0];
       SearchTask task = args[1];
       int max_n_bufs = args[2];
+      bool access_matrix = args[3];
 
       std::vector<std::vector<float>> features;
       std::vector<float> normalized_throughputs;
       std::vector<int> task_ids;
       std::vector<float> min_costs;
 
-      GetPerStoreFeaturesFromStates(states, task, 0, max_n_bufs, &features);
+      GetPerStoreFeaturesFromStates(states, task, 0, max_n_bufs, &features, access_matrix);
 
       std::vector<char> byte_data;
       *ret = SerializeFeatures(std::move(features), std::move(normalized_throughputs),
@@ -1702,9 +1704,10 @@ TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeaturesFromStates")
 TVM_REGISTER_GLOBAL("auto_scheduler.GetPerStoreFeatureNames")
     .set_body([](TVMArgs args, TVMRetValue* ret) {
       int max_n_bufs = args[0];
+      bool access_matrix = args[1];
       std::vector<std::string> names;
 
-      GetPerStoreFeatureName(max_n_bufs, &names);
+      GetPerStoreFeatureName(max_n_bufs, &names, access_matrix);
 
       Array<String> arr;
       for (const auto& x : names) {
