@@ -75,7 +75,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     access_matrix = args.access_matrix
-    access_matrix = False
+    access_matrix = True
 
     random.seed(args.seed)
 

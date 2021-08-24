@@ -155,7 +155,7 @@ if __name__ == "__main__":
     print("Arguments: %s" % str(args))
 
     access_matrix = args.access_matrix
-    access_matrix = False
+    access_matrix = True
 
     # Setup random seed and logging
     np.random.seed(args.seed)
