@@ -784,7 +784,7 @@ def moving_average(average, update):
 
 class TabNetModelInternal:
     def __init__(self, use_gpu=True, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=False,
-                 loss_type='lambdaRankLoss'):
+                 loss_type='lambdaRankLoss', access_matrix=True):
         print('tabnet')
         if device is None:
             if torch.cuda.device_count() and use_gpu:
@@ -795,7 +795,7 @@ class TabNetModelInternal:
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
-            "in_dim": 164 + 250 + (10 if use_workload_embedding else 0),
+            "in_dim": 164 + (250 if access_matrix else 0) + (10 if use_workload_embedding else 0),
             "hidden_dim": 256,
             "out_dim": 1,
         }
@@ -1129,7 +1129,7 @@ class TabNetModel(PythonBasedModel):
         super().__init__()
 
         self.disable_update = disable_update
-        self.model = TabNetModelInternal(few_shot_learning=few_shot_learning)
+        self.model = TabNetModelInternal(few_shot_learning=few_shot_learning, access_matrix=access_matrix)
         self.dataset = Dataset(self.access_matrix)
         self.access_matrix = access_matrix
 

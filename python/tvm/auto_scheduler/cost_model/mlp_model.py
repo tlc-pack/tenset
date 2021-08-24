@@ -320,7 +320,7 @@ def moving_average(average, update):
 
 class MLPModelInternal:
     def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=False,
-                 loss_type='lambdaRankLoss'):
+                 loss_type='lambdaRankLoss', access_matrix=True):
         if device is None:
             if torch.cuda.device_count():
                 device = 'cuda:0'
@@ -330,7 +330,7 @@ class MLPModelInternal:
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
-            "in_dim": 164 + 250 + (10 if use_workload_embedding else 0),  
+            "in_dim": 164 + (250 if access_matrix else 0) + (10 if use_workload_embedding else 0),  
             "hidden_dim": 256,
             "out_dim": 1,
         }
@@ -784,7 +784,7 @@ class MLPModel(PythonBasedModel):
         super().__init__()
 
         self.disable_update = disable_update
-        self.model = MLPModelInternal(few_shot_learning=few_shot_learning)
+        self.model = MLPModelInternal(few_shot_learning=few_shot_learning, access_matrix=access_matrix)
         self.dataset = Dataset(self.access_matrix)
         self.access_matrix = access_matrix
 

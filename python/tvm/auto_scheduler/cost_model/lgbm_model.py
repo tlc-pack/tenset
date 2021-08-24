@@ -376,7 +376,7 @@ class LGBModel(PythonBasedModel):
         self.disable_update = disable_update
         self.model = LGBModelInternal(few_shot_learning=few_shot_learning,
                                       verbose_eval=verbose_eval,
-                                      seed=seed)
+                                      seed=seed, access_matrix=access_matrix)
         self.dataset = Dataset(self.access_matrix)
         self.access_matrix = access_matrix
 

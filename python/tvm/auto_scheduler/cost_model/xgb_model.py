@@ -341,7 +341,6 @@ class XGBModelInternal:
         xs = np.array(xs, dtype=object)
         ys = np.concatenate(ys)
         gids = np.concatenate(gids)
-        print(self.access_matrix)
         dmatrix = pack_sum_xgbmatrix(
             xs, ys, gids=gids, weights=np.maximum(ys, 0.1) if self.use_weight else None,
             access_matrix=self.access_matrix
