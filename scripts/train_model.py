@@ -92,14 +92,14 @@ def make_model(name, use_gpu=False):
         raise ValueError("Invalid model: " + name)
  
 
-def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
+def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu, access_matrix):
     # Split dataset
     if split_scheme == "within_task":
-        train_set, test_set = dataset.random_split_within_task(train_ratio)
+        train_set, test_set = dataset.random_split_within_task(train_ratio, access_matrix=access_matrix)
     elif split_scheme == "by_task":
-        train_set, test_set = dataset.random_split_by_task(train_ratio)
+        train_set, test_set = dataset.random_split_by_task(train_ratio, access_matrix=access_matrix)
     elif split_scheme == "by_target":
-        train_set, test_set = dataset.random_split_by_target(train_ratio)
+        train_set, test_set = dataset.random_split_by_target(train_ratio, access_matrix=access_matrix)
     else:
         raise ValueError("Invalid split scheme: " + split_scheme)
 
@@ -169,5 +169,5 @@ if __name__ == "__main__":
         tmp_dataset = pickle.load(open(args.dataset[i], "rb"))
         dataset.update_from_dataset(tmp_dataset)
 
-    train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu)
+    train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu, dataset.access_matrix)
 

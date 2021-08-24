@@ -89,12 +89,13 @@ class Dataset:
                                  train_set_ratio: float=None,
                                  train_set_num: int=None,
                                  shuffle_time: bool=False,
+                                 access_matrix: bool=True
                                 ) -> Tuple["Dataset", "Dataset"]:
         """Randomly split the dataset into a training set and a test set.
         Do the split within each task. A measurement record is a basic unit.
         """
-        train_set = Dataset(self.access_matrix)
-        test_set = Dataset(self.access_matrix)
+        train_set = Dataset(access_matrix)
+        test_set = Dataset(access_matrix)
 
         assert train_set_ratio is not None or train_set_num is not None
 
