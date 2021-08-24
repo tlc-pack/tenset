@@ -1189,9 +1189,11 @@ void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
     ret->push_back(slog(fea_set.num_loops));
     ret->push_back(slog(fea_set.auto_unroll_max_step));
 
+    if (access_matrix) {
     /***** Group 6: Access matrix related features *****/
     for (size_t i = 0; i < LENGTH_ACCESS_FEATURES; ++i) {
       ret->push_back(access_matrix->at(i));
+    }
     }
 
   }
@@ -1301,11 +1303,13 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret, bool 
   ret->push_back(("auto_unroll_max_step"));
   // section total : 3
 
+  if (access_matrix_enabled) {
   /***** Group 6: Access matrix related features *****/
   for (size_t i = 0; i < LENGTH_ACCESS_FEATURES; i++) {
     ret->push_back(("access_mat_" + std::to_string(i)));
   }
-  // section total : 480
+  // section total : 250
+  }
 
 }
 
