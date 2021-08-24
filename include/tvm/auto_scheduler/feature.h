@@ -49,7 +49,7 @@ namespace auto_scheduler {
  * \param access_matrix Access matrix feature vector
  */
 void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
-                        std::vector<float>* ret, std::vector<int>* access_matrix, bool access_matrix);
+                        std::vector<float>* ret, std::vector<int>* access_matrix, bool access_matrix_enabled);
 
 /*
  * \brief Get the names of elements in the feature vector. Use this for debug and inspection.
