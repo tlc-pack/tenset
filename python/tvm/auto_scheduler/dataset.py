@@ -273,6 +273,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1, 
         del dataset.throughputs[task]
         del dataset.min_latency[task]
 
+    dataset.access_matrix = access_matrix
     # Save to disk
     pickle.dump(dataset, open(out_file, "wb"))
 
