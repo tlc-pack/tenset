@@ -1125,13 +1125,13 @@ class CPU_Unpickler(pickle.Unpickler):
 class TabNetModel(PythonBasedModel):
     """The wrapper of TabNetModelInternal. So we can use it in end-to-end search."""
 
-    def __init__(self, few_shot_learning="base_only", disable_update=False):
+    def __init__(self, few_shot_learning="base_only", disable_update=False, access_matrix=True):
         super().__init__()
 
         self.disable_update = disable_update
         self.model = TabNetModelInternal(few_shot_learning=few_shot_learning)
         self.dataset = Dataset()
-        self.access_matrix = False
+        self.access_matrix = access_matrix
 
     def update(self, inputs, results):
         if self.disable_update or len(inputs) <= 0:

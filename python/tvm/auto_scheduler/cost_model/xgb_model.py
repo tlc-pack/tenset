@@ -358,7 +358,7 @@ class XGBModelInternal:
 class XGBModel(PythonBasedModel):
     """The wrapper of XGBModelInternal. So we can use it in end-to-end search."""
     def __init__(self, few_shot_learning="base_only", verbose_eval=25,
-                 num_warmup_sample=100, seed=None, disable_update=False):
+                 num_warmup_sample=100, seed=None, disable_update=False, access_matrix=True):
         super().__init__()
 
         self.num_warmup_sample = num_warmup_sample
@@ -367,7 +367,7 @@ class XGBModel(PythonBasedModel):
                                       verbose_eval=verbose_eval,
                                       seed=seed)
         self.dataset = Dataset()
-        self.access_matrix = False
+        self.access_matrix = access_matrix
 
     def update(self, inputs, results):
         if self.disable_update or len(inputs) <= 0:
