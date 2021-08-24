@@ -111,7 +111,8 @@ class XGBModelInternal:
         use_gpu=False,
         few_shot_learning="base_only",
         verbose_eval=25,
-        seed=None):
+        seed=None,
+        access_matrix=True):
 
         global xgb
         try:
@@ -134,6 +135,7 @@ class XGBModelInternal:
         self.few_shot_learning = few_shot_learning
         self.verbose_eval = verbose_eval
         self.workload_embed_dict = dict()
+        self.access_matrix = access_matrix
 
         # xgb params
         self.xgb_params = {
@@ -340,7 +342,8 @@ class XGBModelInternal:
         ys = np.concatenate(ys)
         gids = np.concatenate(gids)
         dmatrix = pack_sum_xgbmatrix(
-            xs, ys, gids=gids, weights=np.maximum(ys, 0.1) if self.use_weight else None
+            xs, ys, gids=gids, weights=np.maximum(ys, 0.1) if self.use_weight else None,
+            access_matrix=self.access_matrix
         )
 
         if return_task_order:
@@ -373,7 +376,8 @@ class XGBModel(PythonBasedModel):
         self.disable_update = disable_update
         self.model = XGBModelInternal(few_shot_learning=few_shot_learning,
                                       verbose_eval=verbose_eval,
-                                      seed=seed)
+                                      seed=seed,
+                                      access_matrix=access_matrix)
         self.dataset = Dataset(self.access_matrix)
         self.access_matrix = access_matrix
 
@@ -437,7 +441,7 @@ class XGBModel(PythonBasedModel):
         self.num_warmup_sample = -1
 
 
-def feature_to_pack_sum_xgbmatrix(xs):
+def feature_to_pack_sum_xgbmatrix(xs, access_matrix=True):
     """Convert an extracted multi-stage feature vector to a xgb matrix in pack-sum format
     Parameters
     ----------
@@ -452,10 +456,10 @@ def feature_to_pack_sum_xgbmatrix(xs):
     """
     x_flatten = []
     pack_ids = []
-    feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
+    feature_names = list(get_per_store_feature_names(access_matrix=access_matrix)) + ['max', 'min', 'add', 
             'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
             'dense', 'softmax', 'compute(b, i, j)']
-
+    
     for ct, x in enumerate(xs):
         for row in x:
             x_flatten.append(row)
@@ -464,7 +468,7 @@ def feature_to_pack_sum_xgbmatrix(xs):
     return xgb.DMatrix(np.array(x_flatten), feature_names=feature_names), pack_ids
 
 
-def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
+def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None, access_matrix=True):
     """Convert (feature, label) pairs into a xgb matrix with pack-sum format
     Parameters
     ----------
@@ -511,7 +515,7 @@ def pack_sum_xgbmatrix(xs, ys, gids=None, weights=None):
                 y_flatten.append(y)
                 pack_ids.append(ct)
 
-    feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
+    feature_names = list(get_per_store_feature_names(access_matrix=access_matrix)) + ['max', 'min', 'add', 
             'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
             'dense', 'softmax', 'compute(b, i, j)']
 
