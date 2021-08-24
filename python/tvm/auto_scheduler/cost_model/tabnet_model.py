@@ -615,7 +615,7 @@ class SegmentDataLoader:
             task_embedding = None
             if use_workload_embedding or use_target_embedding:
                 task_embedding = np.zeros(
-                    10,
+                    (10 if use_workload_embedding else 0),
                     dtype=np.float32,
                 )
 
