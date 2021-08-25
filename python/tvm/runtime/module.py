@@ -482,5 +482,4 @@ def enabled(target):
     """
     return _ffi_api.RuntimeEnabled(target)
 
-
 _set_class_module(Module)

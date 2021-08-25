@@ -114,5 +114,5 @@ if __name__ == "__main__":
 
     print("Featurize measurement records...")
     auto_scheduler.dataset.make_dataset_from_log_file(
-        files, args.out_file, args.min_sample_size, n_measurement=args.n_measurement)
+        files, args.out_file, args.min_sample_size)
 

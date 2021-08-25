@@ -15,10 +15,9 @@ from tvm.auto_scheduler.cost_model import RandomModelInternal
 from common import load_and_register_tasks, str2bool
 
 from tvm.auto_scheduler.dataset import Dataset, LearningTask
-from tvm.auto_scheduler.cost_model.xgb_model import XGBModelInternal
-from tvm.auto_scheduler.cost_model.mlp_model import MLPModelInternal
 from tvm.auto_scheduler.cost_model.lgbm_model import LGBModelInternal
-from tvm.auto_scheduler.cost_model.tabnet_model import TabNetModelInternal
+from bayes_opt import BayesianOptimization
+import pandas as pd
 from tvm.auto_scheduler.cost_model.metric import (
     metric_rmse,
     metric_r_squared,
@@ -29,6 +28,7 @@ from tvm.auto_scheduler.cost_model.metric import (
     random_mix,
 )
 
+import lightgbm as lgb
 
 def evaluate_model(model, test_set):
     # make prediction
@@ -37,7 +37,7 @@ def evaluate_model(model, test_set):
     # compute weighted average of metrics over all tasks
     tasks = list(test_set.tasks())
     weights = [len(test_set.throughputs[t]) for t in tasks]
-    print("Test set sizes:", weights)
+    #print("Test set sizes:", weights)
 
     rmse_list = []
     r_sqaured_list = []
@@ -76,23 +76,7 @@ def evaluate_model(model, test_set):
     return eval_res
 
 
-def make_model(name, use_gpu=False):
-    """Make model according to a name"""
-    if name == "xgb":
-        return XGBModelInternal(use_gpu=use_gpu)
-    elif name == "mlp":
-        return MLPModelInternal()
-    elif name == 'lgbm':
-        return LGBModelInternal(use_gpu=use_gpu)
-    elif name == 'tab':
-        return TabNetModelInternal(use_gpu=use_gpu)
-    elif name == "random":
-        return RandomModelInternal()
-    else:
-        raise ValueError("Invalid model: " + name)
- 
-
-def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
+def train_zero_shot(dataset, train_ratio, split_scheme):
     # Split dataset
     if split_scheme == "within_task":
         train_set, test_set = dataset.random_split_within_task(train_ratio)
@@ -108,37 +92,94 @@ def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
         test_set = train_set
     print("Test set:  %d. Task 0 = %s" % (len(test_set), test_set.tasks()[0]))
 
-    # Make models
-    names = model_names.split("@")
-    models = []
-    for name in names:
-        models.append(make_model(name, use_gpu))
-
-    eval_results = []
-    for name, model in zip(names, models):
-        # Train the model
-        filename = name + ".pkl"
+    def lgb_eval(learning_rate,num_leaves, feature_fraction, bagging_fraction, bagging_freq, min_data_in_leaf, min_sum_hessian_in_leaf):
+        params = {'boosting_type': 'gbdt'}
+        params['learning_rate'] = max(min(learning_rate, 1), 0)
+        params["num_leaves"] = int(round(num_leaves))
+        params['feature_fraction'] = max(min(feature_fraction, 1), 0)
+        params['bagging_fraction'] = max(min(bagging_fraction, 1), 0)
+        params['bagging_freq'] = int(round(bagging_freq))
+        params['min_data_in_leaf'] = int(round(min_data_in_leaf))
+        params['min_sum_hessian_in_leaf'] = min_sum_hessian_in_leaf
+        
+        model = LGBModelInternal(use_gpu=False, params=params)
         model.fit_base(train_set, valid_set=test_set)
-        print("Save model to %s" % filename)
-        model.save(filename)
-
+        
         # Evaluate the model
         eval_res = evaluate_model(model, test_set)
-        print(name, to_str_round(eval_res))
-        eval_results.append(eval_res)
+
+        return -1 * eval_res['RMSE']
+     
+    lgbBO = BayesianOptimization(lgb_eval, {'learning_rate': (0.02, 0.2),
+                                            'num_leaves': (24, 80),
+                                            'feature_fraction': (0.6, 1),
+                                            'bagging_fraction': (0.7, 1),
+                                            'bagging_freq': (3, 10),
+                                            'min_data_in_leaf': (0, 40),
+                                            'min_sum_hessian_in_leaf':(0, 20),
+                                            }, random_state=300)
+
+    
+    lgbBO.probe(
+        params={
+                'learning_rate': 0.05,
+                'num_leaves': 31,
+                'feature_fraction': 0.9,
+                'bagging_fraction': 0.8,
+                'bagging_freq': 5,
+                'min_data_in_leaf': 0,
+                'min_sum_hessian_in_leaf': 0,
+            },
+        lazy=True,
+    )
+    #n_iter: How many steps of bayesian optimization you want to perform. The more steps the more likely to find a good maximum you are.
+    #init_points: How many steps of random exploration you want to perform. Random exploration can help by diversifying the exploration space.
+    
+    lgbBO.maximize(init_points=15, n_iter=15)
+    
+    model_auc=[]
+    for model in range(len(lgbBO.res)):
+        model_auc.append(lgbBO.res[model]['target'])
+    
+    # return best parameters
+    best_result, opt_params = lgbBO.res[pd.Series(model_auc).idxmax()]['target'], lgbBO.res[pd.Series(model_auc).idxmax()]['params']
+
+    print("best result: ", best_result, opt_params)
+
+    def proc_params(params):
+        params['boosting_type'] = 'gbdt'
+        params['learning_rate'] = max(min(params['learning_rate'], 1), 0)
+        params["num_leaves"] = int(round(params["num_leaves"]))
+        params['feature_fraction'] = max(min(params['feature_fraction'], 1), 0)
+        params['bagging_fraction'] = max(min(params['bagging_fraction'], 1), 0)
+        params['bagging_freq'] = int(round(params['bagging_freq']))
+        params['min_data_in_leaf'] = int(round(params['min_data_in_leaf']))
+        params['min_sum_hessian_in_leaf'] = params['min_sum_hessian_in_leaf']
+        return params 
+    
+    opt_params = proc_params(opt_params)
+
+    model = LGBModelInternal(use_gpu=False, params=opt_params)
+    # Train the model
+    filename = "lightgbm_tuned.pkl"
+    model.fit_base(train_set, valid_set=test_set)
+    print("Save model to %s" % filename)
+    model.save(filename)
+
+    # Evaluate the model
+    eval_res = evaluate_model(model, test_set)
+    print(to_str_round(eval_res))
 
     # Print evaluation results
-    for i in range(len(models)):
-        print("-" * 60)
-        print("Model: %s" % names[i])
-        for key, val in eval_results[i].items():
-            print("%s: %.4f" % (key, val))
+    print("-" * 60)
+    print("Model: lightgbm_tuned")
+    for key, val in eval_res.items():
+        print("%s: %.4f" % (key, val))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", nargs="+", type=str, default=["dataset.pkl"])
-    parser.add_argument("--models", type=str, default="xgb")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
         "--split-scheme",
@@ -147,9 +188,6 @@ if __name__ == "__main__":
         default="within_task",
     )
     parser.add_argument("--train-ratio", type=float, default=0.9)
-    parser.add_argument("--use-gpu", type=str2bool, nargs='?',
-                        const=True, default=True,
-                        help="Whether to use GPU for xgb.")
     args = parser.parse_args()
     print("Arguments: %s" % str(args))
 
@@ -169,5 +207,5 @@ if __name__ == "__main__":
         tmp_dataset = pickle.load(open(args.dataset[i], "rb"))
         dataset.update_from_dataset(tmp_dataset)
 
-    train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu)
+    train_zero_shot(dataset, args.train_ratio, args.split_scheme)
 
