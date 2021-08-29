@@ -1,12 +1,11 @@
 # Using pre-trained models on AWS c5.9xlarge  (or any other x86 CPUs with avx-512)
-This is a quick tutorials on using a pre-trained models on AWS c5.9xlarge.
+This is a quick tutorial on using a pre-trained models on AWS c5.9xlarge.
 
 ## Requirements
 ```
 xgboost=1.2.1
 torch==1.7.1
 torchvision==0.8.2
-torchmeta==1.6.1
 ```
 
 ## Steps
@@ -22,7 +21,7 @@ unzip dataset_cpu_v3.3.zip
 ln -s dataset_cpu dataset
 ```
 
-3. Sample a subset of the dataset and do featurization. The sampling is required because the c5.9xlarge instance does not have enought CPU memory to train on full dataset.
+3. Sample a subset of the dataset and do featurization. The sampling is required because the c5.9xlarge instance does not have enough CPU memory to train a model on the full dataset.
 ```
 python3 make_dataset.py --logs dataset/measure_records/platinum-8272/*.json --preset batch-size-1 --sample-in-files 500
 ```
@@ -89,9 +88,9 @@ average peak score@5: 0.9046
 ```
 
 5. Search with the pretrained XGB model (100 trials)
-
-Command:
+```
 python3 tune_network.py --network resnet_50 --n-trials 100 --cost-model xgb-no-update --load-model xgb.pkl --target "llvm -mcpu=skylake-avx512"
+```
 
 Reference output:
 ```
@@ -134,8 +133,7 @@ Mean inference time (std dev): 6.08 ms (0.10 ms)
 ```
 
 
-4. Search without a pretrained model, or ansor-default (100 trials)
-
+6. Search without a pretrained model, or ansor-default (100 trials)
 ```
 python3 tune_network.py --network resnet_50 --n-trials 100 --cost-model xgb --target "llvm -mcpu=skylake-avx512"
 ```
@@ -180,7 +178,7 @@ Estimated total latency: 17.599 ms      Trials: 102     Used time : 194 s       
 Mean inference time (std dev): 17.71 ms (0.01 ms)
 ```
 
-5. Search without a pretrained model, or ansor-default (5000 trials)
+7. Search without a pretrained model, or ansor-default (5000 trials)
 ```
 python3 tune_network.py --network resnet_50 --n-trials 5000 --cost-model xgb --target "llvm -mcpu=skylake-avx512"
 ```
