@@ -58,6 +58,71 @@ def get_hold_out_task(target, network=None):
     return exists
 
 
+def preset_batch_size_1():
+    network_keys = []
+
+    # resnet_18 and resnet_50
+    for batch_size in [1]:
+        for image_size in [224, 240, 256]:
+            for layer in [18, 50]:
+                network_keys.append((f'resnet_{layer}',
+                                    [(batch_size, 3, image_size, image_size)]))
+
+    # mobilenet_v2
+    for batch_size in [1]:
+        for image_size in [224, 240, 256]:
+            for name in ['mobilenet_v2', 'mobilenet_v3']:
+                network_keys.append((f'{name}',
+                                    [(batch_size, 3, image_size, image_size)]))
+
+    # wide-resnet
+    for batch_size in [1]:
+        for image_size in [224, 240, 256]:
+            for layer in [50]:
+                network_keys.append((f'wide_resnet_{layer}',
+                                    [(batch_size, 3, image_size, image_size)]))
+
+    # resnext
+    for batch_size in [1]:
+        for image_size in [224, 240, 256]:
+            for layer in [50]:
+                network_keys.append((f'resnext_{layer}',
+                                    [(batch_size, 3, image_size, image_size)]))
+
+    # inception-v3
+    for batch_size in [1]:
+        for image_size in [299]:
+            network_keys.append((f'inception_v3',
+                                [(batch_size, 3, image_size, image_size)]))
+
+    # densenet
+    for batch_size in [1]:
+        for image_size in [224, 240, 256]:
+            network_keys.append((f'densenet_121',
+                                [(batch_size, 3, image_size, image_size)]))
+
+    # resnet3d
+    for batch_size in [1]:
+        for image_size in [112, 128, 144]:
+            for layer in [18]:
+                network_keys.append((f'resnet3d_{layer}',
+                                    [(batch_size, 3, image_size, image_size, 16)]))
+
+    # bert
+    for batch_size in [1]:
+        for seq_length in [64, 128, 256]:
+            for scale in ['tiny', 'base', 'medium', 'large']:
+                network_keys.append((f'bert_{scale}',
+                                    [(batch_size, seq_length)]))
+
+    # dcgan
+    for batch_size in [1]:
+        for image_size in [64, 80, 96]:
+            network_keys.append((f'dcgan',
+                                [(batch_size, 3, image_size, image_size)]))
+
+    return network_keys
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -68,6 +133,7 @@ if __name__ == "__main__":
     parser.add_argument("--out-file", type=str, default='dataset.pkl')
     parser.add_argument("--min-sample-size", type=int, default=48)
     parser.add_argument("--hold-out", type=str, choices=['resnet-50', 'all_five'])
+    parser.add_argument("--preset", type=str, choices=['batch-size-1'])
     parser.add_argument("--n-task", type=int)
     parser.add_argument("--n-measurement", type=int)
 
@@ -102,7 +168,29 @@ if __name__ == "__main__":
             for task in all_tasks:
                 filename = get_measure_record_filename(task, target)
                 files.append(filename)
+    elif args.preset == 'batch-size-1':
+        # Only use tasks from networks with batch-size = 1
 
+        # Load tasks from networks
+        network_keys = preset_batch_size_1()
+        target = tvm.target.Target(args.target)
+        all_tasks = []
+        exists = set()   # a set to remove redundant tasks
+        print("Load tasks...")
+        for network_key in tqdm(network_keys):
+            # Read tasks of the network
+            task_info_filename = get_task_info_filename(network_key, target)
+            tasks, _ = pickle.load(open(task_info_filename, "rb"))
+            for task in tasks:
+                if task.workload_key not in exists:
+                    exists.add(task.workload_key)
+                    all_tasks.append(task)
+
+        # Convert tasks to filenames
+        files = []
+        for task in all_tasks:
+            filename = get_measure_record_filename(task, target)
+            files.append(filename)
     else:
         # use all tasks
         print("Load tasks...")
