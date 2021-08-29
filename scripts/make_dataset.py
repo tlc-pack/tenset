@@ -173,7 +173,7 @@ if __name__ == "__main__":
 
         # Load tasks from networks
         network_keys = preset_batch_size_1()
-        target = tvm.target.Target(args.target)
+        target = tvm.target.Target(args.target[0])
         all_tasks = []
         exists = set()   # a set to remove redundant tasks
         print("Load tasks...")
