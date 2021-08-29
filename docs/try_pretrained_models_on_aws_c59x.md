@@ -229,3 +229,5 @@ Mean inference time (std dev): 5.91 ms (0.02 ms)
 | n-trials          | 100 | 100 | 5000 |
 | search time       | 180 s |194 s |  1918 s |
 | inference latency | 6.08 ms | 17.71 ms | 5.91 ms|
+
+"Ansor w/ pretrained cost model" matches the inference latency of "Ansor w/o pretrained cost model" with less than 1/10 search time.
