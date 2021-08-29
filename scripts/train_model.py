@@ -148,7 +148,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--train-ratio", type=float, default=0.9)
     parser.add_argument("--use-gpu", type=str2bool, nargs='?',
-                        const=True, default=True,
+                        const=True, default=False,
                         help="Whether to use GPU for xgb.")
     args = parser.parse_args()
     print("Arguments: %s" % str(args))
