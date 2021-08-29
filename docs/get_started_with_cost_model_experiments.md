@@ -4,6 +4,7 @@ This tutorial contains a minimal example of training a cost model and using it f
 ## Install and Download the Dataset
 ### Requirement
 Build and install this fork of TVM following the [install guide](https://tvm.apache.org/docs/install/index.html) of TVM.
+If the latest TVM documentation does not work, you can follow the [old copy](../install/from_source.rst) in this repo.
 
 ### Download and unzip
 You can choose use either the CPU part or the GPU part.
