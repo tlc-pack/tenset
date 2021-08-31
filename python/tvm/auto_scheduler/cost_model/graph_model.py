@@ -220,7 +220,9 @@ class GraphModel(PythonBasedModel):
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
                 #torch.nn.utils.clip_grad_norm_(self.GNN.parameters(), 10)
-                print(loss)
+                #print(loss)
+                print(prediction)
+                print(train_batched_labels[i])
                 #print('=======')
                 #print(list(self.GNN.conv1.parameters()))
                 for x in list(self.GNN.conv1.parameters()): print(x.grad)
