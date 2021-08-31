@@ -31,7 +31,7 @@ import pickle
 import numpy as np
 
 from .search_policy import SearchPolicy, SketchPolicy, PreloadMeasuredStates
-from .cost_model import RandomModel, XGBModel, MLPModel, GraphModel
+from .cost_model import RandomModel, XGBModel, MLPModel, GraphModel, LGBModel, TabNetModel
 from .utils import array_mean
 from .measure import ProgramMeasurer, EmptyBuilder, EmptyRunner
 from .measure_record import RecordReader
@@ -92,12 +92,18 @@ def make_search_policies(
 
     if isinstance(search_policy, str):
         policy_type, model_type = search_policy.split(".")
-        if model_type in ['xgb', 'xgb-no-update', 'mlp', 'mlp-no-update', 'gnn', 'gnn-no-update']:
-            if model_type == 'xgb-no-update' or model_type == 'mlp-no-update':
+        if model_type in ['xgb', 'xgb-no-update', 'mlp', 'mlp-no-update', 'gnn', 'gnn-no-update', 'tab', 'tab-no-update']:
+            if model_type == 'xgb-no-update' or model_type == 'mlp-no-update' or model_type == 'tab-no-update':
                 disable_cost_model_update = True
             if model_type in ['xgb', 'xgb-no-update']:
                 cost_model = XGBModel(
                     num_warmup_sample=len(tasks) * num_measures_per_round,
+                    disable_update=disable_cost_model_update,
+                    few_shot_learning=few_shot_learning
+                )
+
+            elif model_type in ['tab', 'tab-no-update']:
+                cost_model = TabNetModel(
                     disable_update=disable_cost_model_update,
                     few_shot_learning=few_shot_learning
                 )
@@ -135,6 +141,19 @@ def make_search_policies(
                 elif load_log_file:
                     logger.info("TaskScheduler: Reload measured states and train the model...")
                     cost_model.update_from_file(load_log_file)
+        elif model_type in ['lgbm', 'lgbm-no-update']:
+            if model_type == 'lgbm-no-update':
+                disable_cost_model_update = True
+            cost_model = LGBModel(
+                num_warmup_sample=len(tasks) * num_measures_per_round,
+                disable_update=disable_cost_model_update,
+            )
+            if load_model_file and os.path.isfile(load_model_file):
+                logger.info("TaskScheduler: Load pretrained model...")
+                cost_model.load(load_model_file)
+            elif load_log_file:
+                logger.info("TaskScheduler: Reload measured states and train the model...")
+                cost_model.update_from_file(load_log_file)
 
         elif model_type == "random":
             cost_model = RandomModel()
