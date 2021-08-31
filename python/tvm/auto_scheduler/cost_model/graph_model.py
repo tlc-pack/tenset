@@ -165,7 +165,8 @@ class GraphModel(PythonBasedModel):
         self.inputs = []
         self.results = []
         self.few_shot_learning="base_only"
-        self.loss_func = torch.nn.MSELoss() #LambdaRankLoss()
+        self.loss_func = LambdaRankLoss()
+        # torch.nn.MSELoss() 
 
     def register_new_task(self, task):
         pass
