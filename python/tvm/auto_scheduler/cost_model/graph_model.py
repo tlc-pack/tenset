@@ -165,7 +165,7 @@ class GraphModel(PythonBasedModel):
         self.inputs = []
         self.results = []
         self.few_shot_learning="base_only"
-        self.loss_func = LambdaRankLoss()
+        self.loss_func = torch.nn.MSELoss() #LambdaRankLoss()
 
     def register_new_task(self, task):
         pass
@@ -216,11 +216,11 @@ class GraphModel(PythonBasedModel):
                 opt.zero_grad()
                 prediction = self.GNN(train_batched_graphs[i])
                 #loss = torch.sqrt(loss_func(prediction, train_batched_labels[i].unsqueeze(1).cuda())) #loss_func(prediction, torch.log(train_batched_labels[i].unsqueeze(1).cuda()))
-                loss = self.loss_func(prediction, train_batched_labels[i].unsqueeze(1).cuda())
+                loss = self.loss_func(prediction.unsqueeze(1), train_batched_labels[i].unsqueeze(1).cuda())
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
                 #torch.nn.utils.clip_grad_norm_(self.GNN.parameters(), 10)
-                #print(loss)
+                print(loss)
                 print(prediction.size())
                 print(train_batched_labels[i].size())
                 #print('=======')
