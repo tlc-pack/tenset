@@ -113,7 +113,8 @@ class LGBModelInternal:
         use_gpu=False,
         few_shot_learning="base_only",
         verbose_eval=25,
-        seed=None):
+        seed=None,
+        access_matrix=True):
 
         global lgbm
         try:
@@ -135,18 +136,21 @@ class LGBModelInternal:
         self.few_shot_learning = few_shot_learning
         self.verbose_eval = verbose_eval
         self.workload_embed_dict = dict()
+        self.access_matrix = access_matrix
 
         # lgbm params
         if params is None:
             self.lgbm_params = {
                 'boosting_type': 'gbdt',
-                'num_leaves': 72,
-                'learning_rate': 0.1632095,
-                'feature_fraction': 0.84375,
-                'bagging_fraction': 0.89435,
-                'bagging_freq': 4,
+                'num_leaves': 31,
+                'learning_rate': 0.05,
+                'feature_fraction': 0.9,
+                'bagging_fraction': 0.8,
+                'bagging_freq': 5,
                 'verbose': 0,
-                'min_sum_hessian_in_leaf': 4,
+                'min_child_weight': 2,
+                'in_sum_in_hessian': 0,
+                'min_data_in_leaf': 0
             }
         else:
             self.lgbm_params = params 
@@ -189,7 +193,7 @@ class LGBModelInternal:
         elif self.few_shot_learning == "plus_per_task":
             base_preds = self._predict_a_dataset(self.base_model, train_set)
             for task in train_set.tasks():
-                diff_train_set = Dataset()
+                diff_train_set = Dataset(self.access_matrix)
                 diff_train_set.load_task_data(
                     task,
                     train_set.features[task],
@@ -249,7 +253,7 @@ class LGBModelInternal:
             verbose_eval=self.verbose_eval  
         )
 
-        feature_names = list(get_per_store_feature_names()) + ['max', 'min', 'add', 
+        feature_names = list(get_per_store_feature_names(self.access_matrix)) + ['max', 'min', 'add', 
             'Conv2dOutput', 'conv2d_winograd', 'DepthwiseConv2d',
             'dense', 'softmax', 'compute(b, i, j)']
         feature_importances = bst.feature_importance()
@@ -285,7 +289,7 @@ class LGBModelInternal:
 
     def make_diff_set(self, base_model, dataset):
         base_preds = self._predict_a_dataset(base_model, dataset)
-        diff_set = Dataset()
+        diff_set = Dataset(self.access_matrix)
         for task in dataset.tasks():
             diff_set.load_task_data(
                 task,
@@ -365,15 +369,16 @@ class LGBModelInternal:
 class LGBModel(PythonBasedModel):
     """The wrapper of LGBModelInternal. So we can use it in end-to-end search."""
     def __init__(self, few_shot_learning="base_only", verbose_eval=25,
-                 num_warmup_sample=100, seed=None, disable_update=False):
+                 num_warmup_sample=100, seed=None, disable_update=False, access_matrix=True):
         super().__init__()
 
         self.num_warmup_sample = num_warmup_sample
         self.disable_update = disable_update
         self.model = LGBModelInternal(few_shot_learning=few_shot_learning,
                                       verbose_eval=verbose_eval,
-                                      seed=seed)
-        self.dataset = Dataset()
+                                      seed=seed, access_matrix=access_matrix)
+        self.dataset = Dataset(self.access_matrix)
+        self.access_matrix = access_matrix
 
     def update(self, inputs, results):
         if self.disable_update or len(inputs) <= 0:
@@ -384,7 +389,7 @@ class LGBModel(PythonBasedModel):
         logger.info("LGBModel Training time: %.2f s", time.time() - tic)
 
     def predict(self, task, states):
-        features = get_per_store_features_from_states(states, task)
+        features = get_per_store_features_from_states(states, task, access_matrix=self.access_matrix)
         if self.model is not None and len(self.dataset) > self.num_warmup_sample:
             learning_task = LearningTask(task.workload_key, str(task.target))
             eval_dataset = Dataset.create_one_task(learning_task, features, None)

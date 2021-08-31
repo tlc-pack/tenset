@@ -162,6 +162,92 @@ class ReadAccessExtractor : public StmtExprVisitor {
   bool has_branch{false};
 };
 
+class LoopVarCollector : public StmtExprVisitor {
+ public:
+  void Extract(PrimExpr expr) { this->VisitExpr(expr); }
+
+  void VisitExpr_(const CallNode* op) final {
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  void VisitExpr_(const VarNode* op) final {
+    if (var_map.find(op->name_hint) == var_map.end()) {
+      var_map[op->name_hint] = counter++;
+    }
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  void VisitStmt_(const IfThenElseNode* op) final {
+    StmtExprVisitor::VisitStmt_(op);
+  }
+
+  void VisitExpr_(const SelectNode* op) final {
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  std::unordered_map<String, size_t> var_map;
+  size_t counter{0};
+};
+
+class LinearCombinationExtractor : public StmtExprVisitor {
+ public:
+  void Extract(PrimExpr expr) { this->VisitExpr(expr); }
+
+  void VisitExpr_(const CallNode* op) final {
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  void VisitExpr_(const IntImmNode* op) final {
+    if (var_map.find("constant") == var_map.end()) {
+      var_map["constant"] = sign * op->value;
+    }
+    else {
+      LOG(FATAL) << "ill-formed index: IntImmNode";
+    }
+  }
+
+  void VisitExpr_(const MulNode* op) final {
+    if (op->a->IsInstance<te::IntImmNode>() && op->b->IsInstance<te::VarNode>()) {
+      const auto& an = op->a.as<IntImmNode>();
+      const auto& bn = op->b.as<VarNode>();
+      var_map[bn->name_hint] = sign * an->value;
+    }
+    else if (op->a->IsInstance<te::VarNode>() && op->b->IsInstance<te::IntImmNode>()) {
+      const auto& an = op->a.as<VarNode>();
+      const auto& bn = op->b.as<IntImmNode>();
+      var_map[an->name_hint] = sign * bn->value;
+    }
+    else {
+      return; // access like ((floormod(floordiv(p, 4), 4)*4) + eps) will be treated as 0
+      //LOG(FATAL) << "ill-formed index: MulNode";
+    }
+  }
+
+  void VisitExpr_(const SubNode* op) final {
+    this->VisitExpr(op->a);
+    this->sign = this->sign * (-1);
+    this->VisitExpr(op->b);
+  }
+
+  void VisitExpr_(const VarNode* op) final {
+    var_map[op->name_hint] = sign;
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  void VisitStmt_(const IfThenElseNode* op) final {
+    StmtExprVisitor::VisitStmt_(op);
+  }
+
+  void VisitExpr_(const SelectNode* op) final {
+    StmtExprVisitor::VisitExpr_(op);
+  }
+
+  std::unordered_map<String, int> var_map;
+  size_t counter{0};
+  int sign{1};
+};
+
+
 // Returns whether the expr equals to the var with an optional const shift
 bool IsConstShiftEqual(const Var& var, const PrimExpr& expr) {
   arith::PVar<PrimExpr> x;
@@ -1243,6 +1329,95 @@ String ComputeDAG::PrintStepsAsPython(const Array<Step>& transform_steps) const 
   return ss.str();
 }
 
+std::vector<int> ComputeDAG::ComputeAccessMatrix(bool enabled) const {
+  //std::stringstream ss;
+  
+  if (!enabled) {
+    std::vector<int> res;
+    return res;
+  }
+
+  size_t NUM_DIMENSIONS = 5;
+  size_t NUM_BUFFERS = 5;
+  size_t NUM_VARS = 10;
+  size_t LENGTH_ACCESS_FEATURES = NUM_DIMENSIONS * NUM_BUFFERS * NUM_VARS; //250
+  size_t ct = 0;
+  std::vector<int> res(LENGTH_ACCESS_FEATURES);
+
+  //std::cout << "start" << std::endl;
+
+  LoopVarCollector loopvar_collect;
+  for (const auto& op : operator->()->ops) {
+    if (op->IsInstance<te::PlaceholderOpNode>()) {
+      continue;
+    } else if (auto pop = op.as<te::ComputeOpNode>()) {
+
+      for (size_t i = 0; i < pop->axis.size(); i++) {
+        if (loopvar_collect.var_map.find(pop->axis[i]->var->name_hint) == loopvar_collect.var_map.end()) {
+            loopvar_collect.var_map[pop->axis[i]->var->name_hint] = loopvar_collect.counter++;
+        }
+      }
+
+      for (auto e : pop->body) {
+        loopvar_collect.Extract(e);
+      }
+    
+    } else {
+      LOG(FATAL) << "Invalid op";
+    }
+  }
+  //std::cout << "loopvar" << std::endl;
+
+  for (const auto& op : operator->()->ops) {
+    if (op->IsInstance<te::PlaceholderOpNode>()) {
+      continue;
+    } else if (auto pop = op.as<te::ComputeOpNode>()) {
+      for (size_t k = 0; k < pop->body.size(); ++k) {
+
+        ReadAccessExtractor extractor;
+        extractor.Extract(pop->body[k]);
+        
+        std::vector<std::pair<String, tvm::te::Operation>> keys;
+        keys.reserve (extractor.read_access.size());
+        for (auto& it : extractor.read_access) {
+            keys.push_back(std::make_pair(it.first->name, it.first));
+        }
+        std::sort (keys.begin(), keys.end());
+
+        for (auto const &key: keys) {
+            std::vector<std::vector<int>> access_mat(NUM_DIMENSIONS, std::vector<int>(NUM_VARS, 0));
+            for (auto indices : extractor.read_access[key.second]) {
+              int i = 0;
+              for (auto index : indices) {
+                  LinearCombinationExtractor lcomb;
+                  lcomb.Extract(index);
+                  for  (auto const &ipair: lcomb.var_map) {
+                    auto result = loopvar_collect.var_map.find(ipair.first);
+                    if ( result != loopvar_collect.var_map.end() && loopvar_collect.var_map[ipair.first] < NUM_VARS) {
+                      access_mat[i][loopvar_collect.var_map[ipair.first]] = ipair.second;
+                    }
+                  }
+                  i++;
+              }
+              for (size_t i = 0; i < NUM_DIMENSIONS; ++i)
+              {
+                  for (size_t j = 0; j < NUM_VARS; ++j)
+                  {
+                      if (ct < LENGTH_ACCESS_FEATURES){
+                        res[ct++] = access_mat[i][j];
+                      }
+                  }
+              }
+              break;
+            }
+      }
+      }
+    }
+  }
+  
+  return res;
+}
+
 String ComputeDAG::PrintDAG(bool simple_mode) const {
   std::stringstream ss;
 
@@ -1278,8 +1453,8 @@ String ComputeDAG::PrintDAG(bool simple_mode) const {
           } else if (combiner->IsInstance<SelectNode>()) {
             const auto& select = combiner.as<SelectNode>();
             ss << " select(" << select->condition << ", " << select->true_value << ", "
-               << select->false_value << ")= " << '(' << preduce->source[0] << ','
-               << preduce->source[1] << ")\n";
+              << select->false_value << ")= " << '(' << preduce->source[0] << ','
+              << preduce->source[1] << ")\n";
           } else {
             ss << "reduce" << combiner << "\n";
           }
