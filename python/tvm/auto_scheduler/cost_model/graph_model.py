@@ -44,8 +44,8 @@ class LambdaRankLoss(torch.nn.Module):
                 device = 'cuda:0'
             else:
                 device = 'cpu'
-        preds = preds[None, :]
-        labels = labels[None, :]
+        #preds = preds[None, :]
+        #labels = labels[None, :]
         y_pred = preds.clone()
         y_true = labels.clone()
 
@@ -165,7 +165,7 @@ class GraphModel(PythonBasedModel):
         self.inputs = []
         self.results = []
         self.few_shot_learning="base_only"
-        self.loss_func = torch.nn.MSELoss()
+        self.loss_func = LambdaRankLoss()
         # torch.nn.MSELoss() 
 
     def register_new_task(self, task):
@@ -201,7 +201,7 @@ class GraphModel(PythonBasedModel):
         train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
 
         self.GNN = GNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float().cuda()
-        opt = torch.optim.Adam(self.GNN.parameters(), lr=self.params['lr'])
+        opt = torch.optim.SGD(self.GNN.parameters(), lr=self.params['lr'])
         scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.99)
         n = len(train_batched_graphs)
         #loss_func = torch.nn.MSELoss()
@@ -217,7 +217,7 @@ class GraphModel(PythonBasedModel):
                 opt.zero_grad()
                 prediction = self.GNN(train_batched_graphs[i])
                 #loss = torch.sqrt(loss_func(prediction, train_batched_labels[i].unsqueeze(1).cuda())) #loss_func(prediction, torch.log(train_batched_labels[i].unsqueeze(1).cuda()))
-                loss = torch.sqrt(self.loss_func(prediction, train_batched_labels[i].unsqueeze(1).cuda()))
+                loss = self.loss_func(prediction.view(-1), train_batched_labels[i].view(-1).cuda())
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
                 #torch.nn.utils.clip_grad_norm_(self.GNN.parameters(), 10)
