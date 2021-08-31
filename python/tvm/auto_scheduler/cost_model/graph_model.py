@@ -119,6 +119,9 @@ class GNN(torch.nn.Module):
 
     def forward(self, g):
         with g.local_scope():
+            nans = (torch.where(torch.isnan(g.ndata['fea']))[1])
+            print(len(nans))
+            
             g.ndata['fea'] = torch.nan_to_num(g.ndata['fea'])
             
             g.update_all(self.message_func, fn.sum('mid', 'h_neigh'))
