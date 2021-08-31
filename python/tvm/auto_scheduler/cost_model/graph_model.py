@@ -149,7 +149,7 @@ class GraphModel(PythonBasedModel):
 
     def __init__(self):
         self.params = {
-            'batch_size': 64,
+            'batch_size': 128 + 32,
             'itr_num': 500,
             'lr':  0.01,
             'hidden_dim': 64,
