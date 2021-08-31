@@ -33,9 +33,12 @@
 
 #include <tvm/auto_scheduler/compute_dag.h>
 #include <tvm/auto_scheduler/measure.h>
+#include <tvm/tir/op_attr_types.h>
+#include <tvm/tir/stmt_functor.h>
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace tvm {
 namespace auto_scheduler {
@@ -115,6 +118,125 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
                                          std::vector<std::vector<float> >* features,
                                          std::vector<float>* normalized_throughputs,
                                          std::vector<int>* task_ids);
+
+template <class T>
+using BufferMap = std::unordered_map<Buffer, T, ObjectHash, ObjectEqual>;
+
+// Data reuse type
+enum class ReuseType : int { kLoopMultipleRead = 0, kSerialMultipleReadWrite = 1, kNoReuse = 2 };
+
+// Buffer access type
+enum class BufferAccessType : int { kRead = 0, kWrite = 1, kReadWrite = 2, kUnknownRW = 3 };
+
+struct BufferAccess {
+  // data reuse type
+  BufferAccessType acc_type{BufferAccessType::kUnknownRW};
+  // Use a two-dimensional array to store multiple multi-dimensional accesses.
+  // The innermost vector stores the multi-dimensional indices of one access.
+  std::vector<std::vector<PrimExpr>> indices;
+};
+
+struct BufferAccessFeature {
+  std::string buffer_name;        // The name of the buffer
+  BufferAccessType acc_type;      // The type of the access
+  float bytes;                    // The touched memory in bytes
+  float unique_bytes;             // The touched unique memory in bytes
+  float lines;                    // The number of touched cache lines
+  float unique_lines;             // The number touched unique cache lines
+  ReuseType reuse_type;           // Tye type of data reuse
+  float reuse_dis_iter;           // The reuse distance in iterator number
+  float reuse_dis_bytes;          // The reuse distance in total touched bytes
+  float reuse_ct;                 // The reuse ratio
+  float bytes_d_reuse_ct;         // bytes / reuse_ct
+  float unique_bytes_d_reuse_ct;  // unique_bytes / reuse_ct
+  float lines_d_reuse_ct;         // lines / reuse_ct
+  float unique_lines_d_reuse_ct;  // unique_lines / reuse_ct
+  float stride;                   // The stride in access
+};
+
+inline float slog(float x);
+
+int64_t GetLoopExtent(const ForNode* node);
+
+std::tuple<ReuseType, float, float, float> ComputeReuse(
+                                        const Buffer& buf,
+                                        const std::vector<std::vector<PrimExpr> >& indices,
+                                        const std::vector<const ForNode*>& for_loop_stack,
+                                        const std::unordered_map<const ForNode*, BufferMap<std::vector<
+                                            std::tuple<BufferAccessType, int64_t, int> > > >& for_touch_regions);
+
+void ComputeRegion(
+    const std::vector<std::vector<PrimExpr> > &indices,
+    arith::Analyzer* ana,
+    std::vector<int>* region);
+
+int64_t ComputeStride(const std::vector<std::vector<PrimExpr> >& indices,
+                      const std::vector<int>& shape,
+                      const VarNode* stride_var);
+
+// Extract all buffer accesses in an expr
+class BufferAccessExtractor : public StmtExprVisitor {
+ public:
+  void ExtractReads(const PrimExpr& expr);
+
+  void InsertAccess(const Buffer& buf, BufferAccessType acc_type, const Array<PrimExpr>& indices);
+
+  void VisitExpr_(const BufferLoadNode* op) final;
+
+  BufferMap<BufferAccess> buf_accesses;
+};
+
+// Count math ops in an expr
+class MathOpCounter : public StmtExprVisitor {
+ public:
+#define VisitBinary(Type, float_ct, int_ct) \
+  void VisitExpr_(const Type* op) final;
+
+  VisitBinary(AddNode, float_addsub, int_addsub);
+  VisitBinary(SubNode, float_addsub, int_addsub);
+  VisitBinary(MulNode, float_mul, int_mul);
+  VisitBinary(DivNode, float_divmod, int_divmod);
+  VisitBinary(ModNode, float_divmod, int_divmod);
+  VisitBinary(FloorDivNode, float_divmod, int_divmod);
+  VisitBinary(FloorModNode, float_divmod, int_divmod);
+  VisitBinary(MaxNode, float_cmp, int_cmp);
+  VisitBinary(MinNode, float_cmp, int_cmp);
+  VisitBinary(EQNode, float_cmp, int_cmp);
+  VisitBinary(NENode, float_cmp, int_cmp);
+  VisitBinary(LTNode, float_cmp, int_cmp);
+  VisitBinary(LENode, float_cmp, int_cmp);
+  VisitBinary(GTNode, float_cmp, int_cmp);
+  VisitBinary(GENode, float_cmp, int_cmp);
+
+#undef VisitBinary
+
+  void VisitExpr_(const AndNode* op) final;
+  void VisitExpr_(const OrNode* op) final;
+  void VisitExpr_(const NotNode* op) final;
+  void VisitExpr_(const SelectNode* op) final;
+  void VisitExpr_(const CallNode* op) final;
+
+  // todo(merrymercy): Detect MAD (Multiply–add)
+  size_t float_mad{0};         // The number of float MAD (Multiply–add) ops
+  size_t float_addsub{0};      // The number of float add and sub ops
+  size_t float_mul{0};         // The number of float multiply ops
+  size_t float_divmod{0};      // The number of float div and mod ops
+  size_t float_cmp{0};         // The number of float comparison ops
+  size_t float_math_func{0};   // The number of float math func calls
+  size_t float_other_func{0};  // The number of other float func calls
+  size_t int_mad{0};           // The number of integer MAD (Multiply–add) ops
+  size_t int_addsub{0};        // The number of integer add and sub ops
+  size_t int_mul{0};           // The number of float multiply ops
+  size_t int_divmod{0};        // The number of float div and mod ops
+  size_t int_cmp{0};           // The number of float comparison ops
+  size_t int_math_func{0};     // The number of float math func calls
+  size_t int_other_func{0};    // The number of other float func calls
+  size_t bool_op{0};           // The number of bool ops
+  size_t select_op{0};         // The number of select ops
+
+  OpAttrMap<TCallEffectKind> op_call_effect_ = Op::GetAttrMap<TCallEffectKind>("TCallEffectKind");
+};
+
 
 }  // namespace auto_scheduler
 }  // namespace tvm

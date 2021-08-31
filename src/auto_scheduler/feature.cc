@@ -77,21 +77,22 @@ enum class AnnotationPosType : int {
 };
 
 // Buffer access type
-enum class BufferAccessType : int { kRead = 0, kWrite = 1, kReadWrite = 2, kUnknownRW = 3 };
+// enum class BufferAccessType : int { kRead = 0, kWrite = 1, kReadWrite = 2, kUnknownRW = 3 };
 
 // Accesses to a buffer
-struct BufferAccess {
+//struct BufferAccess {
   // data reuse type
-  BufferAccessType acc_type{BufferAccessType::kUnknownRW};
+  //BufferAccessType acc_type{BufferAccessType::kUnknownRW};
   // Use a two-dimensional array to store multiple multi-dimensional accesses.
   // The innermost vector stores the multi-dimensional indices of one access.
-  std::vector<std::vector<PrimExpr>> indices;
-};
+  //std::vector<std::vector<PrimExpr>> indices;
+//};
 
 // Data reuse type
-enum class ReuseType : int { kLoopMultipleRead = 0, kSerialMultipleReadWrite = 1, kNoReuse = 2 };
+// enum class ReuseType : int { kLoopMultipleRead = 0, kSerialMultipleReadWrite = 1, kNoReuse = 2 };
 
 // Feature for an access of a buffer
+/*
 struct BufferAccessFeature {
   std::string buffer_name;        // The name of the buffer
   BufferAccessType acc_type;      // The type of the access
@@ -109,7 +110,7 @@ struct BufferAccessFeature {
   float unique_lines_d_reuse_ct;  // unique_lines / reuse_ct
   float stride;                   // The stride in access
 };
-
+*/
 // Feature set of a BufferStore statement
 struct FeatureSet {
   // Group 1: Computation related features
@@ -249,11 +250,10 @@ int64_t GetLoopExtent(const ForNode* node) {
   }
 }
 
+
 // Count math ops in an expr
-class MathOpCounter : public StmtExprVisitor {
- public:
 #define VisitBinary(Type, float_ct, int_ct) \
-  void VisitExpr_(const Type* op) final {   \
+  void MathOpCounter::VisitExpr_(const Type* op)  {   \
     if (op->a.dtype().is_float()) {         \
       float_ct++;                           \
     } else {                                \
@@ -280,24 +280,24 @@ class MathOpCounter : public StmtExprVisitor {
 
 #undef VisitBinary
 
-  void VisitExpr_(const AndNode* op) final {
+  void MathOpCounter::VisitExpr_(const AndNode* op)  {
     bool_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
-  void VisitExpr_(const OrNode* op) final {
+  void MathOpCounter::VisitExpr_(const OrNode* op)  {
     bool_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
-  void VisitExpr_(const NotNode* op) final {
+  void MathOpCounter::VisitExpr_(const NotNode* op)  {
     bool_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
-  void VisitExpr_(const SelectNode* op) final {
+  void MathOpCounter::VisitExpr_(const SelectNode* op)  {
     select_op++;
     StmtExprVisitor::VisitExpr_(op);
   }
 
-  void VisitExpr_(const CallNode* op) final {
+  void MathOpCounter::VisitExpr_(const CallNode* op)  {
     auto* pop = op->op.as<OpNode>();
     ICHECK(pop != nullptr);
     auto effect_kind = op_call_effect_[GetRef<Op>(pop)];
@@ -320,39 +320,16 @@ class MathOpCounter : public StmtExprVisitor {
     StmtExprVisitor::VisitExpr_(op);
   }
 
-  // todo(merrymercy): Detect MAD (Multiply–add)
-  size_t float_mad{0};         // The number of float MAD (Multiply–add) ops
-  size_t float_addsub{0};      // The number of float add and sub ops
-  size_t float_mul{0};         // The number of float multiply ops
-  size_t float_divmod{0};      // The number of float div and mod ops
-  size_t float_cmp{0};         // The number of float comparison ops
-  size_t float_math_func{0};   // The number of float math func calls
-  size_t float_other_func{0};  // The number of other float func calls
-  size_t int_mad{0};           // The number of integer MAD (Multiply–add) ops
-  size_t int_addsub{0};        // The number of integer add and sub ops
-  size_t int_mul{0};           // The number of float multiply ops
-  size_t int_divmod{0};        // The number of float div and mod ops
-  size_t int_cmp{0};           // The number of float comparison ops
-  size_t int_math_func{0};     // The number of float math func calls
-  size_t int_other_func{0};    // The number of other float func calls
-  size_t bool_op{0};           // The number of bool ops
-  size_t select_op{0};         // The number of select ops
-
-  OpAttrMap<TCallEffectKind> op_call_effect_ = Op::GetAttrMap<TCallEffectKind>("TCallEffectKind");
-};
-
 // Extract all buffer accesses in an expr
-class BufferAccessExtractor : public StmtExprVisitor {
- public:
-  void ExtractReads(const PrimExpr& expr) { this->VisitExpr(expr); }
+  void BufferAccessExtractor::ExtractReads(const PrimExpr& expr) { this->VisitExpr(expr); }
 
-  void InsertAccess(const Buffer& buf, BufferAccessType acc_type, const Array<PrimExpr>& indices) {
+  void BufferAccessExtractor::InsertAccess(const Buffer& buf, BufferAccessType acc_type, const Array<PrimExpr>& indices) {
     BufferAccess& acc = buf_accesses[buf];
     acc.acc_type = acc_type;
     acc.indices.push_back(std::vector<PrimExpr>(indices.begin(), indices.end()));
   }
 
-  void VisitExpr_(const BufferLoadNode* op) final {
+  void BufferAccessExtractor::VisitExpr_(const BufferLoadNode* op) {
     BufferAccess& acc = buf_accesses[op->buffer];
     switch (acc.acc_type) {
       case BufferAccessType::kRead:
@@ -377,9 +354,6 @@ class BufferAccessExtractor : public StmtExprVisitor {
     }
     StmtExprVisitor::VisitExpr_(op);
   }
-
-  BufferMap<BufferAccess> buf_accesses;
-};
 
 // Compute the coefficient for an loop iterator in an expression
 // Note: we use an approximation strategy to find coefficient.
@@ -1524,6 +1498,7 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
     task_ids->push_back(task_id);
     states.push_back(inputs[i]->state);
     normalized_throughputs->push_back(cost);
+
   }
 
   for (size_t i = 0; i < normalized_throughputs->size(); ++i) {
