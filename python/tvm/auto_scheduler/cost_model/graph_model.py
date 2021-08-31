@@ -121,7 +121,7 @@ class GNN(torch.nn.Module):
         with g.local_scope():
             nans = (torch.where(torch.isnan(g.ndata['fea']))[1])
             print(len(nans))
-            
+
             g.ndata['fea'] = torch.nan_to_num(g.ndata['fea'])
             
             g.update_all(self.message_func, fn.sum('mid', 'h_neigh'))
@@ -220,11 +220,12 @@ class GraphModel(PythonBasedModel):
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
                 #torch.nn.utils.clip_grad_norm_(self.GNN.parameters(), 10)
-                print('=======')
-                print(list(self.GNN.conv1.parameters()))
+                print(loss)
+                #print('=======')
+                #print(list(self.GNN.conv1.parameters()))
                 for x in list(self.GNN.conv1.parameters()): print(x.grad)
                 opt.step()
-                print(list(self.GNN.conv1.parameters()))
+                #print(list(self.GNN.conv1.parameters()))
                 pred = prediction.squeeze().cpu().tolist()
                 label = train_batched_labels[i].squeeze().cpu().tolist()
                 if type(pred) is float: pred = [pred]
