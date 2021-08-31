@@ -76,12 +76,12 @@ def evaluate_model(model, test_set):
     return eval_res
 
 
-def make_model(name, use_gpu=False):
+def make_model(name, use_gpu=False, assembly=True):
     """Make model according to a name"""
     if name == "xgb":
-        return XGBModelInternal(use_gpu=use_gpu)
+        return XGBModelInternal(use_gpu=use_gpu, assembly=assembly)
     elif name == "mlp":
-        return MLPModelInternal()
+        return MLPModelInternal(assembly=assembly)
     elif name == 'lgbm':
         return LGBModelInternal(use_gpu=use_gpu)
     elif name == 'tab':
@@ -92,14 +92,14 @@ def make_model(name, use_gpu=False):
         raise ValueError("Invalid model: " + name)
  
 
-def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
+def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu, assembly):
     # Split dataset
     if split_scheme == "within_task":
-        train_set, test_set = dataset.random_split_within_task(train_ratio)
+        train_set, test_set = dataset.random_split_within_task(train_ratio, assembly=assembly)
     elif split_scheme == "by_task":
-        train_set, test_set = dataset.random_split_by_task(train_ratio)
+        train_set, test_set = dataset.random_split_by_task(train_ratio, assembly=assembly)
     elif split_scheme == "by_target":
-        train_set, test_set = dataset.random_split_by_target(train_ratio)
+        train_set, test_set = dataset.random_split_by_target(train_ratio, assembly=assembly)
     else:
         raise ValueError("Invalid split scheme: " + split_scheme)
 
@@ -112,7 +112,7 @@ def train_zero_shot(dataset, train_ratio, model_names, split_scheme, use_gpu):
     names = model_names.split("@")
     models = []
     for name in names:
-        models.append(make_model(name, use_gpu))
+        models.append(make_model(name, use_gpu, assembly))
 
     eval_results = []
     for name, model in zip(names, models):
@@ -150,6 +150,7 @@ if __name__ == "__main__":
     parser.add_argument("--use-gpu", type=str2bool, nargs='?',
                         const=True, default=False,
                         help="Whether to use GPU for xgb.")
+    parser.add_argument("--assembly", type=bool)
     args = parser.parse_args()
     print("Arguments: %s" % str(args))
 
@@ -169,5 +170,5 @@ if __name__ == "__main__":
         tmp_dataset = pickle.load(open(args.dataset[i], "rb"))
         dataset.update_from_dataset(tmp_dataset)
 
-    train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu)
+    train_zero_shot(dataset, args.train_ratio, args.models, args.split_scheme, args.use_gpu, args.assembly)
 

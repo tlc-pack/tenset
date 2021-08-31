@@ -48,14 +48,14 @@ namespace auto_scheduler {
  * \param ret The returned feature vector
  */
 void GetPerStoreFeature(const Stmt& stmt, int cache_line_size, int max_n_bufs,
-                        std::vector<float>* ret);
+                        std::vector<float>* ret, std::vector<int> assem, bool assembly);
 
 /*
  * \brief Get the names of elements in the feature vector. Use this for debug and inspection.
  * \param max_n_bufs The maximum number of extracted buffers for one statement
  * \param ret The returned names.
  */
-void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret);
+void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret, bool assembly);
 
 /*!
  * \brief Get per-store feature from states of the same task
@@ -68,7 +68,7 @@ void GetPerStoreFeatureName(int max_n_bufs, std::vector<std::string>* ret);
  */
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask& task,
                                    int skip_first_n_feature_extraction, int max_n_bufs,
-                                   std::vector<std::vector<float> >* features);
+                                   std::vector<std::vector<float> >* features, bool assembly);
 
 /*!
  * \brief Get per-store feature from states of different tasks
@@ -81,7 +81,7 @@ void GetPerStoreFeaturesFromStates(const Array<State>& states, const SearchTask&
  */
 void GetPerStoreFeaturesFromStates(const Array<State>& states, const std::vector<SearchTask>& tasks,
                                    int skip_first_n_feature_extraction, int max_n_bufs,
-                                   std::vector<std::vector<float> >* features);
+                                   std::vector<std::vector<float> >* features, bool assembly);
 
 /*!
  * \brief Get per-store features from a log file
@@ -96,7 +96,7 @@ void GetPerStoreFeaturesFromStates(const Array<State>& states, const std::vector
 void GetPerStoreFeaturesFromFile(const std::string& filename, int max_lines, int max_n_bufs,
                                  std::vector<std::vector<float> >* features,
                                  std::vector<float>* normalized_throughputs,
-                                 std::vector<int>* task_ids);
+                                 std::vector<int>* task_ids, bool assembly);
 
 /*!
  * \brief Get per-store features from measurement input/result pairs
@@ -114,7 +114,7 @@ void GetPerStoreFeaturesFromMeasurePairs(const Array<MeasureInput>& inputs,
                                          int skip_first_n_feature_extraction, int max_n_bufs,
                                          std::vector<std::vector<float> >* features,
                                          std::vector<float>* normalized_throughputs,
-                                         std::vector<int>* task_ids);
+                                         std::vector<int>* task_ids, bool assembly);
 
 }  // namespace auto_scheduler
 }  // namespace tvm

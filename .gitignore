@@ -243,5 +243,6 @@ scripts/today_job.sh
 scripts/progress.txt
 scripts/*.pkl
 scripts/.dataset_cache
+scripts/.dataset_cache_assembly
 scripts/results.tsv
 scripts/total_latency.tsv
