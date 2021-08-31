@@ -54,6 +54,7 @@ class LambdaRankLoss(torch.nn.Module):
 
         true_sorted_by_preds = torch.gather(y_true, dim=1, index=indices_pred)
         true_diffs = true_sorted_by_preds[:, :, None] - true_sorted_by_preds[:, None, :]
+        print(true_diffs)
         padded_pairs_mask = torch.isfinite(true_diffs)
 
         padded_pairs_mask = padded_pairs_mask & (true_diffs > 0)
