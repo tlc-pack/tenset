@@ -78,12 +78,12 @@ class LambdaRankLoss(torch.nn.Module):
         loss = -torch.sum(masked_losses)
         return loss
 
-class _GNN(torch.nn.Module):
+class GNN2(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim):
-        super(_GNN, self).__init__()
+        super(GNN2, self).__init__()
         self.conv1 = dglnn.TAGConv(node_dim, hidden_dim)
         self.conv2 = dglnn.TAGConv(hidden_dim, hidden_dim)
-        self.conv3 = dglnn.TAGConv(hidden_dim, hidden_dim)
+        #self.conv3 = dglnn.TAGConv(hidden_dim, hidden_dim)
         self.classify = torch.nn.Linear(hidden_dim, 1)
 
     def forward(self, g):
@@ -97,7 +97,7 @@ class _GNN(torch.nn.Module):
         # print(g.ndata['fea'])
         h = F.relu(self.conv1(g, g.ndata['fea']))
         h = F.relu(self.conv2(g, h))
-        h = F.relu(self.conv3(g, h))
+        # h = F.relu(self.conv3(g, h))
         with g.local_scope():
             g.ndata['h'] = h
             # Calculate graph representation by average readout.
@@ -149,8 +149,8 @@ class GraphModel(PythonBasedModel):
 
     def __init__(self):
         self.params = {
-            'batch_size': 32,
-            'itr_num': 1000,
+            'batch_size': 64,
+            'itr_num': 500,
             'lr':  0.01,
             'hidden_dim': 64,
             'node_fea': 142,
