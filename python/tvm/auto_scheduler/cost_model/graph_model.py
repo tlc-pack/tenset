@@ -216,7 +216,7 @@ class GraphModel(PythonBasedModel):
                 loss = self.loss_func(prediction, train_batched_labels[i].unsqueeze(1).cuda())
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.GNN.parameters(), 10)
+                #torch.nn.utils.clip_grad_norm_(self.GNN.parameters(), 10)
                 opt.step()
                 pred = prediction.squeeze().cpu().tolist()
                 label = train_batched_labels[i].squeeze().cpu().tolist()
