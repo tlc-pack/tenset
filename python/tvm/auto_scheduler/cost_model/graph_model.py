@@ -147,7 +147,7 @@ class GraphModel(PythonBasedModel):
     def __init__(self):
         self.params = {
             'batch_size': 128,
-            'itr_num': 1000,
+            'itr_num': 100,
             'lr':  0.01,
             'hidden_dim': 32,
             'node_fea': 142,
@@ -197,7 +197,7 @@ class GraphModel(PythonBasedModel):
         train_batched_graphs, train_batched_labels = create_batch(train_pairs, self.params['batch_size'])
 
         self.GNN = GNN(self.params['node_fea'], self.params['edge_fea'], self.params['hidden_dim']).float().cuda()
-        opt = torch.optim.SGD(self.GNN.parameters(), lr=self.params['lr'])
+        opt = torch.optim.Adam(self.GNN.parameters(), lr=self.params['lr'])
         scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.99)
         n = len(train_batched_graphs)
         #loss_func = torch.nn.MSELoss()
@@ -217,7 +217,10 @@ class GraphModel(PythonBasedModel):
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
                 #torch.nn.utils.clip_grad_norm_(self.GNN.parameters(), 10)
+                print('=======')
+                print(self.GNN.conv1.parameters())
                 opt.step()
+                print(self.GNN.conv1.parameters())
                 pred = prediction.squeeze().cpu().tolist()
                 label = train_batched_labels[i].squeeze().cpu().tolist()
                 if type(pred) is float: pred = [pred]
