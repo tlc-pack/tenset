@@ -218,9 +218,9 @@ class GraphModel(PythonBasedModel):
                 loss.backward()
                 #torch.nn.utils.clip_grad_norm_(self.GNN.parameters(), 10)
                 print('=======')
-                print(self.GNN.conv1.parameters())
+                print(list(self.GNN.conv1.parameters()))
                 opt.step()
-                print(self.GNN.conv1.parameters())
+                print(list(self.GNN.conv1.parameters()))
                 pred = prediction.squeeze().cpu().tolist()
                 label = train_batched_labels[i].squeeze().cpu().tolist()
                 if type(pred) is float: pred = [pred]
