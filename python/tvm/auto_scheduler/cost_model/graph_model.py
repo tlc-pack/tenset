@@ -30,6 +30,54 @@ def compute_rmse(preds, labels):
     """Compute RMSE (Rooted mean square error)"""
     return np.sqrt(np.mean(np.square(preds - labels)))
 
+class LambdaRankLoss(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def lamdbaRank_scheme(self, G, D, *args):
+        return torch.abs(torch.pow(D[:, :, None], -1.) - torch.pow(D[:, None, :], -1.)) * torch.abs(
+            G[:, :, None] - G[:, None, :])
+
+    def forward(self, preds, labels, k=None, eps=1e-10, mu=10., sigma=1., device=None):
+        if device is None:
+            if torch.cuda.device_count():
+                device = 'cuda:0'
+            else:
+                device = 'cpu'
+        preds = preds[None, :]
+        labels = labels[None, :]
+        y_pred = preds.clone()
+        y_true = labels.clone()
+
+        y_pred_sorted, indices_pred = y_pred.sort(descending=True, dim=-1)
+        y_true_sorted, _ = y_true.sort(descending=True, dim=-1)
+
+        true_sorted_by_preds = torch.gather(y_true, dim=1, index=indices_pred)
+        true_diffs = true_sorted_by_preds[:, :, None] - true_sorted_by_preds[:, None, :]
+        padded_pairs_mask = torch.isfinite(true_diffs)
+
+        padded_pairs_mask = padded_pairs_mask & (true_diffs > 0)
+        ndcg_at_k_mask = torch.zeros((y_pred.shape[1], y_pred.shape[1]), dtype=torch.bool, device=device)
+        ndcg_at_k_mask[:k, :k] = 1
+
+        true_sorted_by_preds.clamp_(min=0.)
+        y_true_sorted.clamp_(min=0.)
+
+        pos_idxs = torch.arange(1, y_pred.shape[1] + 1).to(device)
+        D = torch.log2(1. + pos_idxs.float())[None, :]
+        maxDCGs = torch.sum(((torch.pow(2, y_true_sorted) - 1) / D)[:, :k], dim=-1).clamp(min=eps)
+        G = (torch.pow(2, true_sorted_by_preds) - 1) / maxDCGs[:, None]
+
+        weights = self.lamdbaRank_scheme(G, D, mu, true_sorted_by_preds)
+
+        scores_diffs = (y_pred_sorted[:, :, None] - y_pred_sorted[:, None, :]).clamp(min=-1e8, max=1e8)
+        scores_diffs[torch.isnan(scores_diffs)] = 0.
+        weighted_probas = (torch.sigmoid(sigma * scores_diffs).clamp(min=eps) ** weights).clamp(min=eps)
+        losses = torch.log2(weighted_probas)
+        masked_losses = losses[padded_pairs_mask & ndcg_at_k_mask]
+        loss = -torch.sum(masked_losses)
+        return loss
+
 class GNN(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim):
         super(GNN, self).__init__()
@@ -114,6 +162,7 @@ class GraphModel(PythonBasedModel):
         self.inputs = []
         self.results = []
         self.few_shot_learning="base_only"
+        self.loss_func = LambdaRankLoss()
 
     def register_new_task(self, task):
         pass
@@ -151,7 +200,7 @@ class GraphModel(PythonBasedModel):
         opt = torch.optim.SGD(self.GNN.parameters(), lr=self.params['lr'])
         scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.99)
         n = len(train_batched_graphs)
-        loss_func = torch.nn.MSELoss()
+        #loss_func = torch.nn.MSELoss()
 
         print('Learning rate: {} batch size: {}'.format(self.params['lr'], self.params['batch_size']))
 
@@ -163,7 +212,8 @@ class GraphModel(PythonBasedModel):
             for i in range(n):
                 opt.zero_grad()
                 prediction = self.GNN(train_batched_graphs[i])
-                loss = torch.sqrt(loss_func(prediction, train_batched_labels[i].unsqueeze(1).cuda())) #loss_func(prediction, torch.log(train_batched_labels[i].unsqueeze(1).cuda()))
+                #loss = torch.sqrt(loss_func(prediction, train_batched_labels[i].unsqueeze(1).cuda())) #loss_func(prediction, torch.log(train_batched_labels[i].unsqueeze(1).cuda()))
+                loss = self.loss_func(prediction, train_batched_labels[i])
                 total_loss += loss.detach().item() * self.params['batch_size']
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.GNN.parameters(), 10)
