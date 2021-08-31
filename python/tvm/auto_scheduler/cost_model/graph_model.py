@@ -110,7 +110,7 @@ class GNN(torch.nn.Module):
         self.msg = torch.nn.Linear(node_dim + edge_dim, hidden_dim)
         self.conv1 = dglnn.TAGConv(hidden_dim + node_dim, hidden_dim)
         self.conv2 = dglnn.TAGConv(hidden_dim, hidden_dim)
-        self.conv3 = dglnn.TAGConv(hidden_dim, hidden_dim)
+        #self.conv3 = dglnn.TAGConv(hidden_dim, hidden_dim)
 
         self.predict = torch.nn.Linear(hidden_dim, 1)
 
@@ -132,7 +132,7 @@ class GNN(torch.nn.Module):
             #print(h.size())
             h = F.relu(self.conv2(g, h))
             #print(h.size())
-            h = F.relu(self.conv3(g, h))
+            #h = F.relu(self.conv3(g, h))
             #print(h.size())
 
             g.ndata['h'] = h
@@ -149,10 +149,10 @@ class GraphModel(PythonBasedModel):
 
     def __init__(self):
         self.params = {
-            'batch_size': 128,
-            'itr_num': 100,
+            'batch_size': 32,
+            'itr_num': 1000,
             'lr':  0.01,
-            'hidden_dim': 32,
+            'hidden_dim': 64,
             'node_fea': 142,
             'edge_fea': 4,
         }
