@@ -1319,6 +1319,7 @@ int count_frequency(std::string src, std::string pat) {
   return occurrences;
 }
 
+
 void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, int max_n_bufs,
                                    std::vector<float>* feature, std::atomic<int>* error_ct, bool assembly) {
   te::Schedule sch;

@@ -22,6 +22,569 @@ from tvm.auto_scheduler.measure_record import RecordReader
 from .xgb_model import get_workload_embedding
 from .cost_model import PythonBasedModel
 
+import torch
+from torch.nn import Linear, BatchNorm1d, ReLU
+import numpy as np
+from .sparsemax import Sparsemax, Entmax15
+
+class AttentiveTransformer(torch.nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        output_dim,
+        virtual_batch_size=128,
+        momentum=0.02,
+        mask_type="sparsemax",
+    ):
+        """
+        Initialize an attention transformer.
+        Parameters
+        ----------
+        input_dim : int
+            Input size
+        output_dim : int
+            Output_size
+        virtual_batch_size : int
+            Batch size for Ghost Batch Normalization
+        momentum : float
+            Float value between 0 and 1 which will be used for momentum in batch norm
+        mask_type : str
+            Either "sparsemax" or "entmax" : this is the masking function to use
+        """
+        super(AttentiveTransformer, self).__init__()
+        self.fc = Linear(input_dim, output_dim, bias=False)
+        initialize_non_glu(self.fc, input_dim, output_dim)
+        self.bn = GBN(
+            output_dim, virtual_batch_size=virtual_batch_size, momentum=momentum
+        )
+
+        if mask_type == "sparsemax":
+            # Sparsemax
+            self.selector = Sparsemax(dim=-1)
+        elif mask_type == "entmax":
+            # Entmax
+            self.selector = Entmax15(dim=-1)
+        else:
+            raise NotImplementedError(
+                "Please choose either sparsemax" + "or entmax as masktype"
+            )
+
+    def forward(self, priors, processed_feat):
+        x = self.fc(processed_feat)
+        x = self.bn(x)
+        x = torch.mul(x, priors)
+        x = self.selector(x)
+        return x
+
+
+class FeatTransformer(torch.nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        output_dim,
+        shared_layers,
+        n_glu_independent,
+        virtual_batch_size=128,
+        momentum=0.02,
+    ):
+        super(FeatTransformer, self).__init__()
+        """
+        Initialize a feature transformer.
+        Parameters
+        ----------
+        input_dim : int
+            Input size
+        output_dim : int
+            Output_size
+        shared_layers : torch.nn.ModuleList
+            The shared block that should be common to every step
+        n_glu_independent : int
+            Number of independent GLU layers
+        virtual_batch_size : int
+            Batch size for Ghost Batch Normalization within GLU block(s)
+        momentum : float
+            Float value between 0 and 1 which will be used for momentum in batch norm
+        """
+
+        params = {
+            "n_glu": n_glu_independent,
+            "virtual_batch_size": virtual_batch_size,
+            "momentum": momentum,
+        }
+
+        if shared_layers is None:
+            # no shared layers
+            self.shared = torch.nn.Identity()
+            is_first = True
+        else:
+            self.shared = GLU_Block(
+                input_dim,
+                output_dim,
+                first=True,
+                shared_layers=shared_layers,
+                n_glu=len(shared_layers),
+                virtual_batch_size=virtual_batch_size,
+                momentum=momentum,
+            )
+            is_first = False
+
+        if n_glu_independent == 0:
+            # no independent layers
+            self.specifics = torch.nn.Identity()
+        else:
+            spec_input_dim = input_dim if is_first else output_dim
+            self.specifics = GLU_Block(
+                spec_input_dim, output_dim, first=is_first, **params
+            )
+
+    def forward(self, x):
+        x = self.shared(x)
+        x = self.specifics(x)
+        return x
+
+
+class GLU_Block(torch.nn.Module):
+    """
+    Independent GLU block, specific to each step
+    """
+
+    def __init__(
+        self,
+        input_dim,
+        output_dim,
+        n_glu=2,
+        first=False,
+        shared_layers=None,
+        virtual_batch_size=128,
+        momentum=0.02,
+    ):
+        super(GLU_Block, self).__init__()
+        self.first = first
+        self.shared_layers = shared_layers
+        self.n_glu = n_glu
+        self.glu_layers = torch.nn.ModuleList()
+
+        params = {"virtual_batch_size": virtual_batch_size, "momentum": momentum}
+
+        fc = shared_layers[0] if shared_layers else None
+        self.glu_layers.append(GLU_Layer(input_dim, output_dim, fc=fc, **params))
+        for glu_id in range(1, self.n_glu):
+            fc = shared_layers[glu_id] if shared_layers else None
+            self.glu_layers.append(GLU_Layer(output_dim, output_dim, fc=fc, **params))
+
+    def forward(self, x):
+        scale = torch.sqrt(torch.FloatTensor([0.5]).to(x.device))
+        if self.first:  # the first layer of the block has no scale multiplication
+            x = self.glu_layers[0](x)
+            layers_left = range(1, self.n_glu)
+        else:
+            layers_left = range(self.n_glu)
+
+        for glu_id in layers_left:
+            x = torch.add(x, self.glu_layers[glu_id](x))
+            x = x * scale
+        return x
+
+
+class GLU_Layer(torch.nn.Module):
+    def __init__(
+        self, input_dim, output_dim, fc=None, virtual_batch_size=128, momentum=0.02
+    ):
+        super(GLU_Layer, self).__init__()
+
+        self.output_dim = output_dim
+        if fc:
+            self.fc = fc
+        else:
+            self.fc = Linear(input_dim, 2 * output_dim, bias=False)
+        initialize_glu(self.fc, input_dim, 2 * output_dim)
+
+        self.bn = GBN(
+            2 * output_dim, virtual_batch_size=virtual_batch_size, momentum=momentum
+        )
+
+    def forward(self, x):
+        x = self.fc(x)
+        x = self.bn(x)
+        out = torch.mul(x[:, : self.output_dim], torch.sigmoid(x[:, self.output_dim :]))
+        return out
+
+def initialize_non_glu(module, input_dim, output_dim):
+    gain_value = np.sqrt((input_dim + output_dim) / np.sqrt(4 * input_dim))
+    torch.nn.init.xavier_normal_(module.weight, gain=gain_value)
+    # torch.nn.init.zeros_(module.bias)
+    return
+
+
+def initialize_glu(module, input_dim, output_dim):
+    gain_value = np.sqrt((input_dim + output_dim) / np.sqrt(input_dim))
+    torch.nn.init.xavier_normal_(module.weight, gain=gain_value)
+    # torch.nn.init.zeros_(module.bias)
+    return
+
+
+class GBN(torch.nn.Module):
+    """
+    Ghost Batch Normalization
+    https://arxiv.org/abs/1705.08741
+    """
+
+    def __init__(self, input_dim, virtual_batch_size=128, momentum=0.01):
+        super(GBN, self).__init__()
+
+        self.input_dim = input_dim
+        self.virtual_batch_size = virtual_batch_size
+        self.bn = BatchNorm1d(self.input_dim, momentum=momentum)
+
+    def forward(self, x):
+        chunks = x.chunk(int(np.ceil(x.shape[0] / self.virtual_batch_size)), 0)
+        res = [self.bn(x_) for x_ in chunks]
+
+        return torch.cat(res, dim=0)
+
+
+class TabNetEncoder(torch.nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        output_dim,
+        n_d=8,
+        n_a=8,
+        n_steps=3,
+        gamma=1.3,
+        n_independent=2,
+        n_shared=2,
+        epsilon=1e-15,
+        virtual_batch_size=128,
+        momentum=0.02,
+        mask_type="sparsemax",
+    ):
+        """
+        Defines main part of the TabNet network without the embedding layers.
+        Parameters
+        ----------
+        input_dim : int
+            Number of features
+        output_dim : int or list of int for multi task classification
+            Dimension of network output
+            examples : one for regression, 2 for binary classification etc...
+        n_d : int
+            Dimension of the prediction  layer (usually between 4 and 64)
+        n_a : int
+            Dimension of the attention  layer (usually between 4 and 64)
+        n_steps : int
+            Number of successive steps in the network (usually between 3 and 10)
+        gamma : float
+            Float above 1, scaling factor for attention updates (usually between 1.0 to 2.0)
+        n_independent : int
+            Number of independent GLU layer in each GLU block (default 2)
+        n_shared : int
+            Number of independent GLU layer in each GLU block (default 2)
+        epsilon : float
+            Avoid log(0), this should be kept very low
+        virtual_batch_size : int
+            Batch size for Ghost Batch Normalization
+        momentum : float
+            Float value between 0 and 1 which will be used for momentum in all batch norm
+        mask_type : str
+            Either "sparsemax" or "entmax" : this is the masking function to use
+        """
+        super(TabNetEncoder, self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.is_multi_task = isinstance(output_dim, list)
+        self.n_d = n_d
+        self.n_a = n_a
+        self.n_steps = n_steps
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.n_independent = n_independent
+        self.n_shared = n_shared
+        self.virtual_batch_size = virtual_batch_size
+        self.mask_type = mask_type
+        self.initial_bn = BatchNorm1d(self.input_dim, momentum=0.01)
+
+        if self.n_shared > 0:
+            shared_feat_transform = torch.nn.ModuleList()
+            for i in range(self.n_shared):
+                if i == 0:
+                    shared_feat_transform.append(
+                        Linear(self.input_dim, 2 * (n_d + n_a), bias=False)
+                    )
+                else:
+                    shared_feat_transform.append(
+                        Linear(n_d + n_a, 2 * (n_d + n_a), bias=False)
+                    )
+
+        else:
+            shared_feat_transform = None
+
+        self.initial_splitter = FeatTransformer(
+            self.input_dim,
+            n_d + n_a,
+            shared_feat_transform,
+            n_glu_independent=self.n_independent,
+            virtual_batch_size=self.virtual_batch_size,
+            momentum=momentum,
+        )
+
+        self.feat_transformers = torch.nn.ModuleList()
+        self.att_transformers = torch.nn.ModuleList()
+
+        for step in range(n_steps):
+            transformer = FeatTransformer(
+                self.input_dim,
+                n_d + n_a,
+                shared_feat_transform,
+                n_glu_independent=self.n_independent,
+                virtual_batch_size=self.virtual_batch_size,
+                momentum=momentum,
+            )
+            attention = AttentiveTransformer(
+                n_a,
+                self.input_dim,
+                virtual_batch_size=self.virtual_batch_size,
+                momentum=momentum,
+                mask_type=self.mask_type,
+            )
+            self.feat_transformers.append(transformer)
+            self.att_transformers.append(attention)
+
+    def forward(self, x, prior=None):
+        x = self.initial_bn(x)
+
+        if prior is None:
+            prior = torch.ones(x.shape).to(x.device)
+
+        M_loss = 0
+        att = self.initial_splitter(x)[:, self.n_d :]
+
+        steps_output = []
+        for step in range(self.n_steps):
+            M = self.att_transformers[step](prior, att)
+            M_loss += torch.mean(
+                torch.sum(torch.mul(M, torch.log(M + self.epsilon)), dim=1)
+            )
+            # update prior
+            prior = torch.mul(self.gamma - M, prior)
+            # output
+            masked_x = torch.mul(M, x)
+            out = self.feat_transformers[step](masked_x)
+            d = ReLU()(out[:, : self.n_d])
+            steps_output.append(d)
+            # update attention
+            att = out[:, self.n_d :]
+
+        M_loss /= self.n_steps
+        return steps_output, M_loss
+
+    def forward_masks(self, x):
+        x = self.initial_bn(x)
+
+        prior = torch.ones(x.shape).to(x.device)
+        M_explain = torch.zeros(x.shape).to(x.device)
+        att = self.initial_splitter(x)[:, self.n_d :]
+        masks = {}
+
+        for step in range(self.n_steps):
+            M = self.att_transformers[step](prior, att)
+            masks[step] = M
+            # update prior
+            prior = torch.mul(self.gamma - M, prior)
+            # output
+            masked_x = torch.mul(M, x)
+            out = self.feat_transformers[step](masked_x)
+            d = ReLU()(out[:, : self.n_d])
+            # explain
+            step_importance = torch.sum(d, dim=1)
+            M_explain += torch.mul(M, step_importance.unsqueeze(dim=1))
+            # update attention
+            att = out[:, self.n_d :]
+
+        return M_explain, masks
+
+
+class TabNetDecoder(torch.nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        n_d=8,
+        n_steps=3,
+        n_independent=1,
+        n_shared=1,
+        virtual_batch_size=128,
+        momentum=0.02,
+    ):
+        """
+        Defines main part of the TabNet network without the embedding layers.
+        Parameters
+        ----------
+        input_dim : int
+            Number of features
+        output_dim : int or list of int for multi task classification
+            Dimension of network output
+            examples : one for regression, 2 for binary classification etc...
+        n_d : int
+            Dimension of the prediction  layer (usually between 4 and 64)
+        n_steps : int
+            Number of successive steps in the network (usually between 3 and 10)
+        gamma : float
+            Float above 1, scaling factor for attention updates (usually between 1.0 to 2.0)
+        n_independent : int
+            Number of independent GLU layer in each GLU block (default 1)
+        n_shared : int
+            Number of independent GLU layer in each GLU block (default 1)
+        virtual_batch_size : int
+            Batch size for Ghost Batch Normalization
+        momentum : float
+            Float value between 0 and 1 which will be used for momentum in all batch norm
+        """
+        super(TabNetDecoder, self).__init__()
+        self.input_dim = input_dim
+        self.n_d = n_d
+        self.n_steps = n_steps
+        self.n_independent = n_independent
+        self.n_shared = n_shared
+        self.virtual_batch_size = virtual_batch_size
+
+        self.feat_transformers = torch.nn.ModuleList()
+
+        if self.n_shared > 0:
+            shared_feat_transform = torch.nn.ModuleList()
+            for i in range(self.n_shared):
+                if i == 0:
+                    shared_feat_transform.append(Linear(n_d, 2 * n_d, bias=False))
+                else:
+                    shared_feat_transform.append(Linear(n_d, 2 * n_d, bias=False))
+
+        else:
+            shared_feat_transform = None
+
+        for step in range(n_steps):
+            transformer = FeatTransformer(
+                n_d,
+                n_d,
+                shared_feat_transform,
+                n_glu_independent=self.n_independent,
+                virtual_batch_size=self.virtual_batch_size,
+                momentum=momentum,
+            )
+            self.feat_transformers.append(transformer)
+
+        self.reconstruction_layer = Linear(n_d, self.input_dim, bias=False)
+        initialize_non_glu(self.reconstruction_layer, n_d, self.input_dim)
+
+    def forward(self, steps_output):
+        res = 0
+        for step_nb, step_output in enumerate(steps_output):
+            x = self.feat_transformers[step_nb](step_output)
+            res = torch.add(res, x)
+        res = self.reconstruction_layer(res)
+        return res
+
+class TabNetNoEmbeddings(torch.nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        output_dim,
+        n_d=8,
+        n_a=8,
+        n_steps=3,
+        gamma=1.3,
+        n_independent=2,
+        n_shared=2,
+        epsilon=1e-15,
+        virtual_batch_size=128,
+        momentum=0.02,
+        mask_type="sparsemax",
+    ):
+        """
+        Defines main part of the TabNet network without the embedding layers.
+        Parameters
+        ----------
+        input_dim : int
+            Number of features
+        output_dim : int or list of int for multi task classification
+            Dimension of network output
+            examples : one for regression, 2 for binary classification etc...
+        n_d : int
+            Dimension of the prediction  layer (usually between 4 and 64)
+        n_a : int
+            Dimension of the attention  layer (usually between 4 and 64)
+        n_steps : int
+            Number of successive steps in the network (usually between 3 and 10)
+        gamma : float
+            Float above 1, scaling factor for attention updates (usually between 1.0 to 2.0)
+        n_independent : int
+            Number of independent GLU layer in each GLU block (default 2)
+        n_shared : int
+            Number of independent GLU layer in each GLU block (default 2)
+        epsilon : float
+            Avoid log(0), this should be kept very low
+        virtual_batch_size : int
+            Batch size for Ghost Batch Normalization
+        momentum : float
+            Float value between 0 and 1 which will be used for momentum in all batch norm
+        mask_type : str
+            Either "sparsemax" or "entmax" : this is the masking function to use
+        """
+        super(TabNetNoEmbeddings, self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.is_multi_task = isinstance(output_dim, list)
+        self.n_d = n_d
+        self.n_a = n_a
+        self.n_steps = n_steps
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.n_independent = n_independent
+        self.n_shared = n_shared
+        self.virtual_batch_size = virtual_batch_size
+        self.mask_type = mask_type
+        self.initial_bn = BatchNorm1d(self.input_dim, momentum=0.01)
+
+        self.encoder = TabNetEncoder(
+            input_dim=input_dim,
+            output_dim=output_dim,
+            n_d=n_d,
+            n_a=n_a,
+            n_steps=n_steps,
+            gamma=gamma,
+            n_independent=n_independent,
+            n_shared=n_shared,
+            epsilon=epsilon,
+            virtual_batch_size=virtual_batch_size,
+            momentum=momentum,
+            mask_type=mask_type,
+        )
+
+        if self.is_multi_task:
+            self.multi_task_mappings = torch.nn.ModuleList()
+            for task_dim in output_dim:
+                task_mapping = Linear(n_d, task_dim, bias=False)
+                initialize_non_glu(task_mapping, n_d, task_dim)
+                self.multi_task_mappings.append(task_mapping)
+        else:
+            self.final_mapping = Linear(n_d, output_dim, bias=False)
+            initialize_non_glu(self.final_mapping, n_d, output_dim)
+
+    def forward(self, x):
+        res = 0
+        steps_output, M_loss = self.encoder(x)
+        res = torch.sum(torch.stack(steps_output, dim=0), dim=0)
+
+        if self.is_multi_task:
+            # Result will be in list format
+            out = []
+            for task_mapping in self.multi_task_mappings:
+                out.append(task_mapping(res))
+        else:
+            out = self.final_mapping(res)
+        return out, M_loss
+
+    def forward_masks(self, x):
+        return self.encoder.forward_masks(x)
+
 
 class SegmentDataLoader:
     def __init__(
@@ -141,13 +704,18 @@ class SegmentSumMLPModule(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, use_norm=False, add_sigmoid=False):
         super().__init__()
 
-        self.segment_encoder = torch.nn.Sequential(
-            torch.nn.Linear(in_dim, hidden_dim),
-            torch.nn.ReLU(),
-            torch.nn.Linear(hidden_dim, hidden_dim),
-            torch.nn.ReLU(),
-        )
-
+        print('building SegmentSumMLPModule.....')
+        self.segment_encoder = TabNetNoEmbeddings(in_dim, hidden_dim, 
+                                                    n_d=64,
+                                                    n_a=64,
+                                                    n_steps=7,
+                                                    gamma=1.3,
+                                                    n_independent=2,
+                                                    n_shared=2,
+                                                    epsilon=1e-15,
+                                                    virtual_batch_size=512,
+                                                    momentum=0.02,
+                                                    mask_type="entmax",)
         self.add_sigmoid = add_sigmoid
 
         if use_norm:
@@ -177,7 +745,7 @@ class SegmentSumMLPModule(torch.nn.Module):
 
         features = self.segment_encoder(
             features
-        )
+        )[0]
         segment_indices = torch.repeat_interleave(
             torch.arange(n_seg, device=device), segment_sizes
         )
@@ -201,115 +769,11 @@ class SegmentSumMLPModule(torch.nn.Module):
 
         return output
 
-class LSTMModuel(torch.nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim):
-        super().__init__()
-
-        self.segment_encoder = torch.nn.Sequential(
-            torch.nn.Linear(in_dim, hidden_dim),
-            torch.nn.ReLU(),
-            torch.nn.Linear(hidden_dim, hidden_dim),
-            torch.nn.ReLU(),
-        )
-
-        self.norm = torch.nn.Identity()
-
-        self.lstm = torch.nn.LSTM(hidden_dim, hidden_dim)
-        self.l0 = torch.nn.Sequential(
-            torch.nn.Linear(hidden_dim, hidden_dim),
-            torch.nn.ReLU(),
-        )
-        self.l1 = torch.nn.Sequential(
-            torch.nn.Linear(hidden_dim, hidden_dim),
-            torch.nn.ReLU(),
-        )
-        self.decoder = torch.nn.Linear(hidden_dim, out_dim)
-
-
-    def forward(self, segment_sizes, features, params=None):
-        features = self.segment_encoder(
-            features
-        )
-
-        seqs = []
-        ct = 0
-        for seg_size in segment_sizes:
-            seqs.append(features[ct: ct + seg_size])
-            ct += seg_size
-        output = torch.nn.utils.rnn.pad_sequence(seqs)
-
-        output, (h, c)  = self.lstm(output)
-        output = self.norm(h[0])
-        output = self.l0(output) + output
-        output = self.l1(output) + output
-
-        output = self.decoder(
-            output
-        ).squeeze()
-
-        return output
-
-
-
-class MHAModule(torch.nn.Module):
-    def __init__(self, in_dim, hidden_dim, num_heads, out_dim, add_sigmoid=False):
-        super().__init__()
-
-        self.add_sigmoid = add_sigmoid
-
-        self.encoder = torch.nn.Sequential(
-            torch.nn.Linear(in_dim, hidden_dim),
-            torch.nn.ReLU(),
-            torch.nn.Linear(hidden_dim, hidden_dim),
-            torch.nn.ReLU(),
-        )
-
-        self.l0 = torch.nn.MultiheadAttention(hidden_dim, num_heads)
-
-        self.decoder = torch.nn.Sequential(
-            torch.nn.Linear(hidden_dim, out_dim),
-        )
-
-    def forward(self, segment_sizes, features):
-        n_seg = segment_sizes.shape[0]
-        device = features.device
-
-        features = self.encoder(features)
-
-        seqs = []
-        ct = 0
-        for seg_size in segment_sizes:
-            seqs.append(features[ct: ct + seg_size])
-            ct += seg_size
-        output = torch.nn.utils.rnn.pad_sequence(seqs)
-
-        output = self.l0(output, output, output)[0] + output
-        output = self.decoder(output).sum(0).squeeze()
-
-        if self.add_sigmoid:
-            output = torch.sigmoid(output)
-
-        return output
-
-
 def make_net(params):
-    if params["type"] == "SegmentSumMLP":
-        return SegmentSumMLPModule(
+    return SegmentSumMLPModule(
             params["in_dim"], params["hidden_dim"], params["out_dim"],
             add_sigmoid=params['add_sigmoid']
         )
-    elif params["type"] == "MultiHeadAttention":
-        return MHAModule(
-            params['in_dim'], params['hidden_dim'], params['num_heads'], params['out_dim'],
-            add_sigmoid=params['add_sigmoid']
-        )
-    elif params["type"] == "LSTM":
-        return LSTMModuel(
-            params["in_dim"], params["hidden_dim"], params["out_dim"],
-        )
-    else:
-        raise ValueError("Invalid type: " + params["type"])
-
 
 def moving_average(average, update):
     if average is None:
@@ -318,11 +782,12 @@ def moving_average(average, update):
         return average * 0.95 + update * 0.05
 
 
-class MLPModelInternal:
-    def __init__(self, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=False,
-                 loss_type='lambdaRankLoss', assembly=True):
+class TabNetModelInternal:
+    def __init__(self, use_gpu=True, device=None, few_shot_learning="base_only", use_workload_embedding=True, use_target_embedding=False,
+                 loss_type='lambdaRankLoss'):
+        print('tabnet')
         if device is None:
-            if torch.cuda.device_count():
+            if torch.cuda.device_count() and use_gpu:
                 device = 'cuda:0'
             else:
                 device = 'cpu'
@@ -330,22 +795,14 @@ class MLPModelInternal:
         # Common parameters
         self.net_params = {
             "type": "SegmentSumMLP",
-            "in_dim": 164 + (3 if assembly else 0) + (10 if use_workload_embedding else 0),  
+            "in_dim": 164 + (10 if use_workload_embedding else 0),
             "hidden_dim": 256,
             "out_dim": 1,
         }
 
-        # self.net_params = {
-        #    "type": "MultiHeadAttention",
-        #    "in_dim": 164,
-        #    "num_heads": 8,
-        #    "hidden_dim": 1024,
-        #    "out_dim": 1,
-        # }
-
         self.target_id_dict = {}
         self.loss_type = loss_type
-        self.n_epoch = 100
+        self.n_epoch = 150
         self.lr = 7e-4
         
 
@@ -382,14 +839,6 @@ class MLPModelInternal:
         self.device = device
         self.print_per_epoches = 5
 
-        # Hyperparameters for MAML
-        self.meta_outer_lr = 7e-4
-        self.meta_inner_lr = 1e-2
-        self.meta_test_num_steps = 5
-        self.few_shot_number = 32
-        self.meta_batch_size_tasks = 8
-        self.meta_batch_size_per_task = 256
-
         # Hyperparameters for fine-tuning
         self.fine_tune_lr = 4e-2
         self.fine_tune_batch_size = 512
@@ -399,16 +848,10 @@ class MLPModelInternal:
         # models
         self.base_model = None
         self.local_model = {}
-        self.assembly = assembly
 
     def fit_base(self, train_set, valid_set=None, valid_train_set=None):
         if self.few_shot_learning == "local_only":
             self.base_model = None
-        elif self.few_shot_learning == "MAML":
-            raise NotImplemented
-            self.fine_tune_lr = self.meta_inner_lr
-            self.fine_tune_num_steps = self.meta_test_num_steps * 2
-            self.base_model = self._fit_a_MAML_model(train_set, valid_set, valid_train_set)
         else:
             self.base_model = self._fit_a_model(train_set, valid_set, valid_train_set)
 
@@ -430,7 +873,7 @@ class MLPModelInternal:
             self.loss_func = torch.nn.MSELoss()
             self.net_params['add_sigmoid'] = True
             base_preds = self._predict_a_dataset(self.base_model, train_set)
-            diff_train_set = Dataset(self.assembly)
+            diff_train_set = Dataset()
             for task in train_set.tasks():
                 diff_train_set.load_task_data(
                     task,
@@ -440,7 +883,7 @@ class MLPModelInternal:
 
             if valid_set:
                 base_preds = self._predict_a_dataset(self.base_model, valid_set)
-                diff_valid_set = Dataset(self.assembly)
+                diff_valid_set = Dataset()
                 for task in valid_set.tasks():
                     diff_valid_set.load_task_data(
                         task,
@@ -457,7 +900,7 @@ class MLPModelInternal:
         elif self.few_shot_learning == "plus_per_task":
             base_preds = self._predict_a_dataset(self.base_model, train_set)
             for task in train_set.tasks():
-                diff_train_set = Dataset(self.assembly)
+                diff_train_set = Dataset()
                 diff_train_set.load_task_data(
                     task,
                     train_set.features[task],
@@ -471,7 +914,7 @@ class MLPModelInternal:
             raise ValueError("Invalid few-shot learning method: " + self.few_shot_learning)
 
     def predict(self, dataset):
-        if self.few_shot_learning in ["base_only", "fine_tune_mix_task", "fine_tune_per_task", "MAML"]:
+        if self.few_shot_learning in ["base_only", "fine_tune_mix_task", "fine_tune_per_task"]:
             return self._predict_a_dataset(self.base_model, dataset)
         elif self.few_shot_learning in ["local_only_mix_task", "local_only_per_task"]:
             ret = {}
@@ -544,6 +987,7 @@ class MLPModelInternal:
             train_time = time.time() - tic
 
             if epoch % self.print_per_epoches == 0 or epoch == n_epoch - 1:
+
 
                 if valid_set and valid_loader:
                     valid_loss = self._validate(net, valid_loader)
@@ -652,111 +1096,6 @@ class MLPModelInternal:
             preds.append(model(segment_sizes, features))
         return torch.cat(preds).detach().cpu().numpy()
 
-    def _fit_a_MAML_model(self, train_set, valid_set=None, valid_train_set=None):
-        print("=" * 60 + "\nFit a MAML net. Train size: %d" % len(train_set))
-        batch_size_tasks = self.meta_batch_size_tasks
-        batch_size_per_task = self.meta_batch_size_per_task
-        few_shot_number = self.few_shot_number
-
-        print_per_batches = 20
-        n_batches = 3000
-        early_stop = 200
-
-        # Compute normalization vector over the whole dataset
-        if self.fea_norm_vec is None:
-            all_train_loader = SegmentDataLoader(
-                train_set, self.batch_size, self.device, self.use_workload_embedding,
-            )
-            self.fea_norm_vec = all_train_loader.normalize()
-            del all_train_loader
-
-        # Build dataloaders
-        train_loaders = {}
-        for task in train_set.feature_data:
-            task_dataset = train_set.extract_subset(task)
-            train_loaders[task] = SegmentDataLoader(
-                task_dataset, None, self.device, self.use_workload_embedding,
-                fea_norm_vec=self.fea_norm_vec, shuffle=True,
-            )
-
-        # Make network
-        net = make_net(self.net_params).to(self.device)
-        optimizer = torch.optim.Adam(
-            net.parameters(), lr=self.meta_outer_lr, weight_decay=self.wd
-        )
-
-        # Training
-        avg_outer_loss = None
-        avg_inner_loss = None
-        task_list = list(train_set.tasks())
-        best_batch = None
-        best_train_loss = 1e10
-        for batch in range(n_batches):
-            tasks = random.choices(task_list, k=batch_size_tasks)
-            net.train()
-            outer_loss = torch.tensor(0.0, device=self.device)
-            # outer loss
-            for task in tasks:
-                train_loader = train_loaders[task]
-
-                train_segment_sizes, train_features, train_labels = train_loader.sample_batch(
-                    few_shot_number
-                )
-                test_segment_sizes, test_features, test_labels = train_loader.sample_batch(
-                    batch_size_per_task
-                )
-
-                # inner loss
-                params = OrderedDict(net.meta_named_parameters())
-                for _ in range(self.meta_test_num_steps):
-                    inner_loss = self.loss_func(
-                        net(train_segment_sizes, train_features, params=params), train_labels
-                    )
-                    params = gradient_update_parameters(
-                        net,
-                        inner_loss,
-                        params=params,
-                        step_size=self.meta_inner_lr,
-                        first_order=False,
-                    )
-                    avg_inner_loss = moving_average(avg_inner_loss, inner_loss.item())
-
-                # acculate gradient for meta-update
-                outer_loss += self.loss_func(
-                    net(test_segment_sizes, test_features, params=params), test_labels
-                )
-
-            optimizer.zero_grad()
-            outer_loss /= len(tasks)
-            outer_loss.backward()
-            torch.nn.utils.clip_grad_norm_(net.parameters(), self.grad_clip)
-            optimizer.step()
-
-            avg_outer_loss = moving_average(avg_outer_loss, outer_loss.item())
-
-            if batch % print_per_batches == 0 or batch == n_batches - 1:
-                # validate
-                valid_loss = self._validate(net, valid_set, valid_train_set, verbose=0)
-                print(
-                    "Task Batch: %d\tOuter RMSE: %.4f\tInner RMSE: %.4f\tValid RMSE: %.4f"
-                    % (
-                        batch,
-                        np.sqrt(avg_outer_loss),
-                        np.sqrt(avg_inner_loss),
-                        np.sqrt(valid_loss),
-                    )
-                )
-
-            # Early stop
-            if avg_outer_loss < best_train_loss:
-                best_train_loss = avg_outer_loss
-                best_batch = batch
-            elif batch - best_batch >= early_stop:
-                print("Early stop. Best batch: %d" % best_batch)
-                break
-
-        return net
-
     def load(self, filename):
         if self.device == 'cpu':
             self.base_model, self.local_model, self.few_shot_learning, self.fea_norm_vec = \
@@ -783,15 +1122,15 @@ class CPU_Unpickler(pickle.Unpickler):
             return super().find_class(module, name)
 
 
-class MLPModel(PythonBasedModel):
-    """The wrapper of MLPModelInternal. So we can use it in end-to-end search."""
+class TabNetModel(PythonBasedModel):
+    """The wrapper of TabNetModelInternal. So we can use it in end-to-end search."""
 
-    def __init__(self, few_shot_learning="base_only", disable_update=False, assembly=True):
+    def __init__(self, few_shot_learning="base_only", disable_update=False):
         super().__init__()
 
         self.disable_update = disable_update
-        self.model = MLPModelInternal(few_shot_learning=few_shot_learning, assembly=assembly)
-        self.dataset = Dataset(self.assembly)
+        self.model = TabNetModelInternal(few_shot_learning=few_shot_learning)
+        self.dataset = Dataset()
 
     def update(self, inputs, results):
         if self.disable_update or len(inputs) <= 0:
@@ -799,10 +1138,10 @@ class MLPModel(PythonBasedModel):
         tic = time.time()
         self.dataset.update_from_measure_pairs(inputs, results)
         self.model.fit_base(self.dataset)
-        logger.info("MLPModel Training time: %.2f s", time.time() - tic)
+        logger.info("TabNetModel Training time: %.2f s", time.time() - tic)
 
     def predict(self, task, states):
-        features = get_per_store_features_from_states(states, task, assembly=self.assembly)
+        features = get_per_store_features_from_states(states, task)
         if self.model is not None:
             learning_task = LearningTask(task.workload_key, str(task.target))
             eval_dataset = Dataset.create_one_task(learning_task, features, None)
@@ -819,7 +1158,7 @@ class MLPModel(PythonBasedModel):
 
     def update_from_file(self, file_name, n_lines=None):
         inputs, results = RecordReader(file_name).read_lines(n_lines)
-        logger.info("MLPModel: Loaded %s measurement records from %s", len(inputs), file_name)
+        logger.info("TabNetModel: Loaded %s measurement records from %s", len(inputs), file_name)
         self.update(inputs, results)
 
     def save(self, file_name: str):
@@ -827,7 +1166,7 @@ class MLPModel(PythonBasedModel):
 
     def load(self, file_name: str):
         if self.model is None:
-            self.model = MLPModelInternal()
+            self.model = TabNetModelInternal()
         self.model.load(file_name)
         self.num_warmup_sample = -1
 
