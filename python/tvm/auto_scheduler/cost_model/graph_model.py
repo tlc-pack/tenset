@@ -80,7 +80,7 @@ class LambdaRankLoss(torch.nn.Module):
 
 class _GNN(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim):
-        super(GNN, self).__init__()
+        super(_GNN, self).__init__()
         self.conv1 = dglnn.TAGConv(node_dim, hidden_dim)
         self.conv2 = dglnn.TAGConv(hidden_dim, hidden_dim)
         self.conv3 = dglnn.TAGConv(hidden_dim, hidden_dim)
@@ -106,7 +106,7 @@ class _GNN(torch.nn.Module):
 
 class GNN(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim):
-        super(_GNN, self).__init__()
+        super(GNN, self).__init__()
         self.msg = torch.nn.Linear(node_dim + edge_dim, hidden_dim)
         self.conv1 = dglnn.TAGConv(hidden_dim + node_dim, hidden_dim)
         self.conv2 = dglnn.TAGConv(hidden_dim, hidden_dim)
