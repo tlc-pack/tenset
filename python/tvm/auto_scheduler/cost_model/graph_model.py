@@ -219,6 +219,7 @@ class GraphModel(PythonBasedModel):
                 #torch.nn.utils.clip_grad_norm_(self.GNN.parameters(), 10)
                 print('=======')
                 print(list(self.GNN.conv1.parameters()))
+                for x in list(self.GNN.conv1.parameters()): print(x.grad)
                 opt.step()
                 print(list(self.GNN.conv1.parameters()))
                 pred = prediction.squeeze().cpu().tolist()
