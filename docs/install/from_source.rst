@@ -34,7 +34,7 @@ It is important to clone the submodules along, with ``--recursive`` option.
 
 .. code:: bash
 
-    git clone --recursive https://github.com/apache/tvm tvm
+    git clone --recursive https://github.com/tlc-pack/tenset.git tvm
 
 For windows users who use github tools, you can open the git shell, and type the following command.
 

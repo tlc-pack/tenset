@@ -25,8 +25,10 @@ This repo is based on a fork of [TVM](https://github.com/apache/tvm).
   | NVIDIA Tesla T4  | AWS g4dn.xlarge | Turing Architecture |
 
 
-## Get Started with the Cost Model Experiments
-See this [tutorial](docs/get_started_with_cost_model_experiments.md).
+## Tutorials
+- [Get Started with the Cost Model Experiments](docs/get_started_with_cost_model_experiments.md)
+- [Using Pre-trained Models on AWS c5.9xlarge (or Any Other x86 CPUs with AVX-512)](docs/try_pretrained_models_on_aws_c59x.md)
+
 
 ## Organization
 Follow the above tutorial to download the dataset. The dataset is stored under `tenset/scripts/dataset` folder.

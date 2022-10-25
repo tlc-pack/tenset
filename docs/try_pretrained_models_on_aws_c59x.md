@@ -9,8 +9,7 @@ torchvision==0.8.2
 ```
 
 ## Steps
-1. Build this fork of TVM following the [install guide](https://tvm.apache.org/docs/install/index.html) of TVM.
-If the latest TVM documentation does not work, you can follow the [old copy](install/from_source.rst) in this repo.
+1. Build and install this fork of TVM following the [guide](install/from_source.rst).
 
 2. Download the CPU dataset.
 ```
