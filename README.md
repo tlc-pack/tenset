@@ -103,6 +103,15 @@ Follow the above tutorial to download the dataset. You can then inspect the task
               T_relu = ...
   ```
 
+## Citation
+```
+@inproceedings{zheng2021tenset,
+  title={Tenset: A large-scale program performance dataset for learned tensor compilers},
+  author={Zheng, Lianmin and Liu, Ruochen and Shao, Junru and Chen, Tianqi and Gonzalez, Joseph E and Stoica, Ion and Ali, Ameer Haj},
+  booktitle={Thirty-fifth Conference on Neural Information Processing Systems Datasets and Benchmarks Track (Round 1)},
+  year={2021}
+}
+```
 
 ## License
 The code is licensed under an [Apache-2.0](LICENSE) license.  
