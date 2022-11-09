@@ -21,18 +21,19 @@ DATASET_FORMAT_VERSION = 0.1
 
 
 class Dataset:
-    def __init__(self):
+    def __init__(self, assembly=True):
         self.raw_files = None
 
         self.features = OrderedDict()      # Dict[LearningTask -> feature]
         self.throughputs = OrderedDict()   # Dict[LearningTask -> normalized_throughputs]
         self.min_latency = {}              # Dict[LearningTask -> min latency]
         self.measure_records = {}          # Dict[LearningTask -> Tuple[List[MeasureInput], List[MeasureResult]]
+        self.assembly = assembly
 
     @staticmethod
-    def create_one_task(task, features, throughputs, min_latency=None):
+    def create_one_task(task, features, throughputs, min_latency=None, assembly=True):
         """Create a new dataset with one task and its feature and throughput data"""
-        ret = Dataset()
+        ret = Dataset(assembly)
         ret.load_task_data(task, features, throughputs, min_latency)
         return ret
 
@@ -49,7 +50,7 @@ class Dataset:
 
         for task, (inputs, results) in new_data.items():
             features, normalized_throughputs, task_ids, min_latency =\
-                get_per_store_features_from_measure_pairs(inputs, results)
+                get_per_store_features_from_measure_pairs(inputs, results, assembly=self.assembly)
 
             assert not np.any(task_ids)   # all task ids should be zero
             assert len(min_latency) == 1  # should have only one task
@@ -91,8 +92,8 @@ class Dataset:
         """Randomly split the dataset into a training set and a test set.
         Do the split within each task. A measurement record is a basic unit.
         """
-        train_set = Dataset()
-        test_set = Dataset()
+        train_set = Dataset(self.assembly)
+        test_set = Dataset(self.assembly)
 
         assert train_set_ratio is not None or train_set_num is not None
 
@@ -132,8 +133,8 @@ class Dataset:
 
         train_records = int(len(self) * train_set_ratio)
 
-        train_set = Dataset()
-        test_set = Dataset()
+        train_set = Dataset(self.assembly)
+        test_set = Dataset(self.assembly)
         ct = 0
         for task in tasks:
             features, throughputs = self.features[task], self.throughputs[task]
@@ -158,8 +159,8 @@ class Dataset:
 
         train_records = int(len(self) * train_set_ratio)
 
-        train_set = Dataset()
-        test_set = Dataset()
+        train_set = Dataset(self.assembly)
+        test_set = Dataset(self.assembly)
         ct = 0
         for target in targets:
             tmp_adder = 0
@@ -190,7 +191,7 @@ class Dataset:
 
     def extract_subset(self, tasks: List[LearningTask]) -> "Dataset":
         """Extract a subset containing given tasks"""
-        ret = Dataset()
+        ret = Dataset(self.assembly)
         for task in tasks:
             if not (task in self.features):
                 continue
@@ -207,14 +208,14 @@ class Dataset:
         return sum(len(x) for x in self.throughputs.values())
 
 
-def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
+def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1, assembly=True):
     """Make a dataset file from raw log files"""
     from tqdm import tqdm
 
-    cache_folder = ".dataset_cache"
+    cache_folder = ".dataset_cache_assembly"
     os.makedirs(cache_folder, exist_ok=True)
 
-    dataset = Dataset()
+    dataset = Dataset(assembly)
     dataset.raw_files = log_files
     for filename in tqdm(log_files):
         assert os.path.exists(filename), f"{filename} does not exist."
@@ -239,7 +240,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
             min_latency = {}
             for task, (inputs, results) in measure_records.items():
                 features_, normalized_throughputs, task_ids, min_latency_ =\
-                    get_per_store_features_from_measure_pairs(inputs, results)
+                    get_per_store_features_from_measure_pairs(inputs, results, assembly=assembly)
 
                 assert not np.any(task_ids)   # all task ids should be zero
                 if len(min_latency_) == 0:
@@ -271,6 +272,7 @@ def make_dataset_from_log_file(log_files, out_file, min_sample_size, verbose=1):
         del dataset.throughputs[task]
         del dataset.min_latency[task]
 
+    dataset.assembly = assembly
     # Save to disk
     pickle.dump(dataset, open(out_file, "wb"))
 

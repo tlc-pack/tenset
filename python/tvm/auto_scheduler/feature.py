@@ -40,13 +40,14 @@ DEFAULT_MAX_N_BUFS = 5
 
 # The length of the feature vector
 DEFAULT_FEATURE_VEC_LEN = 164
+ASSEMBLY_VEC_LEN = 3
 
 # The size of int and float in bytes
 SIZE_OF_INT32 = 4
 SIZE_OF_FLOAT32 = 4
 
 
-def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def unpack_feature(byte_arr: bytearray, assembly: bool) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Unpack the flatten feature (in byte array format) from c++
 
     Parameters
@@ -89,6 +90,7 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
     into a single float array.
     """
     vec_len = DEFAULT_FEATURE_VEC_LEN
+    if assembly: vec_len += ASSEMBLY_VEC_LEN
 
     # unpack sizes
     offset = 0
@@ -158,7 +160,8 @@ def unpack_feature(byte_arr: bytearray) -> Tuple[np.ndarray, np.ndarray, np.ndar
     )
 
 def get_per_store_features_from_file(
-    filename: str, max_lines: int, max_n_bufs: Optional[int] = None
+    filename: str, max_lines: int, max_n_bufs: Optional[int] = None,
+    assembly: bool = True
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Get per-store features from a log file
 
@@ -183,16 +186,16 @@ def get_per_store_features_from_file(
             Minimal latency for tasks
     """
     byte_arr = _ffi_api.GetPerStoreFeaturesFromFile(
-        filename, max_lines, max_n_bufs or DEFAULT_MAX_N_BUFS
+        filename, max_lines, max_n_bufs or DEFAULT_MAX_N_BUFS, assembly
     )
-    return unpack_feature(byte_arr)
+    return unpack_feature(byte_arr, assembly)
 
 
 def get_per_store_features_from_measure_pairs(
     inputs: List[MeasureInput],
     results: List[MeasureResult],
     skip_first_n_feature_extraction: int = 0,
-    max_n_bufs: Optional[int] = None,
+    max_n_bufs: Optional[int] = None, assembly: bool = True
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Get per-store features from measurement input/result pairs
 
@@ -219,13 +222,13 @@ def get_per_store_features_from_measure_pairs(
         Minimal latency for tasks
     """
     byte_arr = _ffi_api.GetPerStoreFeaturesFromMeasurePairs(
-        inputs, results, skip_first_n_feature_extraction, max_n_bufs or DEFAULT_MAX_N_BUFS
+        inputs, results, skip_first_n_feature_extraction, max_n_bufs or DEFAULT_MAX_N_BUFS, assembly
     )
     return unpack_feature(byte_arr)
 
 
 def get_per_store_features_from_states(
-    states: List[Union[State, StateObject]], task: "SearchTask", max_n_bufs: Optional[int] = None
+    states: List[Union[State, StateObject]], task: "SearchTask", max_n_bufs: Optional[int] = None, assembly: bool = True
 ) -> np.ndarray:
     """Get per-store features from measurement input/result pairs
 
@@ -244,12 +247,12 @@ def get_per_store_features_from_states(
     elif isinstance(states[0], StateObject):
         state_objects = states
     byte_arr = _ffi_api.GetPerStoreFeaturesFromStates(
-        state_objects, task, max_n_bufs or DEFAULT_MAX_N_BUFS
+        state_objects, task, max_n_bufs or DEFAULT_MAX_N_BUFS, assembly
     )
     return unpack_feature(byte_arr)[0]
 
 
-def get_per_store_feature_names(max_n_bufs: Optional[int] = None) -> List[str]:
+def get_per_store_feature_names(max_n_bufs: Optional[int] = None, assembly: bool = True) -> List[str]:
     """Get the name of every element in the feature vector. Use this for debug and inspection.
 
     Parameters
@@ -262,4 +265,4 @@ def get_per_store_feature_names(max_n_bufs: Optional[int] = None) -> List[str]:
     names: List[str]
         The names of elements in the flatten feature vector
     """
-    return _ffi_api.GetPerStoreFeatureNames(max_n_bufs or DEFAULT_MAX_N_BUFS)
+    return _ffi_api.GetPerStoreFeatureNames(max_n_bufs or DEFAULT_MAX_N_BUFS, assembly)

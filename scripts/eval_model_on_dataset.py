@@ -40,7 +40,7 @@ def eval_cost_model_on_weighted_tasks(model, eval_task_dict, eval_dataset, top_k
     return latencies, best_latency
 
 
-def eval_cost_model_on_network(model, network_key, target, top_ks):
+def eval_cost_model_on_network(model, network_key, target, top_ks, assembly=True):
     # Read tasks of the network
     target = tvm.target.Target(target)
     task_info_filename = get_task_info_filename(network_key, target)
@@ -58,7 +58,7 @@ def eval_cost_model_on_network(model, network_key, target, top_ks):
 
         # make a dataset
         auto_scheduler.dataset.make_dataset_from_log_file(
-            filenames, dataset_file, min_sample_size=0)
+            filenames, dataset_file, min_sample_size=0, assembly=assembly)
     dataset = pickle.load(open(dataset_file, "rb"))
 
     eval_res = evaluate_model(model, dataset)
