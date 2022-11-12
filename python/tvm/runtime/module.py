@@ -388,7 +388,7 @@ class Module(object):
             kwargs.update({"options": opts})
 
         return fcompile(file_name, files, **kwargs)
-
+    
 
 def system_lib():
     """Get system-wide library module singleton.

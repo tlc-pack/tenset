@@ -263,6 +263,13 @@ class ComputeDAG : public ObjectRef {
   String PrintStepsAsPython(const Array<Step>& transform_steps) const;
 
   /*!
+   * \brief Compute the access matrix of compute DAG.
+   * \param enabled Enables feature extraction.
+   * \return The flattened access matrix.
+   */
+  std::vector<int> ComputeAccessMatrix(bool enabled = true) const;
+
+  /*!
    * \brief Print the compute DAG to a string. This is also used to generate the ComputeDAG hash.
    * \param simple_mode Simple mode will only include the op names and brief compute.
    * \return The ComputeDAG in a string.

@@ -73,11 +73,11 @@ def eval_cost_model_on_network(model, network_key, target, top_ks):
     return eval_cost_model_on_weighted_tasks(model, task_dict, dataset, top_ks)
 
 
-def eval_cost_model_on_network_combined(model, network_keys, target):
+def eval_cost_model_on_network_combined(model, network_keys, target, access_matrix=True):
     target = tvm.target.Target(target)
     task = []
     task_weights = []
-    dataset = Dataset()
+    dataset = Dataset(access_matrix)
     for network_key in network_keys:
         task_info_filename = get_task_info_filename(network_key, target)
         tmp_tasks, tmp_task_weights = pickle.load(open(task_info_filename, "rb"))
