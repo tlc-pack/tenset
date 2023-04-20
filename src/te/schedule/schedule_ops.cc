@@ -319,7 +319,7 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
   Stmt body = Stmt();
   std::unordered_map<IterVar, Range> dom_map = as_unordered_map(dom_map_);
   // scan init and scan updates
-  std::unordered_map<Operation, Operation> scan_init;
+  std::unordered_map<Operation, Operation> scan_init;  
   for (Stage s : sch->stages) {
     const ScanOpNode* scan = s->op.as<ScanOpNode>();
     if (!scan) continue;
@@ -332,14 +332,17 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
       }
     }
   }
+
   // verify correctness of group.
   for (Stage g : sch->groups) {
     ICHECK(!g->op.defined());
     ICHECK_EQ(g->leaf_iter_vars.size(), 0U);
   }
+
   // reverse the post DFS order.
   for (size_t i = sch->stages.size(); i != 0; --i) {
     Stage s = sch->stages[i - 1];
+
     ICHECK_NE(s->attach_type, kInline) << "call schedule.normalize before scheduleops";
     ICHECK(s->op.defined());
     // no need to specify place holder op.
@@ -374,6 +377,7 @@ Stmt ScheduleOps(Schedule sch, Map<IterVar, Range> dom_map_, bool debug_keep_tri
           << body;
     }
   }
+
   SchedulePostProc post_proc;
   post_proc.Init(sch);
   return post_proc(std::move(body));

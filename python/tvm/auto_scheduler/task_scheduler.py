@@ -31,11 +31,12 @@ import pickle
 import numpy as np
 
 from .search_policy import SearchPolicy, SketchPolicy, PreloadMeasuredStates
-from .cost_model import RandomModel, XGBModel, MLPModel, LGBModel, TabNetModel
+from .cost_model import RandomModel, XGBModel, MLPModel, GraphModel, LGBModel, TabNetModel
 from .utils import array_mean
 from .measure import ProgramMeasurer, EmptyBuilder, EmptyRunner
 from .measure_record import RecordReader
 from .dataset import make_dataset_from_log_file
+from .graph_dataset import make_dataset_from_log_file as make_graph_dataset_from_log_file
 from . import _ffi_api
 
 logger = logging.getLogger("auto_scheduler")
@@ -91,7 +92,7 @@ def make_search_policies(
 
     if isinstance(search_policy, str):
         policy_type, model_type = search_policy.split(".")
-        if model_type in ['xgb', 'xgb-no-update', 'mlp', 'mlp-no-update', 'tab', 'tab-no-update']:
+        if model_type in ['xgb', 'xgb-no-update', 'mlp', 'mlp-no-update', 'gnn', 'gnn-no-update', 'tab', 'tab-no-update']:
             if model_type == 'xgb-no-update' or model_type == 'mlp-no-update' or model_type == 'tab-no-update':
                 disable_cost_model_update = True
             if model_type in ['xgb', 'xgb-no-update']:
@@ -100,17 +101,32 @@ def make_search_policies(
                     disable_update=disable_cost_model_update,
                     few_shot_learning=few_shot_learning
                 )
+
             elif model_type in ['tab', 'tab-no-update']:
                 cost_model = TabNetModel(
                     disable_update=disable_cost_model_update,
                     few_shot_learning=few_shot_learning
                 )
-            else:
+            elif model_type in ['mlp', 'mlp-no-update']:
                 cost_model = MLPModel(
                     disable_update=disable_cost_model_update,
                     few_shot_learning=few_shot_learning
                 )
-            if few_shot_learning == 'plus_mix_task' or few_shot_learning == 'plus_per_task':
+            else:
+                cost_model = GraphModel(
+                    disable_update=disable_cost_model_update,
+                    few_shot_learning=few_shot_learning
+                )
+            
+            if model_type in ['gnn', 'gnn-no-update'] and (few_shot_learning == 'plus_mix_task' or few_shot_learning == 'plus_per_task'):
+                # load base model
+                cost_model.load(load_model_file)
+                cost_model.model.few_shot_learning = few_shot_learning
+                dataset_file = 'tmp_dataset.pkl'
+                make_graph_dataset_from_log_file([load_log_file], dataset_file, min_sample_size=1)
+                local_dataset = pickle.load(open(dataset_file, 'rb'))
+                cost_model.model.fit_local(local_dataset)
+            elif few_shot_learning == 'plus_mix_task' or few_shot_learning == 'plus_per_task':
                 # load base model
                 cost_model.load(load_model_file)
                 cost_model.model.few_shot_learning = few_shot_learning
